@@ -49,13 +49,14 @@ The CAT6 daisy chain carries 24 V logic power and CAN, with ESP-NOW radio as a b
 | [06 Pneumatics and ducting](docs/06_pneumatics_and_ducting.md) | Layout, control loops, purge, material policy, heat budget, filter |
 | [07 Firmware and comms](docs/07_firmware_and_comms.md) | Firmware, zmod plugin, G-code API, protocols, notifications, dashboard |
 | [08 Printable parts](docs/08_printable_catalog.md) | Existing models to verify and custom parts to design |
+| [13 Build your own](docs/13_build_your_own.md) | Quick start: does it fit, plan your fleet, staged build, reading order |
 | [12 Porting guide](docs/12_porting_guide.md) | Adding other printers: printer packs, link tiers, profile schema, mechanical interface, safety contract, licensing |
 | [Design decisions](docs/design_decisions.md) | Decision record D1–D44, the cost-reduction pass and the trade studies behind them |
 
 ## Repository layout (Phase 2)
 
 ```text
-├── LICENSES/                # Licence texts (REUSE); every file has an SPDX header
+├── LICENSES/                # Licence texts (REUSE); source files carry SPDX headers
 ├── docs/                    # Design documents (this baseline)
 ├── printers/                # Printer packs (doc 12): _template, flashforge_ad5x, flashforge_c5pro
 ├── firmware/
@@ -77,4 +78,12 @@ Keep your own build (which printers, where the duct runs, which plugs and suppli
 
 ## Licence
 
-The planned licensing is in [doc 12](docs/12_porting_guide.md): MIT for firmware, CERN-OHL-P-2.0 for hardware, CC BY 4.0 for docs and CAD. Until the per-file SPDX headers land in Phase 2, the [LICENSE](LICENSE) file applies.
+By area (details in [doc 12 §8](docs/12_porting_guide.md#8-licensing-and-contributions)):
+
+| Area | Licence |
+|---|---|
+| Firmware, klippy extra, scripts | MIT ([LICENSE](LICENSE)) |
+| Hardware designs (PCBs) | CERN-OHL-P-2.0 |
+| Docs, printed-part CAD | CC BY 4.0 |
+
+Licence texts are in [`LICENSES/`](LICENSES/) and files are labelled following the [REUSE](https://reuse.software/) spec ([`REUSE.toml`](REUSE.toml) covers the docs and printer packs; source files added in Phase 2 carry their own SPDX headers). Contributions: see [CONTRIBUTING.md](CONTRIBUTING.md).

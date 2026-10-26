@@ -154,6 +154,7 @@ Prints started from the touchscreen, the Flashforge app or FlashPrint follow the
 | 08 | Printable parts catalogue |
 | Design decisions | Decision record D1–D44, cost-reduction pass, trade studies T1–T3 |
 | 12 | Porting guide: printer packs, link tiers, profile schema, mechanical interface, safety contract, licensing |
+| 13 | Build-your-own quick start |
 | `printers/` | Printer packs: AD5X and C5 Pro specifics (enclosure mods, USB connection point, Klipper integration, printer-specific parts) |
 
 ## 7. Risk and open-item register
