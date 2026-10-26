@@ -1,0 +1,16 @@
+version = 1
+
+# Bulk licence labelling (REUSE spec 3.2). Source files added in Phase 2 carry their
+# own SPDX headers; anything not listed here must have one, or `reuse lint` fails.
+
+[[annotations]]
+path = ["docs/**", "printers/**", "README.md", "CONTRIBUTING.md"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Fleet Exhaust & Filtration Project Contributors"
+SPDX-License-Identifier = "CC-BY-4.0"
+
+[[annotations]]
+path = ["LICENSE", ".gitignore", "REUSE.toml", ".github/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Fleet Exhaust & Filtration Project Contributors"
+SPDX-License-Identifier = "MIT"
