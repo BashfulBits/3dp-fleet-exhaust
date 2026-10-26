@@ -25,7 +25,7 @@ Thanks for helping. This project is a design framework for a shared exhaust, fil
 ## Licences
 
 - Firmware, scripts and the klippy extra: MIT. Hardware designs: CERN-OHL-P-2.0. Docs and printed-part CAD: CC BY 4.0. See [doc 12 §8](docs/12_porting_guide.md#8-licensing-and-contributions).
-- The repo follows the [REUSE](https://reuse.software/) spec: new source files carry an SPDX header (`SPDX-License-Identifier: MIT`, `CERN-OHL-P-2.0` or `CC-BY-4.0`) and licence texts live in `LICENSES/`.
+- The repo follows the [REUSE](https://reuse.software/) spec: new source files carry an SPDX licence header naming MIT, CERN-OHL-P-2.0 or CC-BY-4.0, and licence texts live in `LICENSES/`. The CERN-OHL-P-2.0 text is added with the first hardware files.
 - **Do not copy code from GPL or AGPL projects** (FLOOK32, Nevermore Controller and similar). Ideas are fine; code is not.
 - By contributing you agree your work is released under the licence for its area.
 

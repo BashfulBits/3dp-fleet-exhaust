@@ -86,4 +86,4 @@ By area (details in [doc 12 §8](docs/12_porting_guide.md#8-licensing-and-contri
 | Hardware designs (PCBs) | CERN-OHL-P-2.0 |
 | Docs, printed-part CAD | CC BY 4.0 |
 
-Licence texts are in [`LICENSES/`](LICENSES/) and files are labelled following the [REUSE](https://reuse.software/) spec ([`REUSE.toml`](REUSE.toml) covers the docs and printer packs; source files added in Phase 2 carry their own SPDX headers). Contributions: see [CONTRIBUTING.md](CONTRIBUTING.md).
+Licence texts are in [`LICENSES/`](LICENSES/) (the CERN-OHL-P-2.0 text arrives with the first hardware files) and files are labelled following the [REUSE](https://reuse.software/) spec ([`REUSE.toml`](REUSE.toml) covers the docs and printer packs; source files added in Phase 2 carry their own SPDX headers). Contributions: see [CONTRIBUTING.md](CONTRIBUTING.md).
