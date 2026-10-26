@@ -1,0 +1,27 @@
+# PlatformIO
+.pio/
+.vscode/
+*.bin
+*.elf
+*.hex
+*.uf2
+
+# KiCad
+*.kicad_prl
+*-save.kicad_pcb
+*-save.kicad_sch
+*.bak
+*.step.bak
+
+# Slicer
+*.gcode.bak
+*.3mf.bak
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude
+.claude/
+CLAUDE.md
+CLAUDE.local.md

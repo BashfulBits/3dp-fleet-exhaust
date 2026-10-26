@@ -1,0 +1,22 @@
+# Printer profile (schema: doc 12 §4). Optional keys at their defaults are left unset.
+schema: 1
+id: flashforge_ad5x
+name: Flashforge AD5X (enclosure kit, zmod)
+link: usb_serial
+link_backup: moonraker
+role: node-heat
+chamber:
+  cap_c: 60              # sealed + insulated, all printed parts ASA/ABS (D26); hard limit 65
+  native_heater: false
+heater:
+  allowed: true
+  max_w: 150
+  supply: printer_tap    # or upgraded_internal / din_brick, per the O1 check
+  bed_interlock: true    # false with din_brick
+door:
+  source: node_reed
+outputs:
+  b1: recirculation blower (E7, O3)
+power:                   # cross-check only on this printer (doc 07 §6.5)
+  idle_w: TBD
+  printing_w: TBD

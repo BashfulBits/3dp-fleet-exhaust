@@ -1,0 +1,24 @@
+# Printer profile (schema: doc 12 §4). Optional keys at their defaults are left unset.
+schema: 1
+id: flashforge_c5pro
+name: Flashforge Creator 5 Pro (zmod)
+link: usb_serial         # moonraker if O10 finds no cdc_acm
+link_backup: moonraker
+role: node-lite
+chamber:
+  cap_c: 65              # Flashforge spec: active chamber heating to 65 °C; the node never heats
+  native_heater: true
+door:
+  source: link
+  objects: [topDoor, frontDoor]
+klipper:
+  chamber_sensor: native # the node's port-air reading registers as fleet_exhaust_air
+  m141_m191: native
+  modes:
+    heated: AIR_CIRCULATION_INTERNAL
+    cooling: AIR_CIRCULATION_EXTERNAL
+    purge: AIR_CIRCULATION_EXTERNAL
+    done: AIR_CIRCULATION_STOP
+power:                   # cross-check only on this printer (doc 07 §6.5)
+  idle_w: TBD
+  printing_w: TBD

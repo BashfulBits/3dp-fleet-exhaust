@@ -1,0 +1,34 @@
+# Printer profile (schema: doc 12 §4). Copy this pack to printers/<vendor>_<model>/.
+# Unknown keys are rejected. A profile can only make limits stricter (doc 12 §6).
+# Required keys are set below. Optional keys are commented out with their core
+# defaults: leave them unset unless you need a different value.
+schema: 1
+id: vendor_model         # same as the folder name
+name: Vendor Model
+link: power_only         # usb_serial | moonraker | octoprint | prusalink | bambu_mqtt | power_only
+role: node-lite          # node-heat | node-lite
+chamber:
+  cap_c: 45              # from the weakest material in the chamber; never above 60 with a node heater
+  native_heater: false
+power:                   # required when link or link_backup is power_only (doc 07 §6.5)
+  idle_w: TBD            # measured with the plug at commissioning
+  printing_w: TBD
+
+# --- optional (core defaults shown) ---
+# link_backup: power_only      # usually moonraker on Klipper printers
+# heater:                      # all four required once allowed is true
+#   allowed: false             # true needs role node-heat and a Tier 1 or 2 link
+#   max_w: 0
+#   supply: din_brick          # printer_tap | upgraded_internal | din_brick | barrel_brick
+#   bed_interlock: false       # true when the heater shares the printer's supply
+# door:
+#   source: none               # node_reed | link | none
+#   objects: []
+# klipper:
+#   chamber_sensor: fleet_node # fleet_node | native
+#   m141_m191: plugin          # plugin | native
+#   modes: {}                  # macros per fleet mode: heated, cooling, purge, done
+# purge: {}                    # per-material overrides of doc 06 §6
+# outputs:
+#   b1: spare
+#   b2: spare
