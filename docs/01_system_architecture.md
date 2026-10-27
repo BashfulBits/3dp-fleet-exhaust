@@ -1,6 +1,6 @@
 # 01 - System Architecture
 
-> **Status:** Phase 1 design baseline, 2026-10-25, updated 2026-10-26. Every decision is recorded as D1–D44 in [design_decisions.md](design_decisions.md).
+> **Status:** Phase 1 design baseline, 2026-10-25, updated 2026-10-27. Every decision is recorded as D1–D45 in [design_decisions.md](design_decisions.md).
 >
 > **Evidence key used across docs 01–08:** **[V]** verified against a primary source · **[E]** engineering estimate · **[U]** unverified, needs a measurement or a test on the real hardware.
 
@@ -29,7 +29,7 @@ These are the reference build's requirements, and they decided every trade-off b
 | P-4 | **Near-zero false positives** for anything drastic (mains cut, paging) | Two-signal corroboration for fire response; a narrow paging policy. |
 | P-5 | **Mechanically robust assembly, no screw terminals, no wires on PCB pads** | Locking connectors, a plug-in ESP32 board, header-on-footprint for the AD5X USB link; the C5's external USB port. |
 | P-6 | **Office-quiet** (no louder than the printers) | Low-speed bleed most of the time; full-flow purge only briefly. |
-| P-7 | **Cost: "do it right", but trimmed** | Full tier with cheaper pressure sensors, one universal carrier PCB plus one small universal sensor board, and off-the-shelf parts (≈ $640 line-item BOM, see doc 03). |
+| P-7 | **Cost: "do it right", but trimmed** | Full tier with cheaper pressure sensors, one universal carrier PCB plus one small universal sensor board, and off-the-shelf parts (≈ $650 line-item BOM, see doc 03). |
 | P-8 | **Open source, prefer existing printable models** | Existing models wherever they fit; custom parts only where they're genuinely better. |
 
 ## 3. Topology
@@ -152,7 +152,8 @@ Prints started from the touchscreen, the Flashforge app or FlashPrint follow the
 | 06 | Pneumatics: ducting, filter, outlet, control loops, purge, heat budget |
 | 07 | Firmware, zmod plugin, protocols, G-code API, notifications, dashboard |
 | 08 | Printable parts catalogue |
-| Design decisions | Decision record D1–D44, cost-reduction pass, trade studies T1–T3 |
+| 09 | Sensor bus and carrier I/O controller: per-header I²C segments, power and interrupts, in-system programming of every CH32V003 |
+| Design decisions | Decision record D1–D45, cost-reduction pass, trade studies T1–T3 |
 | 12 | Porting guide: printer packs, link tiers, profile schema, mechanical interface, safety contract, licensing |
 | `printers/` | Printer packs: AD5X and C5 Pro specifics (enclosure mods, USB connection point, Klipper integration, printer-specific parts) |
 
@@ -188,6 +189,7 @@ Consolidated here; each item is also referenced in the doc it affects.
 | O12 | **Fault and recovery UI wording** (doc 05 §4.1): what the printer-side hold message and the dashboard fault and Clear screens say. **Decided (D28):** a level-3 Clear may be done on the dashboard or with `FLEET_CLEAR` on the printer; a level-4 Clear needs the dashboard checklist plus the node's CLEAR button at the printer. **TBD:** a timed inspection window after a cut, with the re-cut paused, so `FLEET_CLEAR` on the powered printer can be the on-site step (doc 05 §4.1); window length and whether it replaces the button | Usability of recovery | Phase 2 dashboard mock-up |
 | O13 | **ModulAir licence and fit** (D34): may its parts be remixed and the remixes published with this project, and do the L bayonet and gasket seal and print as described? | Whether doc 08 §3c's extensions are published as ModulAir remixes or as our own compatible interface | Phase 2: read the licence on each ModulAir part; print a Y, two hose adapters and a gasket; run the duct leak test (doc 06 M10) on them |
 | **O14** | **Node damper behaviour when the hub is lost.** The trunk-active flag stops with the hub, but the fan keeps running at its last speed (R1). Doc 06 §4 says a node doesn't run its chamber-ΔP loop without the flag; doc 05 §4 says nodes keep their dampers in their loops | Whether chambers stay at −3 Pa or drift during a hub outage | Phase 2 firmware design: either **hold the last damper angle**, or **keep the chamber loop running** on the node's own sensor while chamber ΔP shows the trunk is still drawing. Decide after R1 shows what the fan does with the hub silent |
+| O15 | **Carrier CH32V003 single-pin SWIO** (D45, doc 09 §2.1): can one timer pin both drive SWIO (AF open-drain) and capture the target's reply on the neighbouring channel? Also TIM1 CH1N polarity and dead time as an SWIO output, IC3/IC4 cross-mapping, and that the on-carrier I/O expander on slot 7 (doc 09 §2.4) programs through it. ESP32 side: RMT-driven SWIO in normal mode (TX and capture on one open-drain pin, 2.2 kΩ pull-up, doc 09 §4.1a) and the W5500 at 20 and 40 MHz on the IO MUX pins | Decides 7 headers or the 5-header fallback | Bench test on a CH32V003 dev board against a blank and a running target before carrier layout. Header 1 (two joined pins, as in the released code) is the control |
 
 ## 8. Phase 2 bring-up stages (D41)
 

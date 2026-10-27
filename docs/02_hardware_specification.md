@@ -120,13 +120,13 @@ flowchart LR
 | **Low-side outputs B1, B2:** switched 24 V, flyback diode each | ✓ (B1 AD5X recirculation-duct blower, O3; B2 spare) | – | ✓ (B1 **anemometer heater**, PWM, D32; B2 buzzer) | |
 | 2 × NTC 100k inputs (ADC1, 4.7 kΩ pull-up to the sensor 3.3 V, RC filter) | ✓ (chamber air, heater housing) | – | ✓ (**low-flow anemometer**: reference and heated NTC, D32) | The hub population fits **47 kΩ** pull-ups instead, for resolution at 20–80 °C. |
 | **On-board XGZP6897D** pressure sensor (I²C 0x6D), two barbs | ✓ (chamber vs room) | ✓ | ✓ (**across the filter**) | |
-| I²C header 1 → sensor head | ✓ | ✓ | ✓ (room sensor head) | |
-| **2-channel I²C switch** (TCA9543A / PCA9543A class) → **I²C header 2** (channel 1) and **I²C header 3** (channel 0, D30) | Header 2: **AS5600 damper encoder** (sensor board E, D30). Header 3: unused (per-branch flow option) | Header 2: **AS5600 damper encoder**. Header 3: unused | Header 2: **XGZP6897D trunk sensor** (sensor board P), optional 0.96″ OLED at 0x3C. Header 3: **XGZP6897D trunk-flow sensor** at the venturi (D30, D33) | Every XGZP6897D is fixed at 0x6D, so each off-board one sits behind its own switch channel and can't clash with the on-board one (D11; supersedes C7). Header 3 is one more JST-XH 4 on the same switch, so no new parts. |
+| I²C header 1 (switch channel 0) → sensor head | ✓ | ✓ | ✓ (room sensor head) | |
+| **Sensor headers 1–7** (JST-XH 5: 3.3 V, GND, SDA, SCL, INT/SWIO) behind an **8-channel I²C switch** (TCA9548A, one channel per header), with a **CH32V003 I/O controller** for per-header power, interrupts and CH32 programming (D45, doc 09) | Header 2: **AS5600 damper encoder** (sensor board E, D30). Header 3: unused (per-branch flow option) | Header 2: **AS5600 damper encoder**. Headers 3–7: unused | Header 2: **XGZP6897D trunk sensor** (sensor board P), optional 0.96″ OLED at 0x3C. Header 3: **XGZP6897D trunk-flow sensor** at the venturi (D30, D33) | Every XGZP6897D is fixed at 0x6D, so each off-board one sits on its own switch channel and can't clash with the on-board one (D11; supersedes C7). Each header being its own segment also keeps bus capacitance low. Headers 4–7 are free for further sensor boards. |
 | Servo header (`+5V_PWR`, signal held low at boot) | ✓ | ✓ | – | The damper's **AS5600 angle encoder** (D30) reads the blade shaft and connects to I²C header 2, not here. |
-| Door input (reed switch, pull-up, RC + ESD) | ✓ | – | – | The C5's doors are read from Moonraker. |
-| LED chain 1 and 2: 74AHCT1G125 level shifters, 330 Ω series, 1000 µF bulk | ✓ | ✓ | ✓ (LED1 = panel RGB) | LED 0 of the bed strip is the status pixel. The strip is ~48 LEDs per printer (D44); the firmware caps its current at 0.5 A (doc 04 §3). |
+| Door input (reed switch, pull-up, RC + ESD), **read through the carrier I/O expander** (§2.4) | ✓ | – | – | The C5's doors are read from Moonraker. For the AD5X the reed is primary and Moonraker is the backup (doc 05 §4). |
+| LED chain 1: 74AHCT1G125 level shifter, 330 Ω series, 1000 µF bulk (chain 2 dropped, D45) | ✓ | ✓ | ✓ (LED1 = panel RGB) | LED 0 of the bed strip is the status pixel. The strip is ~48 LEDs per printer (D44); the firmware caps its current at 0.5 A (doc 04 §3). |
 | 2 spare inputs (3.3 V, ESD-protected, ADC-capable) | ✓ (input 1 = **heater-rail voltage** via divider; input 2 = **external heater-input sense**, DIN and HEAT-jumpered barrel on one weighted divider, D22) | ✓ | ✓ (panel button, smoke dry-contact input) | Drybox sensors could use these later. |
-| Status LEDs (power, CAN activity) | ✓ | ✓ | ✓ | |
+| Status LEDs (power, CAN activity) and a **board status LED** driven by the carrier I/O expander (§2.4) | ✓ | ✓ | ✓ | |
 
 **Board size:** set by its connectors, not a target size (ARG-12). Estimated ~100 × 70 mm, 2-layer, 2 oz copper on the heater path.
 
@@ -139,7 +139,7 @@ flowchart LR
 
 ### 2.3 Universal sensor board (D42)
 
-JLCPCB assembles only one design per board, and a panel of different designs has to be cut apart by hand (their panelization rules), so the sensor head is **not** a break-off tab of the carrier. Every sensor that must sit on a PCB uses **one small second board**, ordered separately from the carrier. It is ~30 × 20 mm, 2-layer, with a 4-pin JST-XH (3.3 V, GND, SDA, SCL), two M2 holes at the same spacing on every variant, and 100 nF decoupling. It has no pull-ups (the carrier's I²C pull-ups serve the bus).
+JLCPCB assembles only one design per board, and a panel of different designs has to be cut apart by hand (their panelization rules), so the sensor head is **not** a break-off tab of the carrier. Every sensor that must sit on a PCB uses **one small second board**, ordered separately from the carrier. It is ~30 × 20 mm, 2-layer, with a 5-pin JST-XH (3.3 V, GND, SDA, SCL, INT/SWIO; D45), two M2 holes at the same spacing on every variant, and 100 nF decoupling. It has no pull-ups (the carrier fits them per header, after the header's power switch; doc 09 §2.2).
 
 **One set of Gerbers, three populations** (the unused footprints stay empty):
 
@@ -149,12 +149,26 @@ JLCPCB assembles only one design per board, and a panel of different designs has
 | **P** pressure | **XGZP6897D**, ±500 Pa class (I²C 0x6D), its two ports taking silicone tube directly or printed barbs | Hub trunk vacuum and trunk flow (D11, D33) | 3 |
 | **E** encoder | **AS5600** (I²C 0x36), facing the damper shaft magnet | Damper angle (D30) | 4 |
 
-- **No address clashes:** the P variants sit behind the I²C switch, since every XGZP6897D is fixed at 0x6D (D11); an S, P and E board is never on the same bus branch as another of its kind.
+- **No address clashes:** every header is its own I²C switch channel (D45), so two boards of the same kind never share a segment, and no off-board XGZP6897D shares one with the on-board one (D11).
 - **Ordering:** each variant is its own JLC order of 5 boards (the minimum), so each carries its own setup and shipping. S must be JLC-assembled (the ENS160 and SHT40 can't be hand-soldered). P and E are assembled by JLC if the parts are in stock, otherwise hand-soldered, since the XGZP6897D and the AS5600 are the easy parts here. The quote can merge variants if JLC's rules allow; see R9.
 - **Footprint layout:** the XGZP6897D and AS5600 footprints sit away from the SHT40/ENS160 corner, so a board never has a fitted part in another variant's mounting zone. The same two M2 holes let the C4 cover, C12 mount, C16 encoder bracket and C17 venturi mount all take any variant.
 - **Source:** `hardware/pcb/sensor/` (KiCad), with the three BOMs as variants of one project.
 
 In the chamber, it mounts at the exhaust port, out of the heater jet, behind a printed ASA vented cover. The hub's head sits in free room air away from the fan.
+
+### 2.4 Carrier I/O expander (D45)
+
+One extra CH32V003 sits on the carrier itself as an **internal sensor header** (the seventh switch channel and header slot in doc 09 §2.1). It is programmed through the carrier CH32 like any sensor-board CH32 (doc 09 §4.2). It takes the slow, non-safety signals that used to need ESP32 GPIOs, so every role has the same pin map and the LAN footprint can be fitted on any role (doc 04 §4):
+
+| Signal | Was | Safety role |
+|---|---|---|
+| Door reed | GPIO 13 | None; door-open → purge and an advisory (doc 05 §6). Moonraker is the backup on the AD5X |
+| KSD301 loop sense | GPIO 41 | None; the loop works in hardware, the sense only reports it |
+| 24V_HEAT switched-output sense | GPIO 42 | Diagnostic; read at start-up and in tests. If a pre-heat check uses it, a missing expander **blocks heating**, which is the safe direction |
+| Board status LED | GPIO 47 | None. The expander blinks a fast "no heartbeat" pattern if the ESP32 stops talking to it |
+| LED chain 2 | GPIO 21 | Dropped from the fixed map; a future overhead strip uses a sensor-header board with its own CH32 and level shifter |
+
+Nothing on this list feeds a safety layer (S-7). Without the expander the heater, fan, dampers, CAN and every sensor still work.
 
 ## 3. Chamber heater module (node-heat)
 
@@ -191,7 +205,7 @@ By default the heater runs from **its own printer's internal 24 V supply**. An *
 |---|---|
 | Part | KSD301, normally closed, **≈ 70 °C** nominal (±5 °C tolerance; the 65 °C firmware hard limit trips first). Rated about cap + 10 °C (D26) |
 | Location | High in the chamber next to the sensor head, out of the heater jet, held by the sensor-head cover (doc 08 C4) |
-| Wiring | In series with the heater-housing KSD301 in the enable loop. GPIO 41 reports "loop open" without saying which one; firmware infers which from the temperatures |
+| Wiring | In series with the heater-housing KSD301 in the enable loop. The carrier I/O expander reports "loop open" (§2.4) without saying which one; firmware infers which from the temperatures |
 | Why | Caps chamber air temperature in hardware even if the firmware is running but wrong (for example an NTC that has fallen off its mount and reads cold). The housing KSD301 only protects the heater body |
 
 ## 4. Branch dampers

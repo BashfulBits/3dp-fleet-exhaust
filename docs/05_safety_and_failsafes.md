@@ -341,7 +341,7 @@ The other printers keep running. The **room smoke alarm** remains the primary li
 
 1. Pull each node's ESP32 board while heating: the heater must stop (L5).
 2. Hold GPIO 15 static (test firmware build): the heater must stop (L5).
-3. Open the KSD301 loop at the housing thermostat, then at the chamber-air thermostat: the heater must stop each time; GPIO 41 reports it. Heat the chamber-air KSD301 with a hot-air gun and confirm it opens near its rating.
+3. Open the KSD301 loop at the housing thermostat, then at the chamber-air thermostat: the heater must stop each time; the carrier I/O expander reports it (doc 02 §2.4). Heat the chamber-air KSD301 with a hot-air gun and confirm it opens near its rating.
 4. Command the heater off with a jumper simulating a welded low-side FET: the node turns the high side off and locks the heater out (L4).
 5. Runaway (test mode): inject "current with both switches off" plus a rising temperature: that printer's plug is cut within ~10 s, by the node with `shelly_node`, otherwise by the hub (RW-a). Repeat with two chamber sensors over 70 °C (RW-b).
 6. Unplug CAN to a heating node: the hub alerts within 10 s; the node turns its heater off at 30 s.

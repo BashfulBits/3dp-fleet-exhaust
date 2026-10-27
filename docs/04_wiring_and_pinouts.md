@@ -50,17 +50,17 @@ RJ45 IN/OUT on every carrier; a TERM jumper on every carrier, fitted at the two 
 | **Recirculation-duct blower** (AD5X, O3) | Node B1 → 5015 blower | 22–24 AWG | 24 V, switched GND (PWM and tach leads unused) | JST-XH 2 | ≤1 m |
 | **KSD301 loop** | Node → heater-housing KSD301 → chamber-air KSD301 (in series) → node | 22–24 AWG, high-temp silicone | 2 | JST-XH 2 | ≤1 m |
 | **NTCs** | Node → chamber air NTC, heater housing NTC | NTC leads | 2 each | JST-XH 2 | ≤0.5 m |
-| **Sensor head** | Node I²C 1 → sensor board S in chamber | 4-core, ≤0.5 m (I²C at 100 kHz) | 3.3 V, GND, SDA, SCL | JST-XH 4 | ≤0.5 m |
+| **Sensor head** | Node sensor header 1 (switch channel 0) → sensor board S in chamber | 5-core, ≤0.5 m (I²C at 100 kHz) | 3.3 V, GND, SDA, SCL, INT/SWIO | JST-XH 5 | ≤0.5 m |
 | **ΔP tubes** | Carrier XGZP barbs → chamber / room | Silicone 2 × 4 mm | — | barbs | ≤0.5 m |
 | **Servo** | Node → damper | Servo lead (extend if needed) | 5 V, GND, signal | 3-pin servo | ≤0.5 m |
-| **Damper encoder** (D30) | Node I²C 2 (behind the I²C switch) → sensor board E (AS5600) on the damper's shaft end | 4-core | 3.3 V, GND, SDA, SCL | JST-XH 4 | ≤0.5 m |
+| **Damper encoder** (D30) | Node sensor header 2 (switch channel 1) → sensor board E (AS5600) on the damper's shaft end | 5-core | 3.3 V, GND, SDA, SCL, INT/SWIO | JST-XH 5 | ≤0.5 m |
 | **Door** | Node → reed switch | 2-core | 2 | JST-XH 2 | ≤1 m |
 | **Bed LED strip** | Node LED1 → WS2812 strip | 3-core 22 AWG | 5 V, DATA, GND | JST-XH 3 | ≤1 m |
 | **AD5X USB link** | Node dev-board native USB-C → AD5X bottom internal USB header (pack) | USB 2.0, **VBUS not connected** (§5) | D+, D−, GND, shield | USB-C plug / 4-pin housing | ~0.5–1 m |
 | **C5 USB link** (D24) | Node dev-board native USB-C → C5 external USB port (fallback: J34 via a hub board, §5) | USB 2.0, **VBUS not connected** (§5) | D+, D−, GND, shield | USB-C plug / USB-A plug | ≤ 1.5 m |
-| **Trunk ΔP** | Hub I²C 2 (behind the I²C switch) → sensor board P (XGZP6897D) at trunk | 4-core | 3.3 V, GND, SDA, SCL | JST-XH 4 | ≤1 m |
+| **Trunk ΔP** | Hub sensor header 2 (switch channel 1) → sensor board P (XGZP6897D) at trunk | 5-core | 3.3 V, GND, SDA, SCL, INT/SWIO | JST-XH 5 | ≤1 m |
 | **Filter ΔP** | Hub on-board XGZP → filter housing taps | Silicone tube | — | barbs | ≤1 m |
-| **Trunk flow** (D30) | Hub I²C 3 (behind the I²C switch) → sensor board P (XGZP6897D) at the venturi (D33) | 4-core; silicone 2 × 4 mm from the venturi taps | 3.3 V, GND, SDA, SCL | JST-XH 4 | ≤1 m |
+| **Trunk flow** (D30) | Hub sensor header 3 (switch channel 2) → sensor board P (XGZP6897D) at the venturi (D33) | 5-core; silicone 2 × 4 mm from the venturi taps | 3.3 V, GND, SDA, SCL, INT/SWIO | JST-XH 5 | ≤1 m |
 | **Low-flow anemometer** (D32) | Hub NTC 1, NTC 2 and B1 → C18 probe in the venturi | 2-core each | NTC leads; heater 24 V switched | JST-XH 2 ×3 | ≤1 m |
 
 **Cable route:** the bus and heater cables follow the trunk duct along the wall, clipped to it with printed duct clips (doc 08), then drop to each printer with its branch.
@@ -133,27 +133,41 @@ Rules applied:
 | 5 | **Heater-rail voltage** (divider, ADC) | Spare input 1 | **Panel button** | ADC1_CH4 |
 | 6 | **External heater-input sense** (DIN + HEAT-jumpered barrel, weighted divider, four levels; D22) | Spare input 2 | **Smoke dry-contact input** | ADC1_CH5 |
 | 7 | Heater low-side PWM | – | – | 10 kΩ pull-down |
-| 8 | I²C SDA | I²C SDA | I²C SDA | Sensor head, on-board XGZP, I²C switch (behind it: header 2 = node damper encoder, or hub trunk XGZP + OLED; header 3 = hub trunk-flow XGZP, D30/D33) |
+| 8 | I²C SDA | I²C SDA | I²C SDA | On-board XGZP, carrier CH32 (I²C target), 8-channel I²C switch; behind it, one channel per sensor header 1–7 (header 1 = sensor head; header 2 = node damper encoder, or hub trunk XGZP + OLED; header 3 = hub trunk-flow XGZP, D30/D33; D45, doc 09 §3) |
 | 9 | I²C SCL | I²C SCL | I²C SCL | |
-| 10 | CAN TX | CAN TX | CAN TX | TWAI |
-| 11 | CAN RX | CAN RX | CAN RX | |
-| 12 | Servo PWM (50 Hz) | Servo PWM | – | Pull-down, held low at boot |
-| 13 | Door input | – | – | Pull-up + RC + ESD |
-| 14 | LED chain 1 (bed strip, LED 0 = status) | LED chain 1 | **Panel RGB** | Via 74AHCT1G125 |
+| 10 | **LAN CS** (D45) | LAN CS | LAN CS | SPI2 IO MUX pin (no GPIO matrix). Used only where the LAN footprint is fitted; free otherwise |
+| 11 | **LAN MOSI** (D45) | LAN MOSI | LAN MOSI | SPI2 IO MUX pin |
+| 12 | **LAN SCK** (D45) | LAN SCK | LAN SCK | SPI2 IO MUX pin |
+| 13 | **LAN MISO** (D45) | LAN MISO | LAN MISO | SPI2 IO MUX pin. The door input is read through the carrier I/O expander (doc 02 §2.4) |
+| 14 | LED chain 1 (bed strip, LED 0 = status) | LED chain 1 | **Panel RGB** | RMT TX with DMA, via 74AHCT1G125 |
 | 15 | Heater enable charge-pump drive (square wave) | – | – | No wave → high-side off |
 | 16 | Fan A PWM (open-drain) | – | **G4 fan control** (per R1) | |
 | 17 | Fan A tach in | – | **G4 tach/health** (per R1) | Pull-up + clamp |
 | 18 | Fan A high-side enable | – | Fan A enable (if used) | Pull-down |
-| 21 | LED chain 2 (overhead, future) | LED chain 2 | – | Via 74AHCT1G125 |
+| 21 | **Servo PWM** (50 Hz) | Servo PWM | – | Pull-down, held low at boot (was GPIO 12). LED chain 2 was dropped from the fixed map (D45) |
 | 39 | Output B1: AD5X recirculation-duct blower (O3) | – | Output B1: **anemometer heater** (PWM, D32) | Pull-down; JTAG pin, used as GPIO |
 | 40 | Output B2: spare | – | **Buzzer** | Pull-down |
-| 41 | KSD301 loop sense (diagnostics) | – | – | Reads whether the KSD is open |
-| 42 | 24V_HEAT switched-output sense (divider) | – | – | Confirms the switch state |
-| 47 | Board status LED | Board status LED | Board status LED | |
+| 41 | **CAN TX** | CAN TX | CAN TX | TWAI, routed through the GPIO matrix; pull-up on the transceiver's TXD so the bus stays recessive while the pin floats at reset. The KSD301 loop sense moved to the carrier I/O expander |
+| 42 | **CAN RX** | CAN RX | CAN RX | TWAI. The 24V_HEAT switched-output sense moved to the carrier I/O expander |
+| 47 | **Carrier CH32 SWIO/INT** (D45, doc 09 §4.1) | Same | Same | Open-drain, **2.2 kΩ** pull-up; RMT TX + RX on the one pin (doc 09 §4.1a). Programs the carrier CH32 and carries its interrupt. The board status LED moved to the carrier I/O expander |
 
-**LAN jack (D18, hub only):** the SPI Ethernet chip needs four GPIOs (SCK, MOSI, MISO, CS; polling mode, no interrupt). They reach it through 0 Ω links and are fixed at layout from pins free on the hub role, avoiding GPIO 1, 2 and 4 (ADC, D32); the footprint is unpopulated on nodes, so the same nets keep their node functions there.
+**Peripheral use: no bit-banged interfaces.** Every interface runs on an ESP32-S3 peripheral:
 
-The KSD301 and charge-pump chain works in **hardware**. GPIO 41 only *reports* its state; the firmware can't override it.
+| Interface | Peripheral | Notes |
+|---|---|---|
+| CAN | TWAI | |
+| I²C | I²C 0 | Sensor headers, on-board XGZP, carrier CH32, I/O expander |
+| LAN | SPI2 on the IO MUX pins | GPIOs 10–13 |
+| LED chain 1 (bed strip, or the hub panel) | **RMT TX channel with DMA** | A ~48-LED strip is ~1150 RMT symbols. That is more than one 48-symbol block, so it streams by DMA rather than refill interrupts, which Wi-Fi load could delay into visible glitches. The S3 supports DMA on one RMT TX channel |
+| Carrier CH32 SWIO | **RMT TX + RX channels** on GPIO 47 | One frame fits a channel's block, so no DMA is needed (doc 09 §4.1a) |
+| Servo, fan PWM, heater PWM, charge pump | LEDC | |
+| Fan tach | PCNT | |
+
+**RMT budget:** 2 of the 4 TX channels and 1 of the 4 RX channels, leaving room for a second LED chain later.
+
+**LAN jack (D18; fitted on any role, D45):** the SPI Ethernet chip needs four GPIOs (SCK, MOSI, MISO, CS; polling mode, no interrupt). They are **GPIOs 10–13 on every carrier**, the S3's IO MUX pins for SPI2, so the SPI runs on the peripheral directly (up to 80 MHz) and not through the GPIO matrix (40 MHz, with extra delay on MISO) [E: confirm in the S3 technical reference manual]. CAN and the servo output use the matrix and moved to GPIOs 41, 42 and 21 to make room. There are no 0 Ω links, and the same map applies to all roles. The default SPI clock is 20 MHz; the Ethernet chip's own limit is higher, and the bring-up test (O15) checks 20 and 40 MHz.
+
+The KSD301 and charge-pump chain works in **hardware**. The I/O expander only *reports* its state; the firmware can't override it.
 
 ## 5. Printer USB link (D3, D24)
 
@@ -219,10 +233,10 @@ Checked at commissioning (doc 05 §9 test 29) and continuously by the hub: when 
 | 24 V logic | PSU +V/−V, lead with an XT30 | Carrier internal XT30 (INJECT INT fitted), CAT6 power via carrier |
 | Buzzer | Carrier B2 | Active 24 V buzzer |
 | Panel | LED1 → WS2812 ×2; GPIO 5 ← button; I²C 2 → OLED | Panel |
-| Trunk ΔP | I²C 2 (switch channel 1) | Sensor board P (XGZP6897D), tubes to the trunk tap and room |
-| Trunk flow (D30) | I²C 3 (switch channel 0) | Sensor board P (D33), tubes to the venturi inlet and throat taps |
+| Trunk ΔP | Sensor header 2 (switch channel 1) | Sensor board P (XGZP6897D), tubes to the trunk tap and room |
+| Trunk flow (D30) | Sensor header 3 (switch channel 2) | Sensor board P (D33), tubes to the venturi inlet and throat taps |
 | Low-flow anemometer (D32) | NTC 1 (GPIO 1), NTC 2 (GPIO 2), B1 (GPIO 39) | C18 probe: reference NTC at the venturi inlet, heated NTC + heater resistor in the throat |
 | Filter ΔP | On-board XGZP barbs | Filter housing inlet and outlet taps |
-| Room sensor | I²C 1 | Sensor head |
+| Room sensor | Sensor header 1 (switch channel 0) | Sensor head |
 | Fan | Fan A (+ adapter per R1) | G4 control port |
 | Smoke | GPIO 6 | Optional relay-output smoke detector (dry contact) |
