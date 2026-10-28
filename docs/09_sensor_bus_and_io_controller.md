@@ -51,7 +51,7 @@ Three pin rules drive the plan:
 
 ### 2.2 Per-header power
 
-- **Group current limit (D56):** the eight P-FETs take their 3.3 V from `+3V3_SENS` through one current-limit switch (SY6280AAAC class, ≈ 1 A, doc 02 §2.2), so a shorted cable sags only the headers, not the controller or the I²C switch. The controller sees the group rail low on PF1 and tells the ESP32, which switches the headers back on one at a time to find the short and leaves that one off.
+- **Group current limit (D56):** the eight P-FETs take their 3.3 V from `+3V3_SENS` through one current-limit switch (SY6280AAAC class, ≈ 1 A, doc 02 §2.2), so a shorted cable sags only the headers, not the controller or the I²C switch. The AUX header's 3.3 V pin shares this group rail (D57). The controller sees the group rail low on PF1 and tells the ESP32, which switches the headers back on one at a time to find the short and leaves that one off.
 - **P-FET** (HL3401 class, SOT-23, ≈ $0.04, a Preferred part, D51) from the group rail to the header's 3.3 V pin, with a **gate pull-down** (100 kΩ [E]). With the controller in reset, in its bootloader, blank or absent, its pins float and every header is **on**. The controller drives the gate high to switch a header off.
 - **Pull-ups go after the FET:** SDA, SCL (on that header's switch channel) and INT (10 kΩ [E]) all pull up to the header's switched 3.3 V. A header that is off is not back-powered through its pull-ups.
 - **Firmware rule:** before switching a header off, the ESP32 deselects its switch channel. Otherwise SDA and SCL from the powered side would feed the unpowered board through its I/O clamp diodes. The controller masks that header's INT line while it is off, since the pull-up after the FET lets it fall.
