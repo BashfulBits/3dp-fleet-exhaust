@@ -88,10 +88,10 @@ From these it **proposes** the L2 housing limit (T_normal + 10 °C), the L3 gain
 PTC cold current is 2–3× rated [E], and the heater shares the printer's own supply (D12). Mitigations:
 - Firmware ramps the duty from 0 to 100 % over ~30 s.
 - **Bed-heat interlock:** with a reused stock supply, the node holds the heater off while the bed is ramping (bed state from the USB link).
-- **Rail-voltage throttle:** the node reduces heater duty if the heater rail drops below 23.0 V, so the printer's mainboard never sees a sag (R12).
+- **Rail-voltage throttle:** the node reduces heater duty if the heater rail drops below 23.0 V, so the printer's mainboard never sees a sag (R12). The rail is read through the carrier I/O expander (D47); if that reading stops, the heater turns off.
 - The fuse is a slow-blow ATO 10 A; the FETs are rated ≥ 30 A with heatsinking copper.
 
-**External heater brick (D22).** The heater inputs are ORed through ideal-diode controllers, so a brick and the printer's supply never back-feed each other. The firmware reads the external inputs (spare input 2: DIN, and the barrel when its HEAT jumper is fitted):
+**External heater brick (D22).** The heater inputs are ORed through ideal-diode controllers, so a brick and the printer's supply never back-feed each other. The firmware reads the external inputs through the carrier I/O expander's ADC (DIN, and the barrel when its HEAT jumper is fitted; doc 02 §2.4, D47). No reading, with the expander missing or not yet programmed, holds the heater off:
 - With a brick live, the bed interlock and rail throttle are skipped, since the printer's supply carries no heater load. The soft-start ramp stays: a brick's over-current protection would otherwise hiccup on the cold inrush.
 - With only the barrel live, the heater is capped at ~100 W, inside a 5 A jack and a 120 W brick.
 - **The brick must be on the printer's own smart plug.** If the plug reports off (Shelly read-back, or a cut the hub just made) while an external heater input is still live, the node **locks the heater out** and alerts "heater brick not on the printer's plug". Commissioning test 23 checks this before first use.

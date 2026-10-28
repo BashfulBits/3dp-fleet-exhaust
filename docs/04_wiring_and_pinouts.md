@@ -128,16 +128,16 @@ Rules applied:
 | GPIO | Node-heat | Node-lite | Hub | Notes |
 |---|---|---|---|---|
 | 0 | **Service button** (the dev board's BOOT button, D46) | Same | Same | Input only; nothing on the carrier connects to it. Held at power-up, it enters download mode as usual |
-| 1 | Chamber-air NTC (ADC) | – | **Anemometer reference NTC** (D32) | ADC1_CH0 |
-| 2 | Heater-housing NTC (ADC) | – | **Anemometer heated NTC** (D32) | ADC1_CH1 |
+| 1 | Chamber-air NTC (ADC) | – (fitted, spare) | **Anemometer reference NTC** (D32) | ADC1_CH0. 47 kΩ pull-up, ≈ 4.6 kΩ with the RANGE 1 shunt on (node-heat, D47) |
+| 2 | Heater-housing NTC (ADC) | – (fitted, spare) | **Anemometer heated NTC** (D32) | ADC1_CH1. RANGE 2 shunt as for GPIO 1 |
 | 3 | **Board identity** (role shunt divider, D46) | Same | Same | ADC1_CH2, read once at boot. Strapping pin for the JTAG source, which only matters if an eFuse selects it |
 | 4 | Heater current, INA180 out (ADC) | – | – | ADC1_CH3; sampled at a fixed rate by ADC1 continuous mode with DMA (below) |
-| 5 | **Heater-rail voltage** (divider, ADC) | Spare input 1 | **Panel button** (edge interrupt, debounced) | ADC1_CH4 on node-heat |
-| 6 | **External heater-input sense** (DIN + HEAT-jumpered barrel, weighted divider, four levels; D22) | Spare input 2 | **Smoke dry-contact input** (edge interrupt) | ADC1_CH5 on node-heat |
+| 5 | Spare input 1 | Spare input 1 | **Panel button** (edge interrupt, debounced) | ADC1_CH4 if a builder needs an analog input. The heater-rail voltage moved to the carrier I/O expander's ADC (D47) |
+| 6 | Spare input 2 | Spare input 2 | **Smoke dry-contact input** (edge interrupt) | ADC1_CH5 if needed. The external heater-input sense (D22) moved to the carrier I/O expander's ADC (D47) |
 | 7 | Heater low-side PWM | – | – | 10 kΩ pull-down |
 | 8 | I²C SDA | I²C SDA | I²C SDA | On-board XGZP, carrier CH32 (I²C target), 8-channel I²C switch; behind it, one channel per external sensor header 1–6 and one for the on-carrier I/O expander in slot 7 (header 1 = sensor head; header 2 = node damper encoder, or hub trunk XGZP + OLED; header 3 = hub trunk-flow XGZP, D30/D33; D45, doc 09 §3) |
 | 9 | I²C SCL | I²C SCL | I²C SCL | |
-| 10 | **LAN CS** (D45) | LAN CS | LAN CS | SPI2 IO MUX pin (no GPIO matrix). Used only where the LAN footprint is fitted; free otherwise |
+| 10 | **LAN CS** (D45) | LAN CS | LAN CS | SPI2 IO MUX pin (no GPIO matrix). The LAN parts are fitted on every carrier (D47); a node without a LAN cable leaves the chip idle |
 | 11 | **LAN MOSI** (D45) | LAN MOSI | LAN MOSI | SPI2 IO MUX pin |
 | 12 | **LAN SCK** (D45) | LAN SCK | LAN SCK | SPI2 IO MUX pin |
 | 13 | **LAN MISO** (D45) | LAN MISO | LAN MISO | SPI2 IO MUX pin. The door input is read through the carrier I/O expander (doc 02 §2.4) |
@@ -162,7 +162,7 @@ Rules applied:
 | HUB | 220 kΩ | ≈ 2.27 V | `hub` (1.6–2.8 V) |
 | No shunt | — | 3.3 V | **unset** (above 2.8 V) |
 
-The firmware reads GPIO 3 once at boot, before ADC1 starts its continuous scan. If the shunt and the role stored in NVS disagree (doc 07 §2), or the shunt is unset, the board starts in a **safe hold**. In safe hold, the heater enable stays off, the outputs stay off and the LEDs work, and a "role mismatch" fault is raised. Builders set the shunt to match the parts they fitted. A wrong NTC pull-up or a missing divider is then caught as a mismatch instead of a wrong reading.
+The firmware reads GPIO 3 once at boot, before ADC1 starts its continuous scan. If the shunt and the role stored in NVS disagree (doc 07 §2), or the shunt is unset, the board starts in a **safe hold**. In safe hold, the heater enable stays off, the outputs stay off and the LEDs work, and a "role mismatch" fault is raised. Since D47 every carrier carries the same parts, so the shunt is what makes a board a given role. The firmware also checks the **RANGE shunts** against it: at boot, after the heater has been off, each NTC must agree with the sensor head's SHT40 to within a few °C. A RANGE shunt left in the wrong position reads tens of degrees off, and raises the same mismatch fault and safe hold. The **ILIM shunt** (eFuse limit, doc 02 §2.2) can't be read by the firmware; commissioning checks it, and a missing one gives the lower, safe limit.
 
 **Service button (D46).** The dev board's BOOT button (GPIO 0), read after boot:
 - **Short press:** opens Wi-Fi provisioning for 10 minutes.

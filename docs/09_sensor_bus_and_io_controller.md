@@ -61,12 +61,12 @@ Each INT/SWIO pin is an EXTI input with its own line. Sensor boards drive it ope
 
 ### 2.4 On-carrier I/O expander (slot 7)
 
-Slot 7 is wired like an external header (gated 3.3 V, its own switch channel, INT/SWIO on PC7 and EXTI 7) but its connector is a CH32V003 on the carrier, with no cable. It is programmed through the carrier CH32 with the flow in §4.2, so it needs no programming pads of its own. Its job is to free ESP32 GPIOs so that **every role has the same pin map** (doc 04 §4) and the LAN footprint is a population option on any role, not a hub-only one with 0 Ω links:
+Slot 7 is wired like an external header (gated 3.3 V, its own switch channel, INT/SWIO on PC7 and EXTI 7) but its connector is a CH32V003 on the carrier, with no cable. It is programmed through the carrier CH32 with the flow in §4.2, so it needs no programming pads of its own. Its job is to free ESP32 GPIOs so that **every role has the same pin map** (doc 04 §4) and every carrier can carry the LAN parts (fitted on all since D47), not a hub-only option with 0 Ω links:
 
-- **Takes:** the door reed, the KSD301 loop sense, the 24V_HEAT switched-output sense, the board status LED (doc 02 §2.4). LED chain 2 is dropped from the fixed map.
+- **Takes:** the door reed, the KSD301 loop sense, the 24V_HEAT switched-output sense, the board status LED (doc 02 §2.4). LED chain 2 is dropped from the fixed map. Since D47 its ADC also reads the **heater-rail voltage** and the **external heater-input sense**, which frees GPIO 5 and 6 as plain spare inputs on every role.
 - **Frees:** GPIOs 13, 21, 41, 42 and 47. CAN TX/RX and the servo output (all GPIO-matrix peripherals) move onto 41, 42 and 21. That releases GPIOs 10–13, the S3's IO MUX pins for SPI2, to the LAN SPI (SCK, MOSI, MISO, CS), so it runs without the GPIO matrix (doc 04 §4). The fifth pin, 47, becomes the carrier CH32's SWIO/INT line (§4.1).
 - **Interrupt:** the door reed changes the slot-7 INT line, so a door event reaches the ESP32 in a few milliseconds through the aggregation in §2.3.
-- **Failure behaviour:** nothing it carries feeds a safety layer (S-7). A missing or dead expander blanks the door input (the AD5X falls back to Moonraker), the KSD sense and the status LED. A pre-heat check that reads the 24V_HEAT sense **blocks heating** when the expander is absent. That is the safe direction.
+- **Failure behaviour:** nothing it carries feeds a safety layer (S-7). A missing or dead expander blanks the door input (the AD5X falls back to Moonraker), the KSD sense and the status LED. Since D47 a missing or silent expander also removes the heater-input readings, so the firmware **holds the heater off** (and turns it off if the expander stops answering mid-heat). That is the safe direction.
 - **Costs:** one CH32V003 (≈ $0.30 with passives [E]), one fewer external header (six), and one more firmware image (a small I²C register map). The part is the same as the carrier CH32's, so there is no extra JLC fee.
 - **Dependency on O15:** slot 7 uses single-pin SWIO capture. If O15 fails and the five-slot fallback is used, the expander takes one slot and four stay external. The reference build needs at most three external headers.
 
@@ -137,6 +137,8 @@ One flow works for a blank, running or bricked part:
 3. While the target boots, the carrier CH32 sends halt requests every ~10 µs until DMSTATUS reads valid [V: minichlink].
 4. The carrier CH32 erases, writes and verifies the flash through the debug module, using the released host sequence, and then resumes the target.
 
+**Bring-up order (D47).** Both CH32s on a new carrier are blank, so the heater-input readings don't exist until they are programmed. Nothing needs them before then. The ESP32 and the bus run from the bus rail, not the heater rail, and the eFuse, detect-before-power and the enable chain are hardware. So the first boot runs in this order: the ESP32 programs the carrier CH32 over SWIO (§4.1a), the carrier CH32 programs the slot-7 expander (this section), and only then do the power-input diagnostics run. That takes a few seconds and needs no tools. Until it finishes, heating is blocked. If programming fails, the firmware raises **"I/O expander not programmed"**, kept apart from "heater rail absent", so a builder isn't sent looking for a supply fault. The carrier CH32 can't be programmed by anything else, so a failed SWIO link (O15) blocks heating either way.
+
 **Sensor-board firmware rule:** keep SDI enabled for a boot window of a few milliseconds before turning PD1 into the INT output. The carrier CH32 controls the power-up time exactly, so a short window is enough. A part that is factory-blank has SDI enabled with no code to disable it, so it needs no window at all.
 
 **Sources:** rv003usb, ch32fun and minichlink are permissively licensed (MIT) [E: confirm each at Phase 2 before copying code].
@@ -159,7 +161,7 @@ One flow works for a blank, running or bricked part:
 | JST-XH 5 headers (4 more than before; all go from 4- to 5-pin) | 7 | $0.35 |
 | **Total** | | **≈ $1.85** |
 
-External headers 4–6 and their FETs can be left unfitted on a role that doesn't need them.
+Every part above is fitted on every carrier, including headers 4–6 and their FETs (D47: one population, one assembly order).
 
 ## 7. Open points
 
