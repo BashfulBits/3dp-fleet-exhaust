@@ -41,7 +41,7 @@ flowchart TB
 
 | Aspect | Design |
 |---|---|
-| Role selection | Stored in NVS at provisioning (`node-heat`, `node-lite`, `hub`), plus node ID 1–15 (D25). The same binary runs every role. |
+| Role selection | Stored in NVS at provisioning (`node-heat`, `node-lite`, `hub`), plus node ID 1–15 (D25). The same binary runs every role. At boot the firmware checks the stored role against the board-identity shunt (D46, doc 04 §4). A mismatch or an unset shunt means a safe hold with a fault raised: no heater enable and no outputs. |
 | Task priorities (FreeRTOS) | 1. **Safety task** (heater limits, current checks, charge-pump toggle, 10 Hz). 2. Control loops (heater PID 1 Hz, chamber ΔP 2 Hz, trunk 5 Hz). 3. CAN. 4. USB link. 5. Wi-Fi (Moonraker, Pushover, web, MQTT). |
 | Charge-pump toggle | Driven **only** by the safety task after every check passes. If any task hangs, starves or crashes, the square wave stops and the hardware cuts the heater. |
 | Watchdogs | ESP-IDF task watchdog on the safety and control tasks; RTC watchdog for a full hang. |

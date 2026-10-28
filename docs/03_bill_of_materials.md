@@ -10,7 +10,7 @@
 
 | Group | Est. cost |
 |---|---|
-| A. Electronics (boards, ESP32s, sensors) | $280 |
+| A. Electronics (boards, ESP32s, sensors) | $281 |
 | B. Chamber heating and recirculation (2 × AD5X) | $63 |
 | C. Dampers and user interface | $34 |
 | D. Power distribution and cabling | $84 |
@@ -28,7 +28,7 @@
 ```mermaid
 pie showData
   title Cash cost by group (≈ $650)
-  "A. Electronics" : 280
+  "A. Electronics" : 281
   "B. Heating" : 63
   "C. Dampers, UI" : 34
   "D. Power" : 84
@@ -73,7 +73,7 @@ JLCPCB builds 5 of each board per order, so a fleet of up to 4 printers plus the
 | Item | Qty | Unit | Total | Notes |
 |---|---|---|---|---|
 | Universal carrier PCB, JLC fab + SMT/THT assembly (2-layer, 2 oz), incl. setup, extended-part fees and shipping share | 5 | — | $75 | 3 nodes, hub, spare; components per doc 02 §2.2 **except the connectors, which are the next line (D43)**; heater stage populated on all 5 for simplicity. |
-| Carrier connectors (schedule A.1) | 5 | $5.05 | $25 | D43. Board-mount connectors, THT. The barrel jack and INJECT/HEAT headers are in the eFuse line; the LAN MagJack in the LAN line. |
+| Carrier connectors (schedule A.1) | 5 | $5.14 | $26 | D43. Board-mount connectors, THT. The barrel jack and INJECT/HEAT headers are in the eFuse line; the LAN MagJack in the LAN line. |
 | Universal sensor board, variant S: SHT40 + ENS160 + 1.8 V LDO, JLC fab + SMT | 5 | $6.40 | $32 | D20, D42. Its own JLC order: parts ≈ $4 each plus setup and shipping share ≈ $12 (R9) [E]. |
 | ESP32-S3 DevKitC-1-format board (N8R2/N16R8 clone) | 6 | $6 | $36 | 5 + 1 spare. |
 | XGZP6897D differential pressure sensor (I²C 0x6D), on the carrier | 4 | $4 | $16 | 3 chamber (lowest range) + 1 filter on the hub board (±1 kPa class, so a loaded filter stays in range). Assembled by JLC if stocked, otherwise hand-soldered; the hub's range variant is fitted by hand. |
@@ -87,7 +87,7 @@ JLCPCB builds 5 of each board per order, so a fleet of up to 4 printers plus the
 | Carrier-power reset hold (2 × 2N7002, divider) + ideal-diode dev-board feed (TI LM66100DCKR, C2869734; alt. MX66100T, C53121238; replaces the Schottky) | 5 | $0.33 | $5 | D36, D37; one per board. Includes the ~$3 JLCPCB extended-part fee for the ideal diode [V]. |
 | LAN jack parts: W5500 or DM9051 + RJ45 MagJack + 25 MHz crystal | 1 | $4 | $4 | D18; footprint on every carrier, populated on the hub only. |
 | Input isolation: 3 × ideal-diode controller (LM74700 class) + N-FET, on the carrier | 5 | $4.50 | $23 | D22; INT, BAR, DIN, populated on all 5 so a DIN jack can be added later. |
-| | | | **$280** | |
+| | | | **$281** | |
 
 **A.1 Carrier connectors, per board (D43).** Populated on all 5 boards for one assembly BOM; JLC THT assembly or hand-soldered. Prices are LCSC-class [E].
 
@@ -96,9 +96,9 @@ JLCPCB builds 5 of each board per order, so a fleet of up to 4 printers plus the
 | Shielded RJ45 jack | 2 | $0.70 | $1.40 | IN and OUT, fleet bus (the hub fits one) |
 | XT30PW-M 90° PCB socket | 2 | $0.40 | $0.80 | Internal 24 V input, heater output |
 | JST-XH 2.54 mm THT header, 2/3/4/5-pin | 16 | $0.10 | $1.60 | Sensor headers 1–6 (5-pin, D45), fan A, LED 1, NTC ×2, KSD301 loop, door, B1, B2, spare inputs ×2 |
-| 2.54 mm pin header + shunt | 5 | ≈ $0.09 | $0.45 | TERM, servo; spare shunts |
+| 2.54 mm pin header + shunt | 6 | ≈ $0.09 | $0.54 | TERM, servo, board-identity 2 × 3 (D46); spare shunts |
 | 2 × 22-pin female header | 2 | $0.40 | $0.80 | ESP32-S3 dev board socket |
-| | | | **$5.05** | × 5 boards ≈ $25 |
+| | | | **$5.14** | × 5 boards ≈ $26 |
 
 Not in this table, because they are priced elsewhere: the POWER IN barrel jack and INJECT/HEAT headers (eFuse line), the LAN MagJack (LAN line), the sensor boards' own JST-XH (their lines), the DIN-4 jack (population option), and the mating plugs (group D).
 

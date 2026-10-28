@@ -122,25 +122,27 @@ stateDiagram-v2
 
 Rules applied:
 - The dev board's **BOOT button (GPIO 0)** is read after boot as the node's **CLEAR button** (doc 05 §4.1); nothing on the carrier connects to GPIO 0. Holding it through a reset only enters the bootloader, with every output off and the latches kept in NVS.
-- Avoid strapping pins (0, 3, 45, 46), native USB (19, 20), UART0 console (43, 44), flash/PSRAM (26–37), and the DevKitC onboard RGB pins (38, 48).
+- Strapping pins: **GPIO 0** is read only as the service button and **GPIO 3** only as the board-identity input (D46); avoid 45 and 46. Also avoid native USB (19, 20), UART0 console (43, 44), flash/PSRAM (26–37), and the DevKitC onboard RGB pins (38, 48).
 - Analog inputs use **ADC1 only** (ADC2 is unusable while Wi-Fi is active).
 
 | GPIO | Node-heat | Node-lite | Hub | Notes |
 |---|---|---|---|---|
+| 0 | **Service button** (the dev board's BOOT button, D46) | Same | Same | Input only; nothing on the carrier connects to it. Held at power-up, it enters download mode as usual |
 | 1 | Chamber-air NTC (ADC) | – | **Anemometer reference NTC** (D32) | ADC1_CH0 |
 | 2 | Heater-housing NTC (ADC) | – | **Anemometer heated NTC** (D32) | ADC1_CH1 |
-| 4 | Heater current, INA180 out (ADC) | – | – | ADC1_CH3 |
-| 5 | **Heater-rail voltage** (divider, ADC) | Spare input 1 | **Panel button** | ADC1_CH4 |
-| 6 | **External heater-input sense** (DIN + HEAT-jumpered barrel, weighted divider, four levels; D22) | Spare input 2 | **Smoke dry-contact input** | ADC1_CH5 |
+| 3 | **Board identity** (role shunt divider, D46) | Same | Same | ADC1_CH2, read once at boot. Strapping pin for the JTAG source, which only matters if an eFuse selects it |
+| 4 | Heater current, INA180 out (ADC) | – | – | ADC1_CH3; sampled at a fixed rate by ADC1 continuous mode with DMA (below) |
+| 5 | **Heater-rail voltage** (divider, ADC) | Spare input 1 | **Panel button** (edge interrupt, debounced) | ADC1_CH4 on node-heat |
+| 6 | **External heater-input sense** (DIN + HEAT-jumpered barrel, weighted divider, four levels; D22) | Spare input 2 | **Smoke dry-contact input** (edge interrupt) | ADC1_CH5 on node-heat |
 | 7 | Heater low-side PWM | – | – | 10 kΩ pull-down |
-| 8 | I²C SDA | I²C SDA | I²C SDA | On-board XGZP, carrier CH32 (I²C target), 8-channel I²C switch; behind it, one channel per sensor header 1–7 (header 1 = sensor head; header 2 = node damper encoder, or hub trunk XGZP + OLED; header 3 = hub trunk-flow XGZP, D30/D33; D45, doc 09 §3) |
+| 8 | I²C SDA | I²C SDA | I²C SDA | On-board XGZP, carrier CH32 (I²C target), 8-channel I²C switch; behind it, one channel per external sensor header 1–6 and one for the on-carrier I/O expander in slot 7 (header 1 = sensor head; header 2 = node damper encoder, or hub trunk XGZP + OLED; header 3 = hub trunk-flow XGZP, D30/D33; D45, doc 09 §3) |
 | 9 | I²C SCL | I²C SCL | I²C SCL | |
 | 10 | **LAN CS** (D45) | LAN CS | LAN CS | SPI2 IO MUX pin (no GPIO matrix). Used only where the LAN footprint is fitted; free otherwise |
 | 11 | **LAN MOSI** (D45) | LAN MOSI | LAN MOSI | SPI2 IO MUX pin |
 | 12 | **LAN SCK** (D45) | LAN SCK | LAN SCK | SPI2 IO MUX pin |
 | 13 | **LAN MISO** (D45) | LAN MISO | LAN MISO | SPI2 IO MUX pin. The door input is read through the carrier I/O expander (doc 02 §2.4) |
 | 14 | LED chain 1 (bed strip, LED 0 = status) | LED chain 1 | **Panel RGB** | RMT TX with DMA, via 74AHCT1G125 |
-| 15 | Heater enable charge-pump drive (square wave) | – | – | No wave → high-side off |
+| 15 | Heater enable charge-pump drive (square wave) | – | – | No wave → high-side off. **A plain GPIO toggled by the safety task, deliberately not a PWM peripheral** (doc 07 §2): a peripheral would keep the wave running if the safety task hung |
 | 16 | Fan A PWM (open-drain) | – | **G4 fan control** (per R1) | |
 | 17 | Fan A tach in | – | **G4 tach/health** (per R1) | Pull-up + clamp |
 | 18 | Fan A high-side enable | – | Fan A enable (if used) | Pull-down |
@@ -151,6 +153,23 @@ Rules applied:
 | 42 | **CAN RX** | CAN RX | CAN RX | TWAI. The 24V_HEAT switched-output sense moved to the carrier I/O expander |
 | 47 | **Carrier CH32 SWIO/INT** (D45, doc 09 §4.1) | Same | Same | Open-drain, **2.2 kΩ** pull-up; RMT TX + RX on the one pin (doc 09 §4.1a). Programs the carrier CH32 and carries its interrupt. The board status LED moved to the carrier I/O expander |
 
+**Board identity (D46).** A 2 × 3 pin header with one shunt (the same 2.54 mm header and shunt as TERM) selects the board's role. GPIO 3 has 100 kΩ to 3.3 V, plus 100 nF to GND so the ADC sees a low source impedance. The shunt adds a resistor to GND (1 % parts) [E]:
+
+| Shunt position | Resistor to GND | GPIO 3 voltage | Read as |
+|---|---|---|---|
+| HEAT | 10 kΩ | ≈ 0.30 V | `node-heat` (below 0.65 V) |
+| LITE | 47 kΩ | ≈ 1.06 V | `node-lite` (0.65–1.6 V) |
+| HUB | 220 kΩ | ≈ 2.27 V | `hub` (1.6–2.8 V) |
+| No shunt | — | 3.3 V | **unset** (above 2.8 V) |
+
+The firmware reads GPIO 3 once at boot, before ADC1 starts its continuous scan. If the shunt and the role stored in NVS disagree (doc 07 §2), or the shunt is unset, the board starts in a **safe hold**. In safe hold, the heater enable stays off, the outputs stay off and the LEDs work, and a "role mismatch" fault is raised. Builders set the shunt to match the parts they fitted. A wrong NTC pull-up or a missing divider is then caught as a mismatch instead of a wrong reading.
+
+**Service button (D46).** The dev board's BOOT button (GPIO 0), read after boot:
+- **Short press:** opens Wi-Fi provisioning for 10 minutes.
+- **Hold ≥ 10 s:** factory reset of NVS (Wi-Fi credentials, node ID, calibration), refused while the heater is on. After the reset, the role comes back from the shunt.
+
+It is reached with the node housing open. Holding it at power-up still enters download mode, as on any dev board.
+
 **Peripheral use: no bit-banged interfaces.** Every interface runs on an ESP32-S3 peripheral:
 
 | Interface | Peripheral | Notes |
@@ -160,7 +179,10 @@ Rules applied:
 | LAN | SPI2 on the IO MUX pins | GPIOs 10–13 |
 | LED chain 1 (bed strip, or the hub panel) | **RMT TX channel with DMA** | A ~48-LED strip is ~1150 RMT symbols. That is more than one 48-symbol block, so it streams by DMA rather than refill interrupts, which Wi-Fi load could delay into visible glitches. The S3 supports DMA on one RMT TX channel |
 | Carrier CH32 SWIO | **RMT TX + RX channels** on GPIO 47 | One frame fits a channel's block, so no DMA is needed (doc 09 §4.1a) |
-| Servo, fan PWM, heater PWM, charge pump | LEDC | |
+| Servo, fan PWM, heater PWM, B1 PWM | LEDC | At most four frequencies, which fits LEDC's four timers |
+| Heater-enable charge pump | **Plain GPIO, toggled by the safety task** | Deliberately not a peripheral. A hardware PWM keeps running if the safety task hangs, which would defeat layer L5 (doc 05 §3.1, doc 07 §2) |
+| Analog inputs (GPIOs 1, 2, 4, 5, 6 on node-heat) | **ADC1 continuous mode with DMA** | Scans every ADC1 input at a fixed rate, so the heater-current samples (GPIO 4) are evenly spaced without the CPU timing each read. ESP-IDF doesn't mix one-shot and continuous mode on one ADC unit [E], so all ADC1 inputs move to continuous mode together |
+| Hub panel button, hub smoke dry contact (GPIOs 5, 6) | **GPIO edge interrupts** | A press or an alarm is seen at once, not at the next poll. The button is debounced in software |
 | Fan tach | PCNT | |
 
 **RMT budget:** 2 of the 4 TX channels and 1 of the 4 RX channels, leaving room for a second LED chain later.

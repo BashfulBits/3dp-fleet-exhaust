@@ -126,6 +126,7 @@ flowchart LR
 | Door input (reed switch, pull-up, RC + ESD), **read through the carrier I/O expander** (§2.4) | ✓ | – | – | The C5's doors are read from Moonraker. For the AD5X the reed is primary and Moonraker is the backup (doc 05 §4). |
 | LED chain 1: 74AHCT1G125 level shifter, 330 Ω series, 1000 µF bulk (chain 2 dropped, D45) | ✓ | ✓ | ✓ (LED1 = panel RGB) | LED 0 of the bed strip is the status pixel. The strip is ~48 LEDs per printer (D44); the firmware caps its current at 0.5 A (doc 04 §3). |
 | 2 spare inputs (3.3 V, ESD-protected, ADC-capable) | ✓ (input 1 = **heater-rail voltage** via divider; input 2 = **external heater-input sense**, DIN and HEAT-jumpered barrel on one weighted divider, D22) | ✓ | ✓ (panel button, smoke dry-contact input) | Drybox sensors could use these later. |
+| **Board identity header** (D46): 2 × 3 pin header + shunt (HEAT, LITE, HUB) on a divider to GPIO 3, checked against the stored role at boot (doc 04 §4) | ✓ (HEAT) | ✓ (LITE) | ✓ (HUB) | Wrong or missing shunt → safe hold, nothing switches on. The dev board's BOOT button doubles as a service button after boot (doc 04 §4). |
 | Status LEDs (power, CAN activity) and a **board status LED** driven by the carrier I/O expander (§2.4) | ✓ | ✓ | ✓ | |
 
 **Board size:** set by its connectors, not a target size (ARG-12). Estimated ~100 × 70 mm, 2-layer, 2 oz copper on the heater path.
