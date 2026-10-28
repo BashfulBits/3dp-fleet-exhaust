@@ -155,6 +155,7 @@ Prints started from the touchscreen, the Flashforge app or FlashPrint follow the
 | 09 | Sensor bus and carrier I/O controller: per-header I²C segments, power and interrupts, programming every MCU through its ROM bootloader, supported sensors |
 | Design decisions | Decision record D1–D61, cost-reduction pass, trade studies T1–T3 |
 | 12 | Porting guide: printer packs, link tiers, profile schema, mechanical interface, safety contract, licensing |
+| 13 | Build-your-own quick start |
 | `printers/` | Printer packs: AD5X and C5 Pro specifics (enclosure mods, USB connection point, Klipper integration, printer-specific parts) |
 
 ## 7. Risk and open-item register
