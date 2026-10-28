@@ -72,11 +72,11 @@ Three branches join the trunk through **two chained ModulAir 2:1 Ys** (D34, doc 
 - **Flow vs angle is very non-linear** near closed (P11). That's why the chamber loop uses *measured* chamber ΔP rather than fixed angles; control needs no per-branch angle calibration.
 - **Angle encoder (D30):** an **AS5600** magnetic encoder on a printed bracket reads a diametric magnet on the blade shaft's free end (doc 08 C16), so it measures the blade itself, not the servo. It's on the node's I²C header 2.
   - **Closed is confirmed**, not assumed, including with the fan off (idle, heat hold, fire), when ΔP can't show anything.
-  - **Stuck or slipped:** measured angle more than 5° from the command for 5 s → fault. This catches a stripped horn or a slipping blade, which the ΔP check misses or finds late.
+  - **Stuck or slipped:** measured angle more than 5° from the command for 5 s → fault. This catches a stripped horn or a slipping blade, which the ΔP check misses or finds late. The same check bounds a **servo stall** (D56): when it fires, the node stops sending servo pulses, so a jammed blade can't hold the servo at stall current (≈ 1 A+ [E]) on `+5V_PWR`. A re-seat attempt drives it for ≤ 1 s, then stops for ≥ 30 s.
   - **Angle–flow curve per branch:** measured once at commissioning with the trunk venturi (§4.3, M8). Because the trunk vacuum is held constant (§4), the curve stays valid in service, and gives each branch's purge flow (§5.2).
   - The closed angle is learned at commissioning (blade on its seal) and rechecked in each static window.
   - **Leak drift (D32):** at a steady −3 Pa the damper only exhausts what leaks in, so the angle needed to hold it tracks the chamber's leakiness. The node logs the median angle per heated print and compares it with its commissioning baseline; when the printer runs alone, the hub's low-flow reading (§4.4) gives the bleed in CFM directly. A sustained rise raises a digest item (doc 05).
-- **Stuck detection, second check:** the commanded angle changes by > 10° but chamber ΔP doesn't respond within 10 s (with the trunk active) → fault. It is the only check if the encoder is missing or faulty.
+- **Stuck detection, second check:** the commanded angle changes by > 10° but chamber ΔP doesn't respond within 10 s (with the trunk active) → fault. It is the only check if the encoder is missing or faulty, and it stops the servo pulses the same way.
 
 ## 4. Control loops (cascaded, D5)
 
