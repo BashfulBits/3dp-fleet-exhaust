@@ -279,7 +279,7 @@ ESP-NOW is ESP32 peer-to-peer radio. It runs on every carrier alongside the norm
 
 | Requirement | Why |
 |---|---|
-| A **24 V supply into the node's POWER IN barrel** with INJECT BAR fitted and the HEAT jumper open (doc 02 §2.2), e.g. a 24 V brick on an ordinary outlet, **not** on that printer's mains-cut plug. A wireless-only AD5X node-heat therefore has **two supplies**: this logic brick, and heater power from the printer (doc 04 §6b) | The node must stay up when its printer is off or cut, to purge it and report. The hub checks this every time the plug is switched off (§11.7) |
+| A **24 V supply into the node's POWER IN barrel** with INJECT BAR fitted (the barrel never feeds the heater, doc 02 §2.2, D64), e.g. a 24 V brick on an ordinary outlet, **not** on that printer's mains-cut plug. A wireless-only AD5X node-heat therefore has **two supplies**: this logic brick, and heater power from the printer (doc 04 §6b) | The node must stay up when its printer is off or cut, to purge it and report. The hub checks this every time the plug is switched off (§11.7) |
 | Node-heat: the heater still runs from the printer's own supply (doc 02 §3.1) | Unchanged |
 | Accept that the hub link is radio only | Interference or a router channel change can drop it for a few seconds. The 30 s heater rule rides through that; a longer outage costs chamber heat, not safety |
 | The node-local safety layers and the `shelly_node` cut don't depend on the hub link | A wireless node keeps its full local protection |

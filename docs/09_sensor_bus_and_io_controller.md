@@ -41,12 +41,12 @@ Three pin rules drive the plan:
 | Interrupt out to the ESP32 (GPIO 47) | PA12 | Open-drain, active low |
 | Door reed | PA15 | EXTI 15; input only (a bootloader RX candidate, so harmless) |
 | KSD301 loop sense, 24V_HEAT sense | PA10, PA9 | Inputs only |
-| Heater-rail voltage, barrel heater-input sense | PB0 (ADC_IN8), PB1 (ADC_IN9) | 12-bit; ≈ 8 mV per step on the rail divider [E] |
+| Heater-rail voltage | PB0 (ADC_IN8) | 12-bit; ≈ 8 mV per step on the rail divider [E] |
 | Injection current (eFuse IMON, D61) | PA7 (ADC_IN7) | 47 kΩ + 100 nF at the eFuse, ≈ 1.3 V per amp, ≈ 0.6 mA per step [E] |
 | Board status LED | PA14 | If the bootloader drives PA14 as TX, the LED lights solid: a free "in bootloader" indicator |
 | SWD test pads (bench debugging, §4.5) | PA13 (SWDIO), PA14 (SWCLK) | Pads only |
 | Header group rail sense (D56) | PF1 | Digital input through a divider: low when the header group's current-limit switch is in limit |
-| Spare | PA13 | |
+| Spare | PA13, PB1 (ADC_IN9; the barrel heater-input sense until D64) | |
 
 25 of 28 pins are used. The 32-pin part's other pinouts (K1x, K3x, K4x) move pins around, so the PCB uses K2x only [E].
 
@@ -67,7 +67,7 @@ Each header's INT pin is an EXTI input with its own line. Sensor boards drive it
 
 The controller takes the slow, non-safety signals that would otherwise need ESP32 GPIOs, so every role has the same pin map and the same parts (D47), LAN included (doc 04 §4):
 
-- **Takes:** the door reed, the KSD301 loop sense, the 24V_HEAT switched-output sense, the **heater-rail voltage**, the **barrel heater-input sense** and the **injection current** (ADC; the last from the eFuse's IMON pin, D61), and the board status LED (doc 02 §2.4). LED chain 2 stays dropped from the fixed map.
+- **Takes:** the door reed, the KSD301 loop sense, the 24V_HEAT switched-output sense, the **heater-rail voltage** and the **injection current** (ADC; the last from the eFuse's IMON pin, D61), and the board status LED (doc 02 §2.4). LED chain 2 stays dropped from the fixed map.
 - **Frees:** GPIOs 13, 21, 41, 42 and 47 (D45). CAN TX/RX and the servo output (all GPIO-matrix peripherals) use 41, 42 and 21, which leaves GPIOs 10–13, the S3's IO MUX pins for SPI2, to the LAN SPI (doc 04 §4). GPIO 47 is the controller's interrupt line.
 - **ADC reference (D56):** the ADC runs from `+3V3_SENS`, which the sensor buck (LMR14030, D60) sets only to ≈ ±3 % (±2 % reference over temperature plus the 1 % divider). The firmware measures the PY32's internal reference channel and scales the rail readings by it, so the D53 rail throttle (23.0 V) stays within ≈ ±1 % [E].
 - **Interrupt:** a door change reaches the ESP32 in a few milliseconds through §2.3.

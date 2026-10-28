@@ -11,8 +11,6 @@ chamber:
 heater:
   allowed: true
   max_w: 150
-  supply: printer_tap    # or upgraded_internal / din_brick, per the O1 check
-  bed_interlock: true    # false with din_brick
 door:
   source: node_reed
 outputs:

@@ -92,9 +92,7 @@ The node gets its printer-specific behaviour from the profile, not from code. Th
 | `chamber.cap_c` | number | Operating cap for the chamber, set by the enclosure's weakest material (AD5X: 60; C5: 65, its own rating) |
 | `chamber.native_heater` | bool | The printer heats its own chamber (C5: true). The node then never fits or runs a heater |
 | `heater.allowed` | bool | Node heater permitted (needs `role: node-heat`, Tier ≥ 1) |
-| `heater.max_w` | number | Upper bound; the firmware still applies the input caps (doc 05 §3.3) |
-| `heater.supply` | enum | `printer_tap` (default), `upgraded_internal`, `din_brick`, `barrel_brick`. The carrier can't tell a DIN brick on its pigtail from a printer supply on the internal XT30, so this is what decides the bed interlock (doc 05 §3.3, D52, D53). The rail throttle runs on every supply |
-| `heater.bed_interlock` | bool | Hold the heater during bed ramp. Defaults from `heater.supply`: true for `printer_tap` and `upgraded_internal`, false for `din_brick` and `barrel_brick` (D53) |
+| `heater.max_w` | number | Upper bound for the heater element; the node's own `heater_power` and learned supply cap may be lower (doc 05 §3.3, D64) |
 | `door.source` | enum | `node_reed`, `link` (named objects), `none` |
 | `door.objects` | list | Printer object names for `link` (C5: `topDoor`, `frontDoor`) |
 | `klipper.chamber_sensor` | enum | `fleet_node` (the extra provides `[temperature_sensor chamber]`) or `native` |
@@ -143,8 +141,8 @@ A pack **must** meet all of these. A profile can only make limits stricter; noth
 3. `chamber.cap_c` set from the weakest material in the chamber (≤ HDT − 30 °C for printed parts). With a **node heater**, never above 60 °C; the firmware hard limit is then cap + 5 °C and the chamber-air KSD301 is rated about cap + 10 °C (doc 05 §3.1). A printer that heats its own chamber uses the manufacturer's rating instead (C5: 65 °C).
 4. Any external heater supply on the **printer's own smart plug** (doc 05 §3.3).
 5. Heater only on Tier 1 or Tier 2 links (§3.2).
-6. If the heater shares the printer's supply: the sizing rule (doc 02 §3.1), the bed interlock (the rail throttle runs on every supply, D53).
-7. The commissioning tests that apply (doc 05 §9: always 6, 7, 10, 12, 13, 15–22, 25, 27, 29 and 31, with tests written for heating run without the heater (28 and 30 are hub tests, run once per installation); with a node heater also 1–5, 9, 11, 14, 24 and 26, plus 8 if it shares the printer's supply and 23 if it uses an external brick), with results recorded in the pack README.
+6. A heater supply that suits the heater: the sizing rule for a shared supply (doc 02 §3.1), and the node's `heater_power` set at commissioning; the learned supply cap covers a misjudged supply (doc 05 §3.3, D64).
+7. The commissioning tests that apply (doc 05 §9: always 6, 7, 10, 12, 13, 15–22, 25, 27, 29 and 31, with tests written for heating run without the heater (28 and 30 are hub tests, run once per installation); with a node heater also 1–5, 9, 11, 14, 24 and 26, plus 8, and 23 if it uses an external brick), with results recorded in the pack README.
 8. The host plugin, if any, never shuts down or errors the printer's firmware (doc 07 §3.2). Its only print control is the `PAUSE` of the print hold (doc 05 §4.1).
 9. Latched states follow the fault levels (doc 05 §4.1): only **Clear** ends a lockout or cut, and a plug switched on while a cut is latched is cut again. A pack can't change either.
 

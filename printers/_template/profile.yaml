@@ -16,11 +16,9 @@ power:                   # required when link or link_backup is power_only (doc 
 
 # --- optional (core defaults shown) ---
 # link_backup: power_only      # usually moonraker on Klipper printers
-# heater:                      # all four required once allowed is true
+# heater:                      # both required once allowed is true
 #   allowed: false             # true needs role node-heat and a Tier 1 or 2 link
 #   max_w: 0
-#   supply: din_brick          # printer_tap | upgraded_internal | din_brick | barrel_brick
-#   bed_interlock: false       # true when the heater shares the printer's supply
 # door:
 #   source: none               # node_reed | link | none
 #   objects: []

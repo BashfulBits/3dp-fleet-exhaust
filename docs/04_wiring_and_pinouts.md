@@ -23,7 +23,7 @@ Each AD5X also feeds its own node's heater input:
 flowchart TB
   SP["Mains → smart plug"] --> AD["AD5X internal<br>24 V supply (O1)"]
   AD --> FU["ATO 10 A fuse<br>≤ 15 cm from terminals"]
-  FU -->|"14 AWG ≤ 1.5 m"| N["Node heater input<br>(ideal-diode OR)"]
+  FU -->|"14 AWG ≤ 1.5 m"| N["Node heater input<br>(internal XT30)"]
   SP -.-> BRK["DIN-4 brick<br>(alternative, D22)"]
   BRK -.->|"DIN pigtail → XT30<br>(in place of the tap, D52)"| N
   N -.->|"shunt (§6a)"| BUS["Bus injection"]
@@ -40,11 +40,11 @@ RJ45 IN/OUT on every carrier; a TERM jumper on every carrier, fitted at the two 
 | Cable | From → to | Type | Conductors | Connectors | Length |
 |---|---|---|---|---|---|
 | **Local injection** (optional) | 24 V brick or PoE splitter → any node's POWER IN barrel, INJECT BAR fitted | Brick lead | +24 V, GND | 5.5 × 2.5 mm barrel | as needed |
-| **Wireless-only node** (optional, no CAT6) | 24 V brick on an ordinary outlet (not the printer's plug) → node POWER IN, INJECT BAR fitted, **HEAT jumper open** (§6b) | Brick lead | +24 V, GND | 5.5 × 2.5 mm barrel | as needed |
+| **Wireless-only node** (optional, no CAT6) | 24 V brick on an ordinary outlet (not the printer's plug) → node POWER IN, INJECT BAR fitted (§6b) | Brick lead | +24 V, GND | 5.5 × 2.5 mm barrel | as needed |
 | **Bus** | Hub → node 1 → node 2 → node 3 | CAT6 patch, **distinct colour, labelled "24 V – NOT ETHERNET"** (R10) | 4 pairs (§3) | RJ45 | ~3 m, 1.5 m, 1.5 m |
 | **Heater feed** | AD5X supply terminals → inline ATO 10 A (≤ 15 cm from the terminals) → node-heat XT30 in | 14 AWG 2-conductor | 24V_HEAT, GND | Supply terminal / XT30 | ≤ 1.5 m |
 | **External heater feed** (optional, D22) | 24 V DIN-4 brick, **plugged in on the printer's own smart plug** → DIN pigtail in the housing's DIN-4 opening → node-heat internal XT30, in place of the printer tap (D52) | Brick lead + pigtail | +24 V, GND (2 pins each) | 4-pin DIN → XT30 | brick lead |
-| **Reduced-power heater feed** (optional, D22) | 24 V barrel brick ≤ 5 A, **on the printer's own smart plug** → POWER IN, HEAT jumper fitted (heater capped ~100 W) | Brick lead | +24 V, GND | 5.5 × 2.5 mm barrel | brick lead |
+| **Reduced-power heater feed** (optional, D22, D64) | 24 V barrel brick ≤ 5 A, **on the printer's own smart plug** → barrel-to-XT30 adapter lead → node-heat internal XT30, in place of the printer tap (`heater_power` ≤ 95 W) | Brick lead + adapter lead | +24 V, GND | 5.5 × 2.5 mm barrel → XT30 | brick lead |
 | **Heater element** | Node XT30 out → PTC (via TCO) | Element leads + TCO in series on the + lead | 2 | XT30 | ≤0.5 m |
 | **Heater fan** (separate leads, C8) or 5015 blower (fallback) | Node fan A → fan | 22–24 AWG | 24 V, GND, (tach), (PWM) | JST-XH 4 | ≤0.5 m |
 | **Recirculation-duct blower** (AD5X, O3) | Node B1 → 5015 blower | 22–24 AWG | 24 V, switched GND (PWM and tach leads unused) | JST-XH 2 | ≤1 m |
@@ -249,7 +249,7 @@ Every Tier 2 printer (doc 12 §3.2) uses the same link; only the printer end dif
 
 | Item | Rule |
 |---|---|
-| Sources | Selected per board by the **INJECT jumpers** (INT, BAR), each through its own Schottky, then the input guard, into the eFuse. Hub: INT (its PSU on the internal XT30, always). Node-heat: INT (the AD5X supply tap or an upgraded internal supply), or a DIN-4 brick on the internal XT30 through its pigtail (D52). Any node: BAR with a 24 V brick or PoE splitter. |
+| Sources | Selected per board by the **INJECT jumpers** (INT, BAR), each through its own Schottky, then the input guard, into the eFuse. Hub: INT (its PSU on the internal XT30, always). Node-heat: INT (the AD5X supply tap or an upgraded internal supply), or a DIN-4 or barrel heater brick on the internal XT30 through its pigtail or adapter lead (D52, D64). Any node: BAR with a 24 V brick or PoE splitter. |
 | Protection | Each source enters the bus through an eFuse with reverse-current blocking, so no supply is back-fed by another, and a short is current-limited at the source. |
 | Load sharing | Diode-OR by voltage. The hub is trimmed to ≈ 24.5 V and local sources sit at their nominal 24.0 V, so the hub carries the bus until cable drop under load pulls a node's local bus voltage below its local source. That source then supplies its stretch of the chain. No sharing controller is needed. |
 | Printer supply protection | If a printer's rail sags (bed + heater load), it falls below the bus voltage and its injection stops by itself, so the bus never takes power from a printer that needs it (R12). The ~1 A limit caps the most it can ever add to the printer supply at ~24 W. |
@@ -259,16 +259,18 @@ Every Tier 2 printer (doc 12 §3.2) uses the same link; only the printer end dif
 
 ## 6b. Power configurations (D35)
 
-Jumpers only choose what **feeds** the bus; every board's logic runs from the bus. The rule that matters: **a node must have some source that survives its own printer's cut**: the CAT6 bus from the hub, or a brick on an ordinary outlet.
+Jumpers only choose what **feeds** the bus; every board's logic runs from the bus. Only the internal XT30 feeds the heater; the barrel never does (D64). The rule that matters: **a node must have some source that survives its own printer's cut**: the CAT6 bus from the hub, or a brick on an ordinary outlet.
 
-| Setup | INJECT | HEAT | Outlet rules |
-|---|---|---|---|
-| Hub | INT (its PSU) | – | Hub PSU and the fan on ordinary outlets, **never on a printer's plug** |
-| Wired node-heat, printer supply | INT | open | Logic survives the cut through the bus |
-| Wired node-heat, external heater brick | INT (DIN brick on its pigtail), or BAR | fitted for BAR | Heater brick **on that printer's plug** (doc 05 §9 test 23) |
-| Wired node-lite | none, or BAR with a brick | open | Any brick on an ordinary outlet |
-| Wireless-only node-heat (AD5X) | BAR (logic brick) + INT | **open** | **Two supplies:** logic brick on an ordinary outlet, heater from the printer's own supply (INT XT30). The logic brick is never on the printer's plug |
-| Wireless-only node-lite | BAR | open | Logic brick on an ordinary outlet |
+| Setup | INJECT | Outlet rules |
+|---|---|---|
+| Hub | INT (its PSU) | Hub PSU and the fan on ordinary outlets, **never on a printer's plug** |
+| Wired node-heat, printer supply | INT | Logic survives the cut through the bus |
+| Wired node-heat, heater brick (DIN pigtail or barrel adapter lead on INT) | INT | Heater brick **on that printer's plug** (doc 05 §9 test 23) |
+| Wired node-lite | none, or BAR with a brick | Any brick on an ordinary outlet |
+| Wireless-only node-heat (AD5X) | BAR (logic brick) + INT | **Two supplies:** logic brick in the barrel on an ordinary outlet, heater supply on INT. The logic brick is never on the printer's plug |
+| Wireless-only node-lite | BAR | Logic brick on an ordinary outlet |
+
+A node that stays up when its heater supply drops out (on the bus or a barrel logic brick) sees the drop directly and doesn't reset with it (doc 05 §3.3).
 
 Checked at commissioning (doc 05 §9 test 29) and continuously by the hub: when a printer's plug reads off in normal use, its node must stay online, or the hub alerts (doc 05 §4).
 
