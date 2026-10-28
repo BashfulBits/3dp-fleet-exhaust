@@ -36,7 +36,7 @@ Three pin rules drive the plan:
 | Function | Pins | Notes |
 |---|---|---|
 | I²C target (upstream) / bootloader UART | PA2 (SDA / TX), PA3 (SCL / RX) | **330 Ω in series with PA2** (§4.3) |
-| Header INT 1–8 | PA0, PA1, PA4, PA5, PA11, PF3, PA8, PA9 | EXTI 0, 1, 4, 5, 11, 3, 8, 9. Header 6 moved from PA7 to PF3 (D61) to free an ADC channel; EXTI 3 is free because PA3 is I²C only [E: confirm PF3 can select EXTI 3 in the PY32F030 reference manual; else poll header 6's INT over I²C]. Header 5 moved from PA6 to PA11 (D64) to free an ADC channel for the bus voltage. Header 8 took PA9 when the 24V_HEAT sense moved to the ESP32 (D64); INT is an input, so the bootloader-pin rule holds |
+| Header INT 1–8 | PA0, PA1, PA4, PA5, PA11, PF3, PA8, PA9 | EXTI 0, 1, 4, 5, 11, 3, 8, 9. Header 6 moved from PA7 to PF3 (D61) to free an ADC channel; EXTI 3 is free because PA3 is I²C only [V: PY32F030 reference manual §12.3.5, EXTI3 selects PA3, PB3 or PF3]. Header 5 moved from PA6 to PA11 (D64) to free an ADC channel for the bus voltage. Header 8 took PA9 when the 24V_HEAT sense moved to the ESP32 (D64); INT is an input, so the bootloader-pin rule holds |
 | Header P-FET gate 1–8 | PB2, PB3, PB4, PB5, PB6, PB7, PB8, PF0 | Gate pull-downs hold every header on while the pins float (§2.2) |
 | Interrupt out to the ESP32 (GPIO 47) | PA12 | Open-drain, active low |
 | Door reed | PA15 | EXTI 15; input only (a bootloader RX candidate, so harmless) |
@@ -46,7 +46,7 @@ Three pin rules drive the plan:
 | Board status LED | PA14 | If the bootloader drives PA14 as TX, the LED lights solid: a free "in bootloader" indicator |
 | Tap-side heater voltage (D64) | PB1 (ADC_IN9) | Divider on the internal XT60's side of the tap ideal diode, same values as the rail divider: shows whether the tap is live, and is the reading the 23.0 V throttle uses while it is |
 | Bus voltage (D64) | PA6 (ADC_IN6) | Divider on the RJ45 bus rail, top resistor ≥ 100 kΩ like the rail divider. For the anemometer power (doc 06 §4.4), bus telemetry and back-fed mode |
-| Tap ideal-diode disable (D64) | PA13 | Drives a 2N7002 that pulls the MX74700T's EN low, with a **10 kΩ gate pull-down** so the diode stays on while the pin floats, and also against the pin's reset state as SWDIO, which probably has an internal pull-up (≈ 40 kΩ would give ≈ 0.7 V on the gate, under the 2N7002's threshold) [E: confirm the pull-up value]. Shared with the SWDIO pad: firmware releases it to SWD on a bench command [E: confirm the PY32 allows switching PA13 between GPIO and SWD at run time; else SWD needs a reset with BOOT0] |
+| Tap ideal-diode disable (D64) | PA13 | Drives a 2N7002 that pulls the MX74700T's EN low, with a **4.7 kΩ gate pull-down** so the diode stays on while the pin floats, and against the pin's reset state: PA13 is SWDIO with its internal pull-up active, 30–70 kΩ [V: datasheet electrical characteristics; reference manual §9.3.1], which a 4.7 kΩ pull-down holds at ≤ 0.45 V on the gate, under the 2N7002's 1.0 V minimum threshold (a 10 kΩ would reach 0.83 V at the 30 kΩ limit, too close). Shared with the SWDIO pad: it resets as SWDIO (MODER reset value 0xEBFFFFFF, alternate function) and firmware makes it a GPIO output by setting its mode, which releases the SWD pin [V: reference manual §9.4.1, §28.2.2]. The firmware waits ≈ 500 ms after reset before doing so, and a debugger can't attach after that until the next reset (§4.5) |
 | SWD test pads (bench debugging, §4.5) | PA13 (SWDIO, shared with the diode disable), PA14 (SWCLK) | Pads only |
 | Header group rail sense (D56) | PF1 | Digital input through a divider: low when the header group's current-limit switch is in limit |
 | Spare | None | |
@@ -138,7 +138,7 @@ The on-board XGZP6897D, the switch and (while running) the controller all see th
 
 ### 4.5 Bench debugging and fallback
 
-The carrier keeps **four SWD test pads** (3.3 V, GND, PA13, PA14) for bench debugging with any CMSIS-DAP probe. They are also the fallback if the bootloader path fails O15: each controller is then programmed once by probe and updated over I²C by an application-level loader [E]. The PY32's SWD stays enabled unless firmware remaps PA13/PA14, and PA14 only drives the status LED. Since D64 the firmware remaps PA13 as the tap ideal-diode disable, and hands it back to SWD on a bench command; the heater is held off while it does, since the probe's traffic switches the diode. The node's logic doesn't depend on the diode (doc 02 §2.2). From a blank or crashed controller the pin is still SWD at reset.
+The carrier keeps **four SWD test pads** (3.3 V, GND, PA13, PA14) for bench debugging with any CMSIS-DAP probe. They are also the fallback if the bootloader path fails O15: each controller is then programmed once by probe and updated over I²C by an application-level loader [E]. The PY32's SWD stays enabled unless firmware remaps PA13/PA14, and PA14 only drives the status LED. Since D64 the firmware makes PA13 the tap ideal-diode disable, but only ≈ 500 ms after reset [E], so a probe can attach and halt the core inside that window; the pads have no NRST, so a probe that needs a reset line can't use "connect under reset". Until then the diode's gate pull-down keeps it on, and the node's logic never depends on it (doc 02 §2.2). A blank or crashed controller leaves the pin as SWD.
 
 ## 5. Sensor board changes (amends D42)
 
