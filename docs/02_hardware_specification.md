@@ -124,7 +124,7 @@ flowchart LR
 | Servo header (`+5V_PWR`, signal held low at boot) | ✓ | ✓ | Fitted, unused | The damper's **AS5600 angle encoder** (D30) reads the blade shaft and connects to I²C header 2, not here. |
 | Door input (reed switch, pull-up, RC + ESD), **read through the carrier I/O expander** (§2.4) | ✓ | Fitted, optional | Fitted, unused | The C5's doors are read from Moonraker. For the AD5X the reed is primary and Moonraker is the backup (doc 05 §4). |
 | LED chain 1: 74AHCT1G125 level shifter, 330 Ω series, 1000 µF bulk (chain 2 dropped, D45) | ✓ | ✓ | ✓ (LED1 = panel RGB) | LED 0 of the bed strip is the status pixel. The strip is ~48 LEDs per printer (D44); the firmware caps its current at 0.5 A (doc 04 §3). |
-| **AUX header** (D48): JST-XH 5 (3.3 V, GND, A = GPIO 5, B = GPIO 6, GND), each line through a **2N7002 level shifter** (gate to 3.3 V; 10 kΩ pull-up to 3.3 V on the ESP32 side, 4.7 kΩ to 3.3 V on the connector side) and ESD-protected | Spare, or the **UART printer link** (A = TX, B = RX; doc 12 `marlin_serial`) | Spare, or the UART printer link | ✓ (A = panel button, B = smoke dry contact; each with its own GND pin) | Replaces the two spare-input headers. The shifter makes both lines **5 V-tolerant** and still passes a contact pulling low, so edge interrupts work. GPIO 5/6 are no longer analog inputs. Pinout in doc 04 §4. |
+| **AUX header** (D48): JST-XH 5 (3.3 V, GND, A = GPIO 5, B = GPIO 6, GND), each line through a **2N7002 level shifter** (gate to 3.3 V; 10 kΩ pull-up to 3.3 V on the ESP32 side, 4.7 kΩ to 3.3 V on the connector side) and ESD-protected | Spare, or the **UART printer link** (A = TX, B = RX; doc 12 `marlin_serial`) | Spare, or the UART printer link | ✓ (A = smoke dry contact; B = acknowledge button; each with its own GND pin) | Replaces the two spare-input headers. An **on-board tact switch** (TS-1187A-B-A-B, LCSC C318884, a Basic part) sits on B's connector side, in parallel with the AUX pin, on every carrier (D49): the hub's front panel presses it through a printed plunger, and a builder can still cable a remote button to AUX B. It is on B, the UART **RX** line, so a press on a node using the UART link only garbles a received frame; on A, the TX line, it would short a driven output through the shifter. The shifter makes both lines **5 V-tolerant** and still passes a contact pulling low, so edge interrupts work. GPIO 5/6 are no longer analog inputs. Pinout in doc 04 §4. |
 | **Heater-input senses**, read by the **carrier I/O expander's ADC** (§2.4): **heater-rail voltage** via a divider, and the **external heater-input sense** (DIN and HEAT-jumpered barrel on one weighted divider, four levels, D22) | ✓ | Fitted, read | Fitted, read | Moved off GPIO 5/6 by D47. The ~100 W barrel cap and the rail throttle (doc 05 §3) then depend on the expander, so a missing or silent expander **holds the heater off** (§2.4). |
 | **Board identity header** (D46): 2 × 3 pin header + shunt (HEAT, LITE, HUB) on a divider to GPIO 3, checked against the stored role at boot (doc 04 §4) | ✓ (HEAT) | ✓ (LITE) | ✓ (HUB) | Wrong or missing shunt → safe hold, nothing switches on. Since D47 it is the only part of the role set on the board. The dev board's BOOT button doubles as a service button after boot (doc 04 §4). |
 | Status LEDs (power, CAN activity) and a **board status LED** driven by the carrier I/O expander (§2.4) | ✓ | ✓ | ✓ | |
@@ -135,7 +135,8 @@ flowchart LR
 
 **Connectors:**
 - Power: XT30 (internal 24 V input, heater output); 5.5 × 2.5 mm barrel (POWER IN); 4-pin DIN (external heater input, population option); INJECT and HEAT jumper headers (D22); ILIM and RANGE 1/2 shunt headers (D47).
-- AUX: JST-XH 5, panel button and smoke contact on the hub, or a UART printer link on a node (D48).
+- AUX: JST-XH 5, smoke contact and an optional remote acknowledge button on the hub, or a UART printer link on a node (D48, D49).
+- Acknowledge button: on-board SMD tact switch on AUX B, pressed through a printed plunger (D49).
 - Bus: RJ45.
 - Signals: JST-XH 2.54 mm. Use **pre-crimped pigtails**, so no crimp tool is needed.
 - Servo: standard 3-pin header.
@@ -241,7 +242,7 @@ By default the heater runs from **its own printer's internal 24 V supply**. An *
 | Pressure calibration | Static auto-zero of all six pressure sensors, coordinated by the hub (doc 06 §4.1) |
 | Room air | Sensor head (SHT40 + ENS160) |
 | Fan | G4 via fan channel A. Interface finalised after **R1**; an adapter board is allowed if needed |
-| Panel | 1–2 WS2812 behind a printed light pipe (LED1), an **active 24 V buzzer** on output B2, an **acknowledge button** (AUX A, D48), and an optional 0.96″ I²C OLED on its own sensor header (header 4, D48) |
+| Panel | 1–2 WS2812 behind a printed light pipe (LED1), an **active 24 V buzzer** on output B2, an **acknowledge button** (the carrier's on-board tact switch on AUX B, pressed through a captive plunger in the C9 front panel, D49), and an optional 0.96″ I²C OLED on its own sensor header (header 4, D48) |
 | Smoke input | Dry-contact input for an optional relay-output smoke detector |
 | Enclosure | Printed, wall-mounted, with PSU, inlet and carrier; vents for the PSU (doc 08) |
 
