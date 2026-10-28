@@ -1,6 +1,6 @@
 # 09 - Sensor Bus and Carrier I/O Controller
 
-> Design baseline, 2026-10-27 (D45). How the carrier reaches up to six external sensor boards and one on-carrier I/O expander. It covers per-header power and interrupts, the I²C bus layout, and how the ESP32 programs every CH32V003 in the system from one pin. Phase 2 builds it after the bench test in O15.
+> Design baseline, 2026-10-28 (D45, D54). How the carrier reaches up to eight external sensor boards through one I²C switch, with per-header power and interrupts, and how the ESP32 programs the carrier I/O controller and any sensor-board MCU through each part's ROM bootloader. Phase 2 builds it after the bench test in O15.
 
 Evidence key, as in the other docs: **[V]** verified from a datasheet, reference manual or released source; **[E]** engineering estimate; **[U]** unverified, needs a test.
 
@@ -10,160 +10,147 @@ Evidence key, as in the other docs: **[V]** verified from a datasheet, reference
 
 | Function | How |
 |---|---|
-| **Up to 6 external sensor headers** per carrier (was 3), plus an **internal seventh slot** for an on-carrier I/O expander (§2.4) | JST-XH 5: 3.3 V, GND, SDA, SCL, INT/SWIO |
-| **Each header on its own I²C segment** | TCA9548A 8-channel switch replaces the TCA9543A (§3) |
+| **Up to 8 external sensor headers** per carrier, one per switch channel | JST-XH 5: 3.3 V, GND, SDA, SCL, INT |
+| **Each header on its own I²C segment** | TCA9548A-compatible 8-channel switch (§3) |
 | **Per-header power switching** | One P-FET per header, on by default (§2.2) |
-| **Per-header interrupt** | The INT/SWIO pin of each header goes to a true EXTI pin on a carrier CH32V003 |
-| **In-system programming of every CH32V003** (blank, running or bricked) | The carrier CH32 is the SWIO programmer for its headers. The ESP32 programs the carrier CH32 over **one GPIO**, which is also the carrier CH32's interrupt line back to the ESP32 (§4) |
+| **Per-header interrupt** | Each header's INT pin goes to its own EXTI line on the carrier I/O controller (§2.3) |
+| **Slow carrier I/O** | The same controller reads the door, the KSD301 and 24V_HEAT senses and the two heater-input ADC channels, and drives the board status LED (§2.4, doc 02 §2.4) |
+| **In-system programming of every MCU** (blank, running or hung) | Each MCU's **ROM bootloader** on its own I²C pins, driven by the ESP32's UART through the GPIO matrix (§4). No programmer chip, no debug protocol and no extra ESP32 pin |
 
-A sensor board with a CH32V003 on it (D42, used as an ADC, I/O expander, light sensor or I²C endpoint) is programmed through the header it is plugged into, with no programming pads and no separate programmer. A sensor board without a CH32 just leaves the fifth pin as its interrupt output, or unconnected.
+A sensor board with an MCU on it (D42: an ADC, I/O expander, light sensor or protocol bridge) is programmed through the header it is plugged into, with no pads and no separate programmer. A sensor board without one leaves the fifth pin as its sensor's interrupt output, or unconnected. The reference build's sensor boards S, P and E have no MCU.
 
-**The carrier CH32 is optional.** If it isn't fitted, every header is powered (the gate pull-downs hold the FETs on) and the ESP32 still reads every sensor through the switch. Only per-header interrupts, power cycling and CH32 programming are lost.
+**The carrier I/O controller is needed for heating, not for sensing.** If it is missing or not yet programmed, every header is powered (the gate pull-downs hold the FETs on) and the ESP32 still reads every sensor through the switch. Per-header interrupts, power cycling and the slow carrier I/O are lost, and since the heater-input readings come from it, **the heater is held off** (D47).
 
-## 2. Carrier CH32V003
+## 2. Carrier I/O controller (PY32F030)
 
-### 2.1 Pin plan (TSSOP20 / QFN20: 18 I/O, all used)
+### 2.1 Part and pin plan
 
-The CH32V003 SWIO protocol is pulse-width coded. The data-1 low time is T to 4T, the data-0 low time is 6T to 64T, and the target answers a read by stretching the host's short pulse [V: QingKeV2 debug manual]. The released host code generates pulses with **timer PWM + DMA** and reads them with **timer input capture + DMA** [V: rv003usb `bitbang_rvswdio_ch32v003.h`, ch32fun]. So every header line must sit on a pin that can be both a timer output and a timer capture input. It must also be a separate EXTI line, so each header keeps its own interrupt. The pin plan meets both rules for seven header slots; slot 7 is internal (§2.4). The eighth EXTI line (5) has no free timer pin left.
+**Part: PY32F030K28U6TR** (Puya, Cortex-M0+, QFN32 5 × 5 mm, 64 KB flash, 8 KB SRAM, 48 MHz rated, 12-bit ADC; LCSC C3018718, ≈ $0.41) [V: PY32F030 datasheet, JLC stock]. One part does what D45 split over two CH32V003s (the header controller and the slot-7 expander); D54 explains why. Pinout 2 (K2x) gives 28 I/O besides PF2-NRST and PF4-BOOT0 [V: datasheet fig. 3-3].
 
-| Header | INT/SWIO pin | Timer use when programming (remap) | EXTI line | P-FET gate |
-|---|---|---|---|---|
-| **1** | PD0 **and** PC3, joined on the board | out: TIM1 CH1N (RM00); in: TIM1 CH3 capture | 0 (PD0) | PA2 |
-| **2** | PA1 | TIM1 CH2 out (RM00); capture IC1 ← TI2 | 1 | PC0 |
-| **3** | PD2 | TIM1 CH1 out (RM00); capture IC2 ← TI1 | 2 | PC4 |
-| **4** | PD3 | TIM2 CH2 out (RM00); capture IC1 ← TI2 | 3 | PC5 |
-| **5** | PD4 | TIM2 CH1 out (RM00); capture IC2 ← TI1 | 4 | PD5 |
-| **6** | PC6 | TIM1 CH1 out (RM01); capture IC2 ← TI1 | 6 | PD6 |
-| **7** (internal, §2.4) | PC7 | TIM1 CH2 out (RM01); capture IC1 ← TI2 | 7 | PD7 |
-| — | PC1 / PC2 | I²C1 SDA / SCL (default remap): the carrier CH32 is an I²C target on the ESP32's upstream bus | — | — |
-| — | PD1 | The carrier CH32's **own SWIO**, also its interrupt output to the ESP32 (§4.1) | — | — |
+Three pin rules drive the plan:
+- **I²C target on PA2/PA3.** PA2 is both I2C_SDA and USART1_TX, and PA3 both I2C_SCL and USART1_RX [V: datasheet pin table], and the ROM bootloader listens on that USART (§4.1). So the bootloader is reachable on the two I²C wires.
+- **Bootloader pins carry only inputs or the status LED.** The bootloader also uses the USART on PA9/PA10 and PA14/PA15 [V: PY32F003 reference manual §3.6.2, same family], and may drive its TX candidates (PA9, PA14) while it runs [U]. Nothing on those pins may switch a header or signal the ESP32.
+- **One EXTI line per interrupt.** EXTI lines are shared by pin number across ports, so the eight header INT lines and the door each take a different number.
 
-Timer remap tables, I²C remap and EXTI port rules: [V: CH32V003 reference manual, tables 7-8 and 7-9; AFIO_EXTICR]. PD7 is a GPIO unless the NRST option byte is set [V: datasheet], so the option byte stays at its default.
+| Function | Pins | Notes |
+|---|---|---|
+| I²C target (upstream) / bootloader UART | PA2 (SDA / TX), PA3 (SCL / RX) | **330 Ω in series with PA2** (§4.3) |
+| Header INT 1–8 | PA0, PA1, PA4, PA5, PA6, PA7, PA8, PA11 | EXTI 0, 1, 4, 5, 6, 7, 8, 11 |
+| Header P-FET gate 1–8 | PB2, PB3, PB4, PB5, PB6, PB7, PB8, PF0 | Gate pull-downs hold every header on while the pins float (§2.2) |
+| Interrupt out to the ESP32 (GPIO 47) | PA12 | Open-drain, active low |
+| Door reed | PA15 | EXTI 15; input only (a bootloader RX candidate, so harmless) |
+| KSD301 loop sense, 24V_HEAT sense | PA10, PA9 | Inputs only |
+| Heater-rail voltage, barrel heater-input sense | PB0 (ADC_IN8), PB1 (ADC_IN9) | 12-bit; ≈ 8 mV per step on the rail divider [E] |
+| Board status LED | PA14 | If the bootloader drives PA14 as TX, the LED lights solid: a free "in bootloader" indicator |
+| SWD test pads (bench debugging, §4.5) | PA13 (SWDIO), PA14 (SWCLK) | Pads only |
+| Spare | PA13, PF1, PF3 | |
 
-**Single-pin mode [U].** Headers 2–7 use one pin for both output and capture. The pin is an alternate-function open-drain output, and its input path stays live. The reference manual says that in this mode the Schmitt trigger is on and the pin is sampled into the input register [V]. The capture channel then takes the **neighbouring** channel's input. CC1S = 10 maps IC1 on TI2, and CC2S = 10 maps IC2 on TI1 [V: RM, TIMx_CHCTLR1]. No released programmer uses this arrangement, so it's the subject of the O15 bench test. Header 1 has two pins joined (output and capture on different channels), which is how the released code works, so header 1 is the known-good fallback for the bench test.
-
-**Remap at run time.** Headers 2–3 and 6–7 need different TIM1 remaps. A remap only affects pins set to alternate function, and only one header is programmed at a time, so the firmware sets the remap at the start of each programming session [E].
-
-**If single-pin mode fails O15:** fall back to five slots (one is the internal expander, so four external), each with two joined pins on the default remaps. The pairs are PA1→PC4, PA2→PD2, PD0→PC3 (TIM1), and PD3→PD4, PC0→PD7 (TIM2). The other pins become the five gates. The PCB is laid out for the seven-header plan, with the five-header pairs reachable by 0 Ω links [E].
-
-**DMA:** I²C1 TX and RX share DMA channels 6 and 7 with TIM1 CH3 and TIM2 CH2/CH4 [V: RM DMA request map]. So the carrier CH32's I²C target is **interrupt-driven, not DMA**.
+25 of 28 pins are used. The 32-pin part's other pinouts (K1x, K3x, K4x) move pins around, so the PCB uses K2x only [E].
 
 ### 2.2 Per-header power
 
-- **P-FET** (HL3401 class, SOT-23, ≈ $0.04, a Preferred part, D51) from the carrier's 3.3 V to the header's 3.3 V pin, with a **gate pull-down** (100 kΩ [E]). With the carrier CH32 in reset, blank or absent, its pins float and every header is **on**. The CH32 drives the gate high to switch a header off.
-- **Pull-ups go after the FET:** SDA, SCL (on that header's switch channel) and INT/SWIO (**2.2 kΩ**, for SWIO edge speed, §4.1a [E]) all pull up to the header's switched 3.3 V. A header that is off is not back-powered through its pull-ups.
-- **Firmware rule:** before switching a header off, the ESP32 deselects its switch channel, and the carrier CH32 sets that header's INT/SWIO pin to input. Otherwise SDA and SCL from the powered side would feed the unpowered board through its I/O clamp diodes.
+- **P-FET** (HL3401 class, SOT-23, ≈ $0.04, a Preferred part, D51) from the carrier's 3.3 V to the header's 3.3 V pin, with a **gate pull-down** (100 kΩ [E]). With the controller in reset, in its bootloader, blank or absent, its pins float and every header is **on**. The controller drives the gate high to switch a header off.
+- **Pull-ups go after the FET:** SDA, SCL (on that header's switch channel) and INT (10 kΩ [E]) all pull up to the header's switched 3.3 V. A header that is off is not back-powered through its pull-ups.
+- **Firmware rule:** before switching a header off, the ESP32 deselects its switch channel. Otherwise SDA and SCL from the powered side would feed the unpowered board through its I/O clamp diodes. The controller masks that header's INT line while it is off, since the pull-up after the FET lets it fall.
+- **Why every external header is switched:** the sensors on them (SHT40, ENS160, XGZP6897D, AS5600, an OLED) have no reset pin. One that latches up or holds SDA low after ESD or a brownout only recovers when its power is removed. Deselecting its channel isolates it but doesn't reset it. The cable is also the likeliest place for a fault.
 - Every header line gets the same ESD protection as the carrier's other signal inputs (doc 02 §2.2).
 
 ### 2.3 Interrupt aggregation
 
-Each INT/SWIO pin is an EXTI input with its own line. Sensor boards drive it open-drain, active low. On any edge, the carrier CH32 sets a bit in its pending register and pulls PD1 low, which is the ESP32's single interrupt line. The ESP32 reads and clears the pending register over I²C, then services the header that is flagged.
+Each header's INT pin is an EXTI input with its own line. Sensor boards drive it open-drain, active low. On any edge (and on a door change), the controller sets a bit in its pending register and pulls PA12 low, which is the ESP32's interrupt line on GPIO 47. The ESP32 reads and clears the pending register over I²C, then services whatever is flagged.
 
-### 2.4 On-carrier I/O expander (slot 7)
+### 2.4 Carrier I/O (was the slot-7 expander)
 
-Slot 7 is wired like an external header (gated 3.3 V, its own switch channel, INT/SWIO on PC7 and EXTI 7) but its connector is a CH32V003 on the carrier, with no cable. It is programmed through the carrier CH32 with the flow in §4.2, so it needs no programming pads of its own. Its job is to free ESP32 GPIOs so that **every role has the same pin map** (doc 04 §4) and every carrier can carry the LAN parts (fitted on all since D47), not a hub-only option with 0 Ω links:
+The controller takes the slow, non-safety signals that would otherwise need ESP32 GPIOs, so every role has the same pin map and the same parts (D47), LAN included (doc 04 §4):
 
-- **Takes:** the door reed, the KSD301 loop sense, the 24V_HEAT switched-output sense, the board status LED (doc 02 §2.4). LED chain 2 is dropped from the fixed map. Since D47 its ADC also reads the **heater-rail voltage** and the **external heater-input sense**, which frees GPIO 5 and 6 as plain spare inputs on every role.
-- **Frees:** GPIOs 13, 21, 41, 42 and 47. CAN TX/RX and the servo output (all GPIO-matrix peripherals) move onto 41, 42 and 21. That releases GPIOs 10–13, the S3's IO MUX pins for SPI2, to the LAN SPI (SCK, MOSI, MISO, CS), so it runs without the GPIO matrix (doc 04 §4). The fifth pin, 47, becomes the carrier CH32's SWIO/INT line (§4.1).
-- **Interrupt:** the door reed changes the slot-7 INT line, so a door event reaches the ESP32 in a few milliseconds through the aggregation in §2.3.
-- **Failure behaviour:** nothing it carries feeds a safety layer (S-7). A missing or dead expander blanks the door input (the AD5X falls back to Moonraker), the KSD sense and the status LED. Since D47 a missing or silent expander also removes the heater-input readings, so the firmware **holds the heater off** (and turns it off if the expander stops answering mid-heat). That is the safe direction.
-- **Costs:** one CH32V003 (≈ $0.30 with passives [E]), one fewer external header (six), and one more firmware image (a small I²C register map). The part is the same as the carrier CH32's, so there is no extra JLC fee.
-- **Dependency on O15:** slot 7 uses single-pin SWIO capture. If O15 fails and the five-slot fallback is used, the expander takes one slot and four stay external. The reference build needs at most three external headers.
+- **Takes:** the door reed, the KSD301 loop sense, the 24V_HEAT switched-output sense, the **heater-rail voltage** and the **barrel heater-input sense** (ADC), and the board status LED (doc 02 §2.4). LED chain 2 stays dropped from the fixed map.
+- **Frees:** GPIOs 13, 21, 41, 42 and 47 (D45). CAN TX/RX and the servo output (all GPIO-matrix peripherals) use 41, 42 and 21, which leaves GPIOs 10–13, the S3's IO MUX pins for SPI2, to the LAN SPI (doc 04 §4). GPIO 47 is the controller's interrupt line.
+- **Interrupt:** a door change reaches the ESP32 in a few milliseconds through §2.3.
+- **Failure behaviour:** nothing it carries feeds a safety layer (S-7). A missing, silent or not-yet-programmed controller blanks the door input (the AD5X falls back to Moonraker), the KSD sense and the status LED, and removes the heater-input readings, so the firmware **holds the heater off** (and turns it off if the controller stops answering mid-heat). That is the safe direction.
+- **No power switching of its own:** it is the carrier's own firmware, with no cable. A reset command over I²C or its hardware watchdog restarts it, and every reset lands in the ROM bootloader (§4.1), so it never needs a power cycle to recover.
+- **It sits on the ESP32's main I²C bus,** not behind the switch. If it ever held SDA low, it would block the whole bus, which is why its firmware enables the watchdog at start-up, resets its I²C peripheral when the bus has seen no valid transaction for 1 s [E], and the ESP32 runs the usual nine-clock bus recovery before reporting a fault.
 
 ## 3. I²C bus load: one switch channel per header
 
-The carrier CH32 **does not** carry I²C. SDA and SCL run from the ESP32. Putting seven cables and boards on one segment would load it with roughly 7 × ~45 pF [E] plus the carrier's own load, which is too close to the 400 pF limit, even at 100 kHz. So each header gets its own segment:
+The controller **does not** carry the sensor traffic. SDA and SCL run from the ESP32. Putting eight cables and boards on one segment would load it with roughly 8 × ~45 pF [E] plus the carrier's own load, which is too close to the 400 pF limit, even at 100 kHz. So each header gets its own segment:
 
 | Upstream (ESP32 I²C, on the carrier) | TCA9548A channel → header |
 |---|---|
-| ESP32 SDA/SCL with the carrier's pull-ups; on-board XGZP6897D (0x6D); TCA9548A (0x70–0x77); carrier CH32 I²C target | Channels 0–6 → headers 1–7; channel 7 spare |
+| ESP32 SDA/SCL with the carrier's pull-ups; on-board XGZP6897D (0x6D); TCA9548A (0x70–0x77); carrier I/O controller (I²C target) | Channels 0–7 → headers 1–8 |
 
 - **Load per segment:** one cable (≤ 1 m), one sensor board and one switch channel. That's well under 400 pF at 100 kHz [E].
-- **Address clashes go away:** two boards with the same fixed address (two XGZP6897D at 0x6D, two SHT40 at 0x44) can be on any two headers.
+- **Address clashes go away:** two boards with the same fixed address (two XGZP6897D at 0x6D, two SHT40 at 0x44) can be on any two headers. That is also why a sensor-board MCU never needs to translate addresses.
 - **Firmware selects one channel at a time.** Enabling several channels at once adds their loads together and joins their address spaces.
 - **Isolation during power cycling:** a deselected channel cuts SDA/SCL to a header that is switched off (§2.2).
 - **Displays get their own channel (D48).** An OLED never shares a channel with a sensor; the default is header 4 (channel 3) on every role. The firmware selects the display channel only while it writes a frame (≤ 2 Hz) and deselects it straight after, so a display that locks up is selected as little as possible.
-- **Stuck bus:** a sensor that holds SDA low only blocks its own channel. The ESP32 deselects it and switches its power off and on through the carrier CH32.
+- **Stuck bus:** a sensor that holds SDA low only blocks its own channel. The ESP32 deselects it and switches its power off and on through the controller.
 - **Alternative:** the ESP32-S3's second I²C controller could split the headers into two groups. That costs two more GPIOs. GPIO 5/6 are the only spare pair, and they are kept for the AUX header and its UART printer link (D48). It would also still share a segment between headers. The TCA9548A is preferred.
-- **Cost:** a TCA9548A-compatible switch is ≈ $0.4–0.8 (FCA9548T fitted, D51), in place of the TCA9543A (≈ $0.5 [E]).
+- **Cost:** a TCA9548A-compatible switch is ≈ $0.4–0.8 (FCA9548T fitted, D51).
 
-## 4. Programming every CH32V003 from one ESP32 pin
+## 4. Programming every MCU through its ROM bootloader
 
-### 4.1 The carrier CH32 (ESP32 → PD1)
+### 4.1 The mechanism
 
-- **The ESP32 drives SWIO with its RMT peripheral, not a bit-banged loop [U].** One RMT TX channel (open-drain) and one RMT RX channel share the line, which is how Espressif's `onewire_bus` driver shares one pin [E]. The details are in §4.1a. The CPU is free while a frame is on the wire, and no interrupts are held off, so a node keeps running its control loops during an update. The released ESP32-S2 programmer is the timing reference, but it bit-bangs with `nop` loops [V: cnlohr esp32s2-cookbook]. **Fallback if the RMT test (O15) fails:** that bit-banged code, run from a high-priority task with a short critical section per frame, and only while no heater is on (programming is rare and doesn't need to be fast).
-- The **same pin** is the carrier CH32's interrupt output. **Firmware rule:** after reset, the carrier CH32 keeps its SDI (debug interface) **enabled** until the ESP32 writes an "arm INT" command over I²C. Only then does it set SWCFG = 100 to free PD1 as a GPIO [V: RM AFIO_PCFR1: the pin is always SWD after system reset]. A carrier CH32 whose firmware hangs before it is armed stays programmable. While it is unarmed, the ESP32 polls the pending register instead of waiting for the interrupt.
-- **Reprogramming a running carrier CH32:** the ESP32 sends a "reboot" command over I²C, then sends SWIO halt requests repeatedly until the debug module answers. This is the same sequence minichlink uses to unbrick a part [V: minichlink `DefaultUnbrick`].
-- **Last resort:** a carrier CH32 that disables SDI and stops answering I²C needs a power cycle of the whole carrier, or a WCH-LinkE on three pogo pads (3.3 V, GND, PD1). The pads are on the carrier for that reason. A guard in the CH32V003's 1920-byte boot area could remove this case [U].
-- **ESP32 GPIO:** GPIO 47 (doc 04 §4), freed by moving the board status LED to the I/O expander (§2.4).
+- **BOOT0 is strapped high** (10 kΩ to 3.3 V) on every PY32 in the system: the carrier I/O controller and any sensor-board MCU. The factory option byte has **nBOOT1 = 1** (production value `0x0155BEAA`, bit 15 set) [V: PY32F003 reference manual §4.4.1; E: the PY32F030 shares the layout, confirm in its manual], so BOOT0 high selects **system memory**: the factory bootloader, which can't be erased or overwritten [V: RM §3.6].
+- So **every power-up and every reset lands in the bootloader**, and the part runs its application only after the ESP32 sends **Go** (0x08000000). A blank part, a running part told to reset, and a hung part reset by its watchdog all reach the same state. Nothing can brick it, short of the firmware writing the option bytes, which it never does.
+- **Bootloader protocol** [V: puyaisp, MIT]: USART 8E1, 115200 baud (4800–1 M), sync byte 0x7F, ACK 0x79 / NACK 0x1F; commands Get 0x00, Read 0x11, Write 0x31, Erase 0x44, Go 0x21, Read-unprotect 0x92. It follows the STM32 USART bootloader pattern [E].
+- **ESP32 side:** UART2 (UART1 belongs to the AUX printer link, D48), attached through the GPIO matrix to the **I²C pins (GPIO 8/9) in open-drain mode** only while programming: TX on SCL (→ PA3, RX) and RX on SDA (← PA2, TX). The I²C driver is detached for that time and reattached after. No extra pin, no RMT channels.
 
-### 4.1a SWIO on the ESP32's RMT
+### 4.2 Boot flow, every ESP32 start
 
-**Why the RMT can do it.** A general single-wire protocol is hard on the RMT, because nothing in hardware turns the line around from transmit to receive, and re-arming the receiver from software takes microseconds. SWIO needs no turnaround: **the host starts every bit slot**, including the 32 data bits of a read. For each read bit the host sends a short low pulse and releases the line. The target leaves it high for a 1, or stretches the low for a 0 [V: QingKeV2 debug manual §2.1–2.2; rv003usb host code]. So the RX channel is armed **before** the TX channel starts, and it records every slot on the wire, the host's own pulses included. The firmware decodes only the data-bit slots of a read and ignores the rest. Neither channel needs the CPU mid-frame.
+1. **Carrier controller first, all switch channels deselected.** The ESP32 sends the 0x7F sync on the UART.
+   - ACK → the controller is in its bootloader. The ESP32 reads its image checksum (Read), writes the bundled image if it differs (Erase, Write, Read back), then sends Go.
+   - No ACK → the application is already running (the ESP32 restarted on its own). The ESP32 returns to I²C, reads the controller's firmware version, and if it differs sends a "reset" command and starts again at step 1.
+2. **Sensor-board MCUs,** one header at a time: select its switch channel, then the same sync / check / write / Go sequence through the switch. A header with no MCU simply doesn't answer the sync.
+3. Only then do the power-input diagnostics run (D47). A new carrier takes a few seconds and needs no tools; heating is blocked until it finishes. If programming fails, the firmware raises **"I/O controller not programmed"**, kept apart from "heater rail absent", so a builder isn't sent looking for a supply fault.
 
-**Frame format [V: debug manual §2.1].** A "new packet" is a start bit (1), a 7-bit register address, a read/write bit (1 = write), 32 data bits (MSB first) and an optional even-parity bit, followed by the stop condition. The stop is a sustained high, not a bit slot. A "bypass packet" is a start bit of 0 plus 32 data bits, reusing the last address. One packet is at most 42 slots, and each slot is one RMT symbol (one low time plus one high time). A whole packet fits in one channel's 48-symbol block, so there is no refill interrupt and no DMA.
+The controller's image ships inside the ESP32's own firmware image, so an ESP32 OTA update (doc 07) carries the controller update with it.
 
-**Timing [V: debug manual §2.2].** The debug interface starts in **normal mode (2×)** after any bus reset (low > 256T):
+**If Read is refused** (read protection active, which the factory doesn't set but a failed option-byte self-check would [V: RM §4.4]), the ESP32 sends Read-unprotect, which erases the flash, then writes the image as for a blank part.
 
-| Element | Normal mode 2× (default after reset) | Fast mode 1× |
-|---|---|---|
-| Data 1 | low T–4T, high T–16T | low T–2T, high T–8T |
-| Data 0 | low 6T–64T, high T–16T | low 4T–32T, high T–8T |
-| Stop | high ≥ 18T | high ≥ 10T |
+**Mid-run resets.** A controller that resets while the ESP32 runs comes back in its bootloader, stops answering I²C, and the ESP32 sees that within one poll. It then runs step 1 again. The heater is held off until the readings return. A sensor-board MCU that resets only blocks its own channel; the ESP32 re-runs step 2 for that header.
 
-T is the target's debug-interface clock period. The manual gives that clock as 8 MHz on the CH32V003 (HSI 24 MHz ÷ 3), so T ≈ 125 ns. The released host code is consistent with that: its 1-bit low is ≈ 290 ns (2.3T) and its 0-bit low ≈ 890 ns (7T) [V: rv003usb]. **Stay in normal mode** and leave margin inside each window. The firmware never switches to fast mode, since the margins there are half as wide.
+### 4.3 Why the UART traffic is safe on the I²C bus [E]
 
-**Proposed symbols** (RMT at 40 MHz, 25 ns per tick [E]):
+The on-board XGZP6897D, the switch and (while running) the controller all see the UART traffic as I²C activity:
+- The protocol is **half-duplex**: the ESP32 waits for each ACK before it sends again.
+- While the ESP32 transmits, its data is on **SCL** and SDA stays high, so there is **no START** (SDA falling while SCL is high). Every I²C target ignores clocks without a START.
+- While the bootloader replies, its data is on **SDA** and SCL stays high. That makes START and STOP conditions but **no clock pulses**, so no address is ever shifted in. Each reply ends with its stop bit, high, which reads as a STOP.
+- So no target ever sees a valid address byte, and the switch never changes channel.
 
-| Symbol | Low | High | Normal-mode check |
-|---|---|---|---|
-| Write 1 (and start) | 300 ns (2.4T) | 700 ns | T–4T ✓; high T–16T ✓ |
-| Write 0 | 1.0 µs (8T) | 700 ns | 6T–64T ✓ |
-| Read slot | 300 ns (2.4T), then released | 1.5 µs (12T) | Released high stays below the 18T stop ✓ |
-| Stop | (last slot's low) | ≥ 4 µs (32T) | ≥ 18T ✓ |
-| Bus reset | ≥ 40 µs low (320T) | — | > 256T ✓ |
+**Bus contention:** the bootloader drives PA2 push-pull, not open-drain. While the controller sits in its bootloader, an I²C low from the ESP32 on SDA would fight it. The **330 Ω on PA2** limits that to ≈ 10 mA and still lets the ESP32 pull SDA to ≈ 0.3 V, and the boot flow never does I²C on the main bus while the controller may be in its bootloader. Sensor-board MCUs sit behind a switch channel that is deselected whenever another header is in use.
 
-- **Read decision:** a read-slot low under ≈ 600 ns is a 1, and a longer one is a 0. The released code uses the same split (583 ns) [V: rv003usb `reply_buffer[i] < 28` at 48 MHz]. The RX channel's idle timeout ends the capture on the stop condition, at about 3 µs, which is between the 1.5 µs slot high and the 4 µs stop.
-- **Unbrick "halt hammer":** the halt-request writes (§4.2 step 3) can go out as an RMT loop transmission, so the ~10 µs repeat interval needs no CPU timing either [E].
-- **Pull-up:** **2.2 kΩ** on GPIO 47's line, and on every header's INT/SWIO line (§2.2). The CH32's weak internal pull-up, or 10 kΩ on a cable, rises too slowly: a slow rise after a short "1" pulse lengthens the measured low and can push it past the 600 ns threshold [E]. The rise time is ≈ 0.85 × R × C: about 110 ns for 2.2 kΩ with 60 pF, against about 510 ns for 10 kΩ.
-- **ESP-IDF details [U]:** the TX channel needs open-drain output and a loopback path, so that both channels see the pad. The flag names (`io_od_mode`, `io_loop_back`) and the channel set-up order have changed between ESP-IDF releases, so check them against the version used in Phase 2.
-- **Note on the timing source:** an earlier draft of this plan used the fast-mode windows with T = 250 ns. That conflicts with both the manual (normal mode is the default) and the released code's timings. The table above follows the manual.
+**Through the switch:** the TCA9548A class is a set of pass FETs with no protocol logic, so a 115200-baud UART (8.7 µs bits against rise times of ≈ 0.4 µs with 10 kΩ and ~100 pF [E]) passes like slow I²C. The reference build has no MCU behind the switch, so this path only matters once a sensor board carries one.
 
-### 4.2 Sensor-board CH32s (carrier CH32 → header)
+### 4.4 Sensor-board MCUs
 
-One flow works for a blank, running or bricked part:
+- Same conventions as the controller: **I²C target on PA2/PA3, BOOT0 strapped high, nothing that matters on PA9/PA10/PA14/PA15**. The default part is a **PY32F003F18P6TU** (TSSOP20, 64 KB / 8 KB, LCSC C5379864, ≈ $0.31) [V: datasheet, JLC stock]. It has one I²C; a board that relays to a sensor drives the sensor side in software.
+- The fifth pin is the board's **INT** output (open-drain, active low) on any GPIO that isn't a bootloader pin.
+- A board doesn't run on its own: after power-up it waits in its bootloader until the ESP32 sends Go (§4.2 step 2). That's fine here, because the ESP32 is the only host.
 
-1. The ESP32 sends the image to the carrier CH32 over I²C in 64-byte blocks, matching the CH32V003's fast page program [V: RM flash chapter]. The carrier CH32 has only 2 KB of SRAM, so it streams the image instead of buffering it.
-2. The ESP32 deselects that header's switch channel. The carrier CH32 switches the header off (≈ 300 ms [V: minichlink power-off time]) and then on again.
-3. While the target boots, the carrier CH32 sends halt requests every ~10 µs until DMSTATUS reads valid [V: minichlink].
-4. The carrier CH32 erases, writes and verifies the flash through the debug module, using the released host sequence, and then resumes the target.
+### 4.5 Bench debugging and fallback
 
-**Bring-up order (D47).** Both CH32s on a new carrier are blank, so the heater-input readings don't exist until they are programmed. Nothing needs them before then. The ESP32 and the bus run from the bus rail, not the heater rail, and the eFuse, detect-before-power and the enable chain are hardware. So the first boot runs in this order: the ESP32 programs the carrier CH32 over SWIO (§4.1a), the carrier CH32 programs the slot-7 expander (this section), and only then do the power-input diagnostics run. That takes a few seconds and needs no tools. Until it finishes, heating is blocked. If programming fails, the firmware raises **"I/O expander not programmed"**, kept apart from "heater rail absent", so a builder isn't sent looking for a supply fault. The carrier CH32 can't be programmed by anything else, so a failed SWIO link (O15) blocks heating either way.
-
-**Sensor-board firmware rule:** keep SDI enabled for a boot window of a few milliseconds before turning PD1 into the INT output. The carrier CH32 controls the power-up time exactly, so a short window is enough. A part that is factory-blank has SDI enabled with no code to disable it, so it needs no window at all.
-
-**Sources:** rv003usb, ch32fun and minichlink are permissively licensed (MIT) [E: confirm each at Phase 2 before copying code].
+The carrier keeps **four SWD test pads** (3.3 V, GND, PA13, PA14) for bench debugging with any CMSIS-DAP probe. They are also the fallback if the bootloader path fails O15: each controller is then programmed once by probe and updated over I²C by an application-level loader [E]. The PY32's SWD stays enabled unless firmware remaps PA13/PA14, and PA14 only drives the status LED.
 
 ## 5. Sensor board changes (amends D42)
 
-- The connector becomes **JST-XH 5**: 3.3 V, GND, SDA, SCL, INT/SWIO. The first four pins keep their order.
-- On a board with a CH32V003, the fifth pin is its PD1 (SWIO, and INT after the boot window). On a board without one, it's the sensor's own interrupt output (open-drain) or left unconnected.
+- The connector is **JST-XH 5**: 3.3 V, GND, SDA, SCL, INT. The first four pins keep their order.
+- On a board with an MCU, the fifth pin is its INT output (§4.4). On a board without one, it's the sensor's own interrupt output (open-drain) or left unconnected.
 - The pull-ups stay on the carrier, after the header FET (§2.2). The sensor board still has none.
 
 ## 6. Cost per carrier [E]
 
 | Part | Qty | ≈ Cost |
 |---|---|---|
-| CH32V003F4P6 (TSSOP20) | 1 | $0.20 |
-| TCA9548A-compatible (FCA9548T, D51; replaces the TCA9543A) | 1 | $0.58 |
-| HL3401-class P-FET + gate pull-down | 7 | $0.30 |
-| Pull-ups (3 per header), single-line ESD diodes (H5VL10B class) | — | $0.20 |
-| On-carrier I/O expander: CH32V003 + 100 nF + LED resistor (§2.4) | 1 | $0.30 |
-| JST-XH 5 headers (4 more than before; all go from 4- to 5-pin) | 7 | $0.12 |
+| PY32F030K28U6TR (QFN32) + 100 nF, BOOT0 pull-up, PA2 series resistor, status-LED resistor | 1 | $0.42 |
+| TCA9548A-compatible switch (FCA9548T, D51) | 1 | $0.58 |
+| HL3401-class P-FET + gate pull-down | 8 | $0.34 |
+| Pull-ups (3 per header), single-line ESD diodes (H5VL10B class) | — | $0.23 |
+| JST-XH 5 headers | 8 | $0.12 |
 | **Total** | | **≈ $1.70** |
 
-Every part above is fitted on every carrier, including headers 4–6 and their FETs (D47: one population, one assembly order).
+Every part above is fitted on every carrier, including headers 5–8 and their FETs (D47: one population, one assembly order). That is the same total as D45's two CH32V003s and seven headers: the second MCU, slot 7's FET, pull-ups and ESD go, and two external headers come in.
 
 ## 7. Open points
 
-- **O15** (doc 01 §7): bench test of single-pin SWIO capture and of TIM1 CH1N as an SWIO output. This includes checking CH1N's polarity and dead-time settings, and whether IC3/IC4 can be mapped across like IC1/IC2 [U]. It also confirms that the I/O expander on slot 7 (§2.4) is programmable, and that the ESP32's SWIO line works on GPIO 47 through the RMT peripheral: TX and capture on one open-drain pin, against a blank and a running target, in normal mode with the §4.1a symbols, and with a scope check of edge times through a 1 m header cable. The same session tests the W5500 at 20 and 40 MHz on GPIOs 10–13.
+- **O15** (doc 01 §7): bench test of the ROM-bootloader path. On a PY32F030 and a PY32F003 board, from the ESP32's GPIO 8/9 in open-drain UART mode at 115200 8E1: sync, Get, Read, Erase, Write and Go, against a blank part, a running part after a reset command, and a part held in reset by a hung application and its watchdog. Also check: that the on-board XGZP6897D and the switch never respond during the traffic (§4.3); the PA2 contention current; whether the bootloader drives PA9/PA14; the same sequence through a switch channel and a 1 m header cable; and a scope check of edge times. The same session tests the LAN chip at 20 and 40 MHz on GPIOs 10–13.
