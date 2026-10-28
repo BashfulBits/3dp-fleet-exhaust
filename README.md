@@ -43,7 +43,7 @@ The CAT6 daisy chain carries 24 V logic power and CAN, with ESP-NOW radio as a b
 |---|---|
 | [01 System architecture](docs/01_system_architecture.md) | Goals, priorities, topology, key decisions and why, **risk & open-item register** |
 | [02 Hardware specification](docs/02_hardware_specification.md) | Carrier board roles, heater, sensors, dampers, hub, fan (enclosure mods are in the printer packs) |
-| [03 Bill of materials](docs/03_bill_of_materials.md) | Line-item BOM and cost for the reference build (≈ $621), and how it scales |
+| [03 Bill of materials](docs/03_bill_of_materials.md) | Line-item BOM and cost for the reference build (≈ $622), and how it scales |
 | [04 Wiring and pinouts](docs/04_wiring_and_pinouts.md) | Cables, RJ45 bus pinout, GPIO map, printer USB link, grounding |
 | [05 Safety and failsafes](docs/05_safety_and_failsafes.md) | Safety layers, fault-response matrix, fire logic, commissioning tests |
 | [06 Pneumatics and ducting](docs/06_pneumatics_and_ducting.md) | Layout, control loops, purge, material policy, heat budget, filter |
