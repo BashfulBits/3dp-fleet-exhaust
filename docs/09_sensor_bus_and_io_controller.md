@@ -44,7 +44,7 @@ Three pin rules drive the plan:
 | Heater-rail voltage | PB0 (ADC_IN8) | 12-bit; ≈ 8 mV per step on the rail divider [E] |
 | Injection current (eFuse IMON, D61) | PA7 (ADC_IN7) | 47 kΩ + 100 nF at the eFuse, ≈ 1.3 V per amp, ≈ 0.6 mA per step [E] |
 | Board status LED | PA14 | If the bootloader drives PA14 as TX, the LED lights solid: a free "in bootloader" indicator |
-| Tap-side heater voltage (D64) | PB1 (ADC_IN9) | Divider on the internal XT30's side of the tap ideal diode, same values as the rail divider: shows whether the tap is live, and is the reading the 23.0 V throttle uses while it is |
+| Tap-side heater voltage (D64) | PB1 (ADC_IN9) | Divider on the internal XT60's side of the tap ideal diode, same values as the rail divider: shows whether the tap is live, and is the reading the 23.0 V throttle uses while it is |
 | Bus voltage (D64) | PA6 (ADC_IN6) | Divider on the RJ45 bus rail, top resistor ≥ 100 kΩ like the rail divider. For the anemometer power (doc 06 §4.4), bus telemetry and back-fed mode |
 | Tap ideal-diode disable (D64) | PA13 | Drives a 2N7002 that pulls the MX74700T's EN low. Floating (reset, bootloader, SWD in use) leaves the diode on. Shared with the SWDIO pad: firmware releases it to SWD on a bench command [E: confirm the PY32 allows switching PA13 between GPIO and SWD at run time; else SWD needs a reset with BOOT0] |
 | SWD test pads (bench debugging, §4.5) | PA13 (SWDIO, shared with the diode disable), PA14 (SWCLK) | Pads only |
