@@ -50,7 +50,7 @@ Timer remap tables, I²C remap and EXTI port rules: [V: CH32V003 reference manua
 
 ### 2.2 Per-header power
 
-- **P-FET** (AO3401 class, SOT-23, ≈ $0.02 [E]) from the carrier's 3.3 V to the header's 3.3 V pin, with a **gate pull-down** (100 kΩ [E]). With the carrier CH32 in reset, blank or absent, its pins float and every header is **on**. The CH32 drives the gate high to switch a header off.
+- **P-FET** (HL3401 class, SOT-23, ≈ $0.04, a Preferred part, D51) from the carrier's 3.3 V to the header's 3.3 V pin, with a **gate pull-down** (100 kΩ [E]). With the carrier CH32 in reset, blank or absent, its pins float and every header is **on**. The CH32 drives the gate high to switch a header off.
 - **Pull-ups go after the FET:** SDA, SCL (on that header's switch channel) and INT/SWIO (**2.2 kΩ**, for SWIO edge speed, §4.1a [E]) all pull up to the header's switched 3.3 V. A header that is off is not back-powered through its pull-ups.
 - **Firmware rule:** before switching a header off, the ESP32 deselects its switch channel, and the carrier CH32 sets that header's INT/SWIO pin to input. Otherwise SDA and SCL from the powered side would feed the unpowered board through its I/O clamp diodes.
 - Every header line gets the same ESD protection as the carrier's other signal inputs (doc 02 §2.2).
@@ -85,7 +85,7 @@ The carrier CH32 **does not** carry I²C. SDA and SCL run from the ESP32. Puttin
 - **Displays get their own channel (D48).** An OLED never shares a channel with a sensor; the default is header 4 (channel 3) on every role. The firmware selects the display channel only while it writes a frame (≤ 2 Hz) and deselects it straight after, so a display that locks up is selected as little as possible.
 - **Stuck bus:** a sensor that holds SDA low only blocks its own channel. The ESP32 deselects it and switches its power off and on through the carrier CH32.
 - **Alternative:** the ESP32-S3's second I²C controller could split the headers into two groups. That costs two more GPIOs. GPIO 5/6 are the only spare pair, and they are kept for the AUX header and its UART printer link (D48). It would also still share a segment between headers. The TCA9548A is preferred.
-- **Cost:** the TCA9548A is ≈ $0.5–1 [E], in place of the TCA9543A (≈ $0.5 [E]).
+- **Cost:** a TCA9548A-compatible switch is ≈ $0.4–0.8 (FCA9548T fitted, D51), in place of the TCA9543A (≈ $0.5 [E]).
 
 ## 4. Programming every CH32V003 from one ESP32 pin
 
@@ -155,12 +155,12 @@ One flow works for a blank, running or bricked part:
 | Part | Qty | ≈ Cost |
 |---|---|---|
 | CH32V003F4P6 (TSSOP20) | 1 | $0.20 |
-| TCA9548A (replaces the TCA9543A) | 1 | +$0.40 |
-| AO3401-class P-FET + gate pull-down | 7 | $0.20 |
-| Pull-ups (3 per header), ESD arrays | — | $0.40 |
+| TCA9548A-compatible (FCA9548T, D51; replaces the TCA9543A) | 1 | $0.58 |
+| HL3401-class P-FET + gate pull-down | 7 | $0.30 |
+| Pull-ups (3 per header), single-line ESD diodes (H5VL10B class) | — | $0.20 |
 | On-carrier I/O expander: CH32V003 + 100 nF + LED resistor (§2.4) | 1 | $0.30 |
-| JST-XH 5 headers (4 more than before; all go from 4- to 5-pin) | 7 | $0.35 |
-| **Total** | | **≈ $1.85** |
+| JST-XH 5 headers (4 more than before; all go from 4- to 5-pin) | 7 | $0.12 |
+| **Total** | | **≈ $1.70** |
 
 Every part above is fitted on every carrier, including headers 4–6 and their FETs (D47: one population, one assembly order).
 
