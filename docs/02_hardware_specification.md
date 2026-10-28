@@ -155,14 +155,15 @@ JLCPCB assembles only one design per board, and a panel of different designs has
 
 | Variant | Fitted parts | Used for | Qty |
 |---|---|---|---|
-| **S** sensor head | **SHT40** (T/RH, I²C 0x44, ±0.2 °C / ±1.8 % RH; the SHT45 isn't needed, C2) + **ENS160** (metal-oxide gas sensor, 4 heated elements, I²C 0x52/0x53, rated **−40 to 85 °C** so it reads through the whole purge including ~60 °C chamber air, R3, D20) + a **1.8 V LDO** for the ENS160's VDD (VDDIO at 3.3 V). The firmware reads the ENS160's **raw element resistances**, with the SHT40's temperature and humidity written in for compensation | Chamber sensor heads, hub room sensor | 5 |
+| **S** sensor head | **SHT40** (T/RH, I²C 0x44, ±0.2 °C / ±1.8 % RH; the SHT45 isn't needed, C2) + **ENS160** (metal-oxide gas sensor, 4 heated elements, I²C 0x52/0x53, rated **−40 to 85 °C** so it reads through the whole purge including ~60 °C chamber air, R3, D20) + a **1.8 V LDO** for the ENS160's VDD (VDDIO at 3.3 V). The firmware reads the ENS160's **raw element resistances**, with the SHT40's temperature and humidity written in for compensation. **AHT20 alternate footprint** (I²C 0x38, ±0.3 °C / ±2 % RH, ≈ $0.80, D55) for **room-side heads only**: its normal range is 10–50 °C and its humidity reading drifts above that [V: AHT20 datasheet], so chamber heads always carry the SHT40 | Chamber sensor heads, hub room sensor | 5 |
 | **P** pressure | **XGZP6897D**, ±500 Pa class (I²C 0x6D), its two ports taking silicone tube directly or printed barbs | Hub trunk vacuum and trunk flow (D11, D33) | 3 |
 | **E** encoder | **AS5600** (I²C 0x36), facing the damper shaft magnet | Damper angle (D30) | 4 |
 
 - **No address clashes:** every header is its own I²C switch channel (D45), so two boards of the same kind never share a segment, and no off-board XGZP6897D shares one with the on-board one (D11).
 - **Ordering:** each variant is its own JLC order of 5 boards (the minimum), so each carries its own setup and shipping. S must be JLC-assembled (the ENS160 and SHT40 can't be hand-soldered). P and E are assembled by JLC if the parts are in stock, otherwise hand-soldered, since the XGZP6897D and the AS5600 are the easy parts here. The quote can merge variants if JLC's rules allow; see R9.
 - **Footprint layout:** the XGZP6897D and AS5600 footprints sit away from the SHT40/ENS160 corner, so a board never has a fitted part in another variant's mounting zone. The same two M2 holes let the C4 cover, C12 mount, C16 encoder bracket and C17 venturi mount all take any variant.
-- **Source:** `hardware/pcb/sensor/` (KiCad), with the three BOMs as variants of one project.
+- **Source:** `hardware/pcb/sensor/` (KiCad), with the three BOMs as variants of one project (S also has a room-side BOM with the AHT20 in place of the SHT40).
+- **Bought boards:** the headers also take bought 3.3 V I²C sensor boards through an adapter cable; doc 09 §8 lists the base set and the supported catalogue.
 
 In the chamber, it mounts at the exhaust port, out of the heater jet, behind a printed ASA vented cover. The hub's head sits in free room air away from the fan.
 

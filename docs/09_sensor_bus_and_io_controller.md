@@ -1,6 +1,6 @@
 # 09 - Sensor Bus and Carrier I/O Controller
 
-> Design baseline, 2026-10-28 (D45, D54). How the carrier reaches up to eight external sensor boards through one I²C switch, with per-header power and interrupts, and how the ESP32 programs the carrier I/O controller and any sensor-board MCU through each part's ROM bootloader. Phase 2 builds it after the bench test in O15.
+> Design baseline, 2026-10-28 (D45, D54, D55). How the carrier reaches up to eight external sensor boards through one I²C switch, with per-header power and interrupts, how the ESP32 programs the carrier I/O controller and any sensor-board MCU through each part's ROM bootloader, and which sensors the headers support (§8). Phase 2 builds it after the bench test in O15.
 
 Evidence key, as in the other docs: **[V]** verified from a datasheet, reference manual or released source; **[E]** engineering estimate; **[U]** unverified, needs a test.
 
@@ -16,6 +16,7 @@ Evidence key, as in the other docs: **[V]** verified from a datasheet, reference
 | **Per-header interrupt** | Each header's INT pin goes to its own EXTI line on the carrier I/O controller (§2.3) |
 | **Slow carrier I/O** | The same controller reads the door, the KSD301 and 24V_HEAT senses and the two heater-input ADC channels, and drives the board status LED (§2.4, doc 02 §2.4) |
 | **In-system programming of every MCU** (blank, running or hung) | Each MCU's **ROM bootloader** on its own I²C pins, driven by the ESP32's UART through the GPIO matrix (§4). No programmer chip, no debug protocol and no extra ESP32 pin |
+| **A base set of sensors, plus bought boards** | The base set (own boards S, P, E and the on-board sensors) can feed control and safety. Bought 3.3 V I²C boards from the catalogue feed alerts and the dashboard only (§8, D55) |
 
 A sensor board with an MCU on it (D42: an ADC, I/O expander, light sensor or protocol bridge) is programmed through the header it is plugged into, with no pads and no separate programmer. A sensor board without one leaves the fifth pin as its sensor's interrupt output, or unconnected. The reference build's sensor boards S, P and E have no MCU.
 
@@ -154,3 +155,71 @@ Every part above is fitted on every carrier, including headers 5–8 and their F
 ## 7. Open points
 
 - **O15** (doc 01 §7): bench test of the ROM-bootloader path. On a PY32F030 and a PY32F003 board, from the ESP32's GPIO 8/9 in open-drain UART mode at 115200 8E1: sync, Get, Read, Erase, Write and Go, against a blank part, a running part after a reset command, and a part held in reset by a hung application and its watchdog. Also check: that the on-board XGZP6897D and the switch never respond during the traffic (§4.3); the PA2 contention current; whether the bootloader drives PA9/PA14; the same sequence through a switch channel and a 1 m header cable; and a scope check of edge times. The same session tests the LAN chip at 20 and 40 MHz on GPIOs 10–13.
+
+## 8. Supported sensors (D55)
+
+### 8.1 What a header can take
+
+- **3.3 V and I²C only.** A header gives switched 3.3 V, GND, SDA, SCL and INT (§2.2, §5). A sensor that needs 5 V, an analog input, a UART or RS485 doesn't plug in directly. It needs a board with an MCU (§4.4, §8.5) or stays out.
+- **Fixed addresses don't matter.** Each header is its own switch channel (§3), so two boards with the same fixed address never share a segment. No address-translator MCU is needed.
+- **Current:** header 3.3 V comes from the ESP32 dev board's regulator, which also carries the ESP32 and its radio. Keep the total for all headers to **≈ 150 mA** [E] and check the dev board's regulator before fitting several heated sensors (electrochemical, NDIR CO₂, MOX).
+- **Temperature:** a sensor in the chamber must be rated for chamber air (up to the printer's hard limit plus margin; ≈ 65 °C on the reference printers). Most CO₂, particulate and humidity parts are rated to ≈ 50 °C, so they belong on room-side or exhaust-side headers.
+- **Bought boards (DFRobot Gravity and similar):** Gravity I²C boards use a 4-pin PH2.0 plug. They connect with a crimped **JST-XH 5 → PH2.0-4P adapter cable** (3.3 V, GND, SDA, SCL; INT not connected). The PH2.0 pin order differs from the header's, so the cable follows the board's silkscreen [E: check each board]. No soldering. Fermion-style breakouts ship with loose pin headers that must be soldered into the through-holes; they take a crimped Dupont-to-XH lead.
+
+### 8.2 Base set
+
+The sensors the core design is built around. They are on the carrier or on the framework's own sensor boards (doc 02 §2.3), have drivers in the core firmware, and are the **only sensors that may feed a control loop or a safety check** (doc 07 §2.1).
+
+| Sensor | Measures | Where | Interface | Used for |
+|---|---|---|---|---|
+| **SHT40** | Temperature, RH | Board S | I²C 0x44 | Chamber air, RW-b (doc 05), ENS160 compensation |
+| **AHT20** (alternate on S, room side only) | Temperature, RH | Board S | I²C 0x38 | Hub room head. Normal range 10–50 °C; above that its humidity reading drifts [V: AHT20 datasheet], so never in the chamber |
+| **ENS160** | MOX gas, raw element resistances | Board S | I²C 0x52/0x53 | Purge end (D20), room VOC trend |
+| **XGZP6897D** (±500 Pa class; ±1 kPa on the hub) | Differential pressure | Board P, on-board | I²C 0x6D | Chamber ΔP, trunk vacuum, trunk flow, filter loading (D11, D33) |
+| **SDP31** (upgrade) | Differential pressure | Bought, same header | I²C 0x21 | Trunk flow if the venturi needs it (doc 03) |
+| **AS5600** | Magnetic angle | Board E | I²C 0x36 | Damper position (D30) |
+| NTC 100k ×2 | Temperature | On-board ADC | — | Chamber and housing temperature |
+| Dual-NTC anemometer | Air speed | On-board ADC | — | Venturi flow (D32) |
+| KSD301, door reed, smoke and CO alarm contacts | Switch states | Carrier I/O controller, AUX | — | Safety chain, door, room alarms |
+
+### 8.3 Catalogue (bought boards, supported in software)
+
+Bought 3.3 V I²C boards with drivers in the firmware's sensor catalogue (doc 07 §2.1). Their readings go to **alerts, the daily digest, the dashboard and MQTT, never to a control loop or a safety check**. Promoting one to the base set takes a decision row. Prices are DFRobot list prices, 2026-10 [V: dfrobot.com]; anything marked [U] needs checking on the product's wiki first.
+
+| Sensor (DFRobot SKU) | Measures | ≈ Price | Placement | Why it's here |
+|---|---|---|---|---|
+| ENS160 + BME280 (SEN0335) | TVOC, eCO₂, T/RH/P | $29.90 | Room | A ready-made room head on the base-set ENS160 driver |
+| BME688 / BME680 (SEN0617, SEN0629, SEN0248) | VOC, T/RH/P | $12.90–19.90 | Room | Alternative room head |
+| SHT31/35/40 breakouts, SHT31 probe (SEN0331, SEN0333, SEN0428, SEN0385) | T/RH | $7.50–19.90 | Room, duct, outdoors | Same driver family as the SHT40; the probe reaches into a duct |
+| AHT20 (SEN0528) | T/RH | $3.90 | Room | The cheapest T/RH |
+| STCC4 CO₂ (SEN0678) | CO₂, T/RH | $14.90 | Room | Ventilation context; operating range [U] |
+| SCD41 CO₂ (SEN0536) | CO₂, T/RH | $44.90 | Room (0–50 °C) | Same Sensirion driver family |
+| BMV080 (SEN0663) | PM1, PM2.5, PM10 | $29.90 | Room | Shows whether the exhaust keeps room particulates down; operating range [U] |
+| Gravity PM2.5 (SEN0460) | PM1, PM2.5, PM10 | $39.90 | Room | Alternative; 3.3 V operation [U] |
+| SFA40 (SEN0661) | Formaldehyde, 0–2000 ppb | $49.50 | Room, exhaust | Mostly relevant to resin printers |
+| Electrochemical CO (SEN0466) | CO, 0–1000 ppm | $66.90 | Chamber, exhaust | Early warning of smouldering. It doesn't replace the room CO alarm (doc 05 S-6). Rated range [U] |
+| MiCS-4514 (SEN0377) | CO, NO₂, NH₃ | $39.90 | Room | Low relevance; supported because it's I²C |
+| PAV3015 (SEN0639) | Air velocity, 0–15 m/s | $49.90 | Duct | A calibrated reference for commissioning the venturi and anemometer; supply [U] |
+| LWLP5000 (SEN0343) | Differential pressure, ±500 Pa | $39.90 | Duct | A cross-check for board P |
+| BMP585 / BMP581 / BMP388 / ICP-10111 (SEN0664–0667, SEN0251, SEN0516/0517) | Barometric pressure | $5.90–11.90 | Anywhere | Air-density correction for flow; room baseline. Two barometers are not a substitute for a differential sensor |
+| MLX90614 (SEN0206, SEN0263) | Non-contact surface temperature | $18.50–59.00 | Chamber | Watches a heater shroud or electronics bay for hot spots, in addition to the KSD301 |
+| INA219 wattmeter (SEN0291) | Current, voltage, power to 26 V | $6.90 | Carrier side | Fan or PTC current where the carrier doesn't measure it (fan health, R8) |
+| 6DOF IMU (SEN0692, SEN0693) | Vibration | $6.90–9.90 | Fan | Bearing-wear trend; experimental |
+| mmWave presence (SEN0610) | Room occupancy | $12.90 | Room | Quiet-purge or courtesy behaviour while someone is in the room |
+
+### 8.4 Not supported on a header
+
+| Sensor | Reason |
+|---|---|
+| MQ-series MOX (MQ-2 etc.) | 5 V, ≈ 150 mA heater, analog output, 24–48 h burn-in, poor selectivity |
+| Sharp GP2Y1010/1014 dust sensor | 5 V and an analog sample timed 0.28 ms into each LED pulse. Use an I²C PM board (§8.3) |
+| MAX30105 / MAX30102 as a smoke sensor | Pulse-oximetry part: 1.8 V core, separate LED supply, no smoke calibration |
+| AGS10 | Needs a 3.0 V ± 0.1 V supply of its own and duplicates the ENS160 at a lower spec |
+| Analog MEMS gas elements (GM-502B class, Fermion MEMS CO/VOC/smoke/odour), MP503 | Analog plus heater drive (§8.5) |
+| Barbed analog pressure sensors (XGZP6847A class) | The I²C XGZP6897D (board P) does the same job |
+| Barometers as a chamber ΔP sensor (SPL06-001 class) | A differential sensor is more accurate for chamber ΔP |
+| UART, RS485, 1-Wire, analog and PWM modules (NDIR CO₂ SEN0219/0220, laser PM SEN0177, DS18B20, thermocouples, flame DFR0076, weather stations) | Wrong interface for a header |
+
+### 8.5 When to make a new sensor board
+
+The base set's boards S, P and E cover every control and safety need, so no new board is planned. A sensor gets a board of its own only when it is needed in quantity and no bought 3.3 V I²C board exists for it. The likeliest candidate is an **in-chamber fire board**: a PY32F003 (§4.4) reading a flame phototransistor (PT334-6B class) for flame flicker, optionally with a low-power MEMS smoke element. Try the software route first: an ENS160 spike together with a fast chamber-temperature rise, and optionally an MLX90614 from the catalogue [U: false-positive rate on real prints].

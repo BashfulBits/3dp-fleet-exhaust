@@ -13,7 +13,7 @@ An open-source exhaust, filtration and chamber-heating system for a small fleet 
 
 None of it can shut down Klipper or kill a print.
 
-**Status:** Phase 1 design baseline, decisions D1–D54 as of 2026-10-27; open items are in [doc 01 §7](docs/01_system_architecture.md#7-risk-and-open-item-register). Phase 2 (implementation) follows the staged bring-up in [doc 01 §8](docs/01_system_architecture.md#8-phase-2-bring-up-stages-d41), starting with reverse-engineering the Vivosun G4 fan interface (risk R1).
+**Status:** Phase 1 design baseline, decisions D1–D55 as of 2026-10-28; open items are in [doc 01 §7](docs/01_system_architecture.md#7-risk-and-open-item-register). Phase 2 (implementation) follows the staged bring-up in [doc 01 §8](docs/01_system_architecture.md#8-phase-2-bring-up-stages-d41), starting with reverse-engineering the Vivosun G4 fan interface (risk R1).
 
 ---
 
@@ -49,9 +49,9 @@ The CAT6 daisy chain carries 24 V logic power and CAN, with ESP-NOW radio as a b
 | [06 Pneumatics and ducting](docs/06_pneumatics_and_ducting.md) | Layout, control loops, purge, material policy, heat budget, filter |
 | [07 Firmware and comms](docs/07_firmware_and_comms.md) | Firmware, zmod plugin, G-code API, protocols, notifications, dashboard |
 | [08 Printable parts](docs/08_printable_catalog.md) | Existing models to verify and custom parts to design |
-| [09 Sensor bus and I/O controller](docs/09_sensor_bus_and_io_controller.md) | Up to 8 sensor headers, one I²C segment each, per-header power and interrupts, programming every MCU through its ROM bootloader |
+| [09 Sensor bus and I/O controller](docs/09_sensor_bus_and_io_controller.md) | Up to 8 sensor headers, one I²C segment each, per-header power and interrupts, programming every MCU through its ROM bootloader, and the supported sensors (base set and bought-board catalogue) |
 | [12 Porting guide](docs/12_porting_guide.md) | Adding other printers: printer packs, link tiers, profile schema, mechanical interface, safety contract, licensing |
-| [Design decisions](docs/design_decisions.md) | Decision record D1–D54, the cost-reduction pass and the trade studies behind them |
+| [Design decisions](docs/design_decisions.md) | Decision record D1–D55, the cost-reduction pass and the trade studies behind them |
 
 ## Repository layout (Phase 2)
 

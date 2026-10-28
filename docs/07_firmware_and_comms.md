@@ -10,7 +10,8 @@
 |---|---|---|---|
 | **Node firmware** | Carrier ESP32-S3, roles node-heat / node-lite | **ESP-IDF 5.x** (FreeRTOS), C++, `idf.py` and the IDF component manager (D52) | `firmware/fleet_node/` |
 | **Hub firmware** | Carrier ESP32-S3, hub role | Same toolchain; same shared library | `firmware/fleet_node/` (one codebase, role from config) |
-| **Shared library** | — | CAN messages, USB protocol, control loops, sensor drivers | `firmware/components/fleet_common/` |
+| **Shared library** | — | CAN messages, USB protocol, control loops, the sensor interface and manager (§2.1) | `firmware/components/fleet_common/` |
+| **Sensor drivers** | — | One component per sensor family, base set and catalogue (§2.1, doc 09 §8) | `firmware/components/sensors/` |
 | **`fleet_exhaust` zmod plugin** | Each printer | Klipper config macros + klippy extra (Python) + `install.sh`, `uninstall.sh`, `update.sh` | Separate repo `fleet-exhaust-klipper` (D27) |
 | **Orca profiles** | Your PC | Printer and filament G-code snippets | `slicer_profiles/orca/` |
 | Dashboard | Hub | Static web page served from LittleFS + JSON/WebSocket API | `firmware/fleet_node/data/` |
@@ -52,6 +53,45 @@ flowchart TB
 | Configuration | NVS: Wi-Fi credentials, notification URLs (hub), Moonraker host (nodes), Shelly IPs (hub), tuning values. Set from the hub web page; nodes receive theirs over CAN. |
 | Secrets | Never in the repo. `secrets.example.h` documents the fields. |
 | Logging | Ring buffer of events in RAM, flushed to LittleFS hourly; shown on the dashboard. |
+| Sensors | Drivers are plugins behind one interface, and the installed sensors come from a config, not from code (§2.1, D55). |
+
+### 2.1 Sensor drivers and the installed-sensor config (D55)
+
+The firmware never names a sensor part in its control, safety or alert code. Those consume **roles** (`chamber.temp`, `trunk.dp`, `room.pm2_5` …). A per-carrier config says which driver on which header provides each role. Adding a sensor means adding a driver; using a different one means changing the config.
+
+```mermaid
+flowchart TB
+  CFG["Installed-sensor config<br>(NVS, from the hub)"] --> MGR["Sensor manager<br>(sensor task)"]
+  REG["Driver registry<br>(base + catalogue)"] --> MGR
+  MGR -->|"switch channel + address"| BUS["I²C headers 1–8,<br>on-board sensors"]
+  MGR --> STORE["Reading store<br>(role, value, unit, age)"]
+  STORE --> CTRL["Control loops<br>+ safety task<br>(base set only)"]
+  STORE --> ALR["Alerts, digest,<br>dashboard, MQTT"]
+```
+
+**Driver interface (plugin).** One `SensorDriver` interface in `fleet_common`, the same pattern as `PrinterLink` (doc 12 §3.3). Each driver declares:
+
+| Field | Meaning |
+|---|---|
+| `id`, `family` | e.g. `sht4x`, family `sensirion_th`; one driver can cover a family of parts |
+| `addresses` | The I²C addresses it can answer on, plus a `probe()` that confirms the part (ID register, serial number or CRC) rather than trusting an ACK |
+| `channels` | Typed outputs with SI units: `temperature_c`, `rh_pct`, `pressure_pa`, `dp_pa`, `angle_deg`, `voc_raw`, `co2_ppm`, `pm2_5_ugm3`, `co_ppm`, `current_a`, … |
+| `tier` | `base` or `catalogue` (doc 09 §8). Only `base` channels may feed a control loop or the safety task |
+| `limits` | Rated operating temperature, supply current and warm-up time, so the dashboard can warn about a misplaced or overloaded sensor (doc 09 §8.1) |
+| `poll` | Sample interval and whether it uses the header's INT line |
+| `needs` | Inputs from other roles, e.g. the ENS160 driver takes T/RH from the co-located SHT40 for compensation |
+| `init()`, `read()`, `reset()` | Non-blocking; each call has a time budget, and a driver that overruns is marked failed |
+
+**Packaging.** Drivers are ESP-IDF components under `firmware/components/sensors/<family>/` that register themselves in a static registry at link time. The base set is always built in. Catalogue families are on by default and can be turned off in Kconfig to save flash. There is no runtime loading of native code: the image stays signed and OTA-updatable as one unit (§11.2), and a new driver arrives with a firmware update. A contributed driver goes into the core, so every build can use it, as with link types.
+
+**Installed-sensor config.** Each carrier holds a list of entries in NVS, edited on the hub dashboard and pushed to nodes over CAN like the rest of their config. Each entry has a `header` (1–8, or `onboard`), a `driver`, an `address` if the part has more than one, the `role` each channel provides, and a free-text `location`. Example entry: header 1, driver `sht4x`, address 0x44, roles `chamber.temp` and `chamber.rh`.
+
+- **Role defaults:** each firmware role (`node-heat`, `node-lite`, `hub`) ships a default list matching the reference wiring (board S on header 1, and so on), so a standard build needs no editing.
+- **Required roles:** `node-heat` needs `chamber.temp` from a base driver before it enables the heater, on top of the on-board NTCs (doc 05). A required role that is missing, fails its probe or goes stale (no good reading for 3 intervals) raises a fault and takes that role's safe action. A catalogue role that fails only raises an info alert.
+- **Discovery:** at boot, and when a header's INT or a hot-plug is seen, the manager probes each powered channel against the registry's known addresses. A configured sensor that is missing raises a fault. A known sensor that is found but not configured appears on the dashboard as "found, unassigned", one click from being added. Nothing found is ever used without a config entry.
+- **Fault recovery:** a driver that keeps failing gets its header power-cycled through the carrier I/O controller (doc 09 §2.2), at most once per 10 min [E], and the event is logged.
+- **Alerts:** catalogue roles take generic threshold rules from the config (role, threshold, hold time, severity: digest, alert or info), so `room.pm2_5` above a level for 10 min, for example, needs no new code.
+- **Outputs:** every configured channel appears on the dashboard and in MQTT discovery (§9) under its role name, with units from the driver.
 
 ## 3. zmod plugin `fleet_exhaust`
 

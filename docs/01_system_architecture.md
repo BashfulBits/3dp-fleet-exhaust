@@ -1,6 +1,6 @@
 # 01 - System Architecture
 
-> **Status:** Phase 1 design baseline, 2026-10-25, updated 2026-10-27. Every decision is recorded as D1–D54 in [design_decisions.md](design_decisions.md).
+> **Status:** Phase 1 design baseline, 2026-10-25, updated 2026-10-28. Every decision is recorded as D1–D55 in [design_decisions.md](design_decisions.md).
 >
 > **Evidence key used across docs 01–08:** **[V]** verified against a primary source · **[E]** engineering estimate · **[U]** unverified, needs a measurement or a test on the real hardware.
 
@@ -152,8 +152,8 @@ Prints started from the touchscreen, the Flashforge app or FlashPrint follow the
 | 06 | Pneumatics: ducting, filter, outlet, control loops, purge, heat budget |
 | 07 | Firmware, zmod plugin, protocols, G-code API, notifications, dashboard |
 | 08 | Printable parts catalogue |
-| 09 | Sensor bus and carrier I/O controller: per-header I²C segments, power and interrupts, programming every MCU through its ROM bootloader |
-| Design decisions | Decision record D1–D54, cost-reduction pass, trade studies T1–T3 |
+| 09 | Sensor bus and carrier I/O controller: per-header I²C segments, power and interrupts, programming every MCU through its ROM bootloader, supported sensors |
+| Design decisions | Decision record D1–D55, cost-reduction pass, trade studies T1–T3 |
 | 12 | Porting guide: printer packs, link tiers, profile schema, mechanical interface, safety contract, licensing |
 | `printers/` | Printer packs: AD5X and C5 Pro specifics (enclosure mods, USB connection point, Klipper integration, printer-specific parts) |
 
