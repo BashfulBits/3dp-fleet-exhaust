@@ -44,13 +44,15 @@ Three pin rules drive the plan:
 | Heater-rail voltage, barrel heater-input sense | PB0 (ADC_IN8), PB1 (ADC_IN9) | 12-bit; ≈ 8 mV per step on the rail divider [E] |
 | Board status LED | PA14 | If the bootloader drives PA14 as TX, the LED lights solid: a free "in bootloader" indicator |
 | SWD test pads (bench debugging, §4.5) | PA13 (SWDIO), PA14 (SWCLK) | Pads only |
-| Spare | PA13, PF1, PF3 | |
+| Header group rail sense (D56) | PF1 | Digital input through a divider: low when the header group's current-limit switch is in limit |
+| Spare | PA13, PF3 | |
 
 25 of 28 pins are used. The 32-pin part's other pinouts (K1x, K3x, K4x) move pins around, so the PCB uses K2x only [E].
 
 ### 2.2 Per-header power
 
-- **P-FET** (HL3401 class, SOT-23, ≈ $0.04, a Preferred part, D51) from the carrier's 3.3 V to the header's 3.3 V pin, with a **gate pull-down** (100 kΩ [E]). With the controller in reset, in its bootloader, blank or absent, its pins float and every header is **on**. The controller drives the gate high to switch a header off.
+- **Group current limit (D56):** the eight P-FETs take their 3.3 V from `+3V3_SENS` through one current-limit switch (SY6280AAAC class, ≈ 1 A, doc 02 §2.2), so a shorted cable sags only the headers, not the controller, the I²C switch or the NTC pull-ups. The controller sees the group rail low on PF1 and tells the ESP32, which switches the headers back on one at a time to find the short and leaves that one off.
+- **P-FET** (HL3401 class, SOT-23, ≈ $0.04, a Preferred part, D51) from the group rail to the header's 3.3 V pin, with a **gate pull-down** (100 kΩ [E]). With the controller in reset, in its bootloader, blank or absent, its pins float and every header is **on**. The controller drives the gate high to switch a header off.
 - **Pull-ups go after the FET:** SDA, SCL (on that header's switch channel) and INT (10 kΩ [E]) all pull up to the header's switched 3.3 V. A header that is off is not back-powered through its pull-ups.
 - **Firmware rule:** before switching a header off, the ESP32 deselects its switch channel. Otherwise SDA and SCL from the powered side would feed the unpowered board through its I/O clamp diodes. The controller masks that header's INT line while it is off, since the pull-up after the FET lets it fall.
 - **Why every external header is switched:** the sensors on them (SHT40, ENS160, XGZP6897D, AS5600, an OLED) have no reset pin. One that latches up or holds SDA low after ESD or a brownout only recovers when its power is removed. Deselecting its channel isolates it but doesn't reset it. The cable is also the likeliest place for a fault.
@@ -66,6 +68,7 @@ The controller takes the slow, non-safety signals that would otherwise need ESP3
 
 - **Takes:** the door reed, the KSD301 loop sense, the 24V_HEAT switched-output sense, the **heater-rail voltage** and the **barrel heater-input sense** (ADC), and the board status LED (doc 02 §2.4). LED chain 2 stays dropped from the fixed map.
 - **Frees:** GPIOs 13, 21, 41, 42 and 47 (D45). CAN TX/RX and the servo output (all GPIO-matrix peripherals) use 41, 42 and 21, which leaves GPIOs 10–13, the S3's IO MUX pins for SPI2, to the LAN SPI (doc 04 §4). GPIO 47 is the controller's interrupt line.
+- **ADC reference (D56):** the ADC runs from `+3V3_SENS`, which the XL1509-ADJ sets only to ±3 %. The firmware measures the PY32's internal reference channel and scales the rail readings by it, so the D53 rail throttle (23.0 V) stays within ≈ ±1 % [E]. It also reports the measured `+3V3_SENS` voltage to the ESP32, which scales its two NTC readings by it, because their pull-ups run from this rail and the ESP32's ADC has its own reference.
 - **Interrupt:** a door change reaches the ESP32 in a few milliseconds through §2.3.
 - **Failure behaviour:** nothing it carries feeds a safety layer (S-7). A missing, silent or not-yet-programmed controller blanks the door input (the AD5X falls back to Moonraker), the KSD sense and the status LED, and removes the heater-input readings, so the firmware **holds the heater off** (and turns it off if the controller stops answering mid-heat). That is the safe direction.
 - **No power switching of its own:** it is the carrier's own firmware, with no cable. A reset command over I²C or its hardware watchdog restarts it, and every reset lands in the ROM bootloader (§4.1), so it never needs a power cycle to recover.
@@ -162,7 +165,7 @@ Every part above is fitted on every carrier, including headers 5–8 and their F
 
 - **3.3 V and I²C only.** A header gives switched 3.3 V, GND, SDA, SCL and INT (§2.2, §5). A sensor that needs 5 V, an analog input, a UART or RS485 doesn't plug in directly. It needs a board with an MCU (§4.4, §8.5) or stays out.
 - **Fixed addresses don't matter.** Each header is its own switch channel (§3), so two boards with the same fixed address never share a segment. No address-translator MCU is needed.
-- **Current:** header 3.3 V comes from the ESP32 dev board's regulator, which also carries the ESP32 and its radio. Keep the total for all headers to **≈ 150 mA** [E] and check the dev board's regulator before fitting several heated sensors (electrochemical, NDIR CO₂, MOX).
+- **Current:** header 3.3 V comes from the carrier's sensor buck (`+3V3_SENS`, 2 A, D56) through the header group's ≈ 1 A current limit (§2.2). Keep the total for all headers to **≈ 0.5 A** (worst case with eight boards from the base set and the catalogue: ≈ 0.4 A average, ≈ 0.6 A peak, mostly SCD41, BMV080 and electrochemical boards [E]). The limit's tolerance (0.75–1.25 A) clears the peaks.
 - **Temperature:** a sensor in the chamber must be rated for chamber air (up to the printer's hard limit plus margin; ≈ 65 °C on the reference printers). Most CO₂, particulate and humidity parts are rated to ≈ 50 °C, so they belong on room-side or exhaust-side headers.
 - **Bought boards (DFRobot Gravity and similar):** Gravity I²C boards use a 4-pin PH2.0 plug. They connect with a crimped **JST-XH 5 → PH2.0-4P adapter cable** (3.3 V, GND, SDA, SCL; INT not connected). The PH2.0 pin order differs from the header's, so the cable follows the board's silkscreen [E: check each board]. No soldering. Fermion-style breakouts ship with loose pin headers that must be soldered into the through-holes; they take a crimped Dupont-to-XH lead.
 
