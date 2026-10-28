@@ -25,7 +25,7 @@ flowchart TB
   AD --> FU["ATO 10 A fuse<br>≤ 15 cm from terminals"]
   FU -->|"14 AWG ≤ 1.5 m"| N["Node heater input<br>(ideal-diode OR)"]
   SP -.-> BRK["DIN-4 brick<br>(alternative, D22)"]
-  BRK -.->|"DIN-4"| N
+  BRK -.->|"DIN pigtail → XT30<br>(in place of the tap, D52)"| N
   N -.->|"shunt (§6a)"| BUS["Bus injection"]
 ```
 
@@ -43,7 +43,7 @@ RJ45 IN/OUT on every carrier; a TERM jumper on every carrier, fitted at the two 
 | **Wireless-only node** (optional, no CAT6) | 24 V brick on an ordinary outlet (not the printer's plug) → node POWER IN, INJECT BAR fitted, **HEAT jumper open** (§6b) | Brick lead | +24 V, GND | 5.5 × 2.5 mm barrel | as needed |
 | **Bus** | Hub → node 1 → node 2 → node 3 | CAT6 patch, **distinct colour, labelled "24 V – NOT ETHERNET"** (R10) | 4 pairs (§3) | RJ45 | ~3 m, 1.5 m, 1.5 m |
 | **Heater feed** | AD5X supply terminals → inline ATO 10 A (≤ 15 cm from the terminals) → node-heat XT30 in | 14 AWG 2-conductor | 24V_HEAT, GND | Supply terminal / XT30 | ≤ 1.5 m |
-| **External heater feed** (optional, D22) | 24 V DIN-4 brick, **plugged in on the printer's own smart plug** → node-heat DIN-4 in (jack fitted as a population option) | Brick lead | +24 V, GND (2 pins each) | 4-pin DIN | brick lead |
+| **External heater feed** (optional, D22) | 24 V DIN-4 brick, **plugged in on the printer's own smart plug** → DIN pigtail in the housing's DIN-4 opening → node-heat internal XT30, in place of the printer tap (D52) | Brick lead + pigtail | +24 V, GND (2 pins each) | 4-pin DIN → XT30 | brick lead |
 | **Reduced-power heater feed** (optional, D22) | 24 V barrel brick ≤ 5 A, **on the printer's own smart plug** → POWER IN, HEAT jumper fitted (heater capped ~100 W) | Brick lead | +24 V, GND | 5.5 × 2.5 mm barrel | brick lead |
 | **Heater element** | Node XT30 out → PTC (via TCO) | Element leads + TCO in series on the + lead | 2 | XT30 | ≤0.5 m |
 | **Heater fan** (separate leads, C8) or 5015 blower (fallback) | Node fan A → fan | 22–24 AWG | 24 V, GND, (tach), (PWM) | JST-XH 4 | ≤0.5 m |
@@ -71,8 +71,8 @@ RJ45 IN/OUT on every carrier; a TERM jumper on every carrier, fitted at the two 
 |---|---|---|---|
 | 1 | white/orange | **CAN_H** | pair 2 (twisted) |
 | 2 | orange | **CAN_L** | pair 2 |
-| 3 | white/green | GND | pair 3 |
-| 6 | green | GND | pair 3 |
+| 3 | white/green | **Presence loop** (D52): GND at the IN jack, sensed at the OUT jack | pair 3 |
+| 6 | green | **Presence loop** (D52): GND at the IN jack, sensed at the OUT jack | pair 3 |
 | 4 | blue | +24 V logic | pair 1 |
 | 5 | white/blue | +24 V logic | pair 1 |
 | 7 | white/brown | GND | pair 4 |
@@ -80,9 +80,9 @@ RJ45 IN/OUT on every carrier; a TERM jumper on every carrier, fitted at the two 
 
 **Rule (D17): both wires of every pair carry the same potential.** An Ethernet port has a transformer winding across each pair, so DC between the two wires of one pair (as on pins 3 and 6 in the earlier pinout) would drive amps through it. With equal potential per pair, any DC only appears *between* pairs, which a port's magnetics and coupling capacitors block. That's the same way PoE mode B carries power on pairs 4/5 (+) and 7/8 (−), with the same polarity as here.
 
-- **Capacity:** two conductors for +24 V (≤ 0.75 A each, **≈ 1.5 A per segment, ~36 W**) and four for GND. **Kept at 1.5 A on purpose (D21):** a cheap copper-clad-aluminium or Cat5 patch cable swapped in later still runs inside its rating. Injection at the nodes (§6a) covers more load.
+- **Capacity:** two conductors for +24 V (≤ 0.75 A each, **≈ 1.5 A per segment, ~36 W**) and two for GND (pins 7/8, the same 0.75 A each). Pair 3 carries only the presence loop's sense current since D52; the two extra GND wires it used to be only lowered the ground drop, not the segment limit. **Kept at 1.5 A on purpose (D21):** a cheap copper-clad-aluminium or Cat5 patch cable swapped in later still runs inside its rating. Injection at the nodes (§6a) covers more load.
 - **Load:** each bed strip is ~48 LEDs (D44), about 2.9 A at full white, so the firmware limits LED brightness by estimated current to **≤ 0.5 A at 5 V per node** (a few percent of the bus, ~0.1 A at 24 V). Status colours at a diffused, low brightness stay well under that. Three nodes then stay ≤ 1.2 A from the hub alone. Bus power injection (§6a) covers anything more.
-- **Jacks are directional:** each node has an **IN** jack (toward the hub) and an **OUT** jack (away from it). The hub has one OUT jack. Pins 1, 2, 3, 6, 7, 8 pass straight through; +24 V reaches the OUT jack only through the detect-before-power switch (§3a). CAN stubs on the board are ≤ 50 mm.
+- **Jacks are directional:** each node has an **IN** jack (toward the hub) and an **OUT** jack (away from it). The hub has one OUT jack. Pins 1, 2, 7, 8 pass straight through. Pins 3 and 6 don't: the IN jack ties them to GND, and the OUT jack senses them as the presence loop (§3a, D52); +24 V reaches the OUT jack only through the detect-before-power switch (§3a). CAN stubs on the board are ≤ 50 mm.
 - **Termination (D27):** every carrier has a **TERM jumper**: a 2-pin 2.54 mm header in series with a **120 Ω 1 % resistor** (1206, 0.25 W) across CAN_H and CAN_L, beside the OUT jack. Fit the shunt at the **two physical ends** only: the hub, and the node with nothing in its OUT jack. Two 120 Ω in parallel give the **60 Ω** that ISO 11898 and Klipper's CAN guide require, so the bus also meets Klipper's rules if someone reuses it. Adding a node at the end means moving one shunt.
 - **Termination check (commissioning):** with the bus powered off, meter CAN_H to CAN_L (pins 1–2) at any spare jack or a breakout: **54–66 Ω passes**; ~120 Ω means one end is missing, ~40 Ω means three are fitted. The firmware can't measure termination, but a node whose OUT jack detects nothing shows a dashboard reminder to confirm its TERM shunt.
 
@@ -93,7 +93,7 @@ RJ45 IN/OUT on every carrier; a TERM jumper on every carrier, fitted at the two 
 | Protection | What it does |
 |---|---|
 | **Same potential per pair** (above) | No DC across any Ethernet transformer winding |
-| **Detect-before-power on every OUT jack** (hub and nodes) | +24 V is off until a fleet node is detected. The port probes pins 4/5 vs 7/8 with ≤ 5 V at ≤ 1 mA and powers up only if it sees **a node's 10 kΩ ±5 % signature**, or **an already-powered fleet segment (22–28 V)** from a node with local injection. It refuses an open port, an Ethernet port's ~150 Ω DC-coupled termination, a PoE device's 25 kΩ signature, a short, or anything else. Once on, power stays on only while **more than 5 mA flows in either direction** (every node draws more); an unplug drops it within ~300 ms and the port returns to probing. Hardware window comparator + latch driving a **bidirectional current-limited switch** (back-to-back N-FETs, so injected power can flow both ways; off, their body diodes block both ways). The current sense is **bidirectional** (D35): a zero-drift sense amplifier *(candidate: INA190 class [V])*, since 5 mA across a shunt sized for 1.5 A is only ~0.25 mV. Reverse current is normal (a node's injection feeding upstream, D13, or the whole chain feeding the hub when its supply fails); a forward-only sense would drop a reverse-fed port every 300 ms, then re-close it on the 22–28 V test, over and over. Firmware can read the port state **and current direction** but isn't needed to keep it safe [U: circuit in Phase 2] |
+| **Detect-before-power on every OUT jack** (hub and nodes) | +24 V is off until a fleet node is detected. The port probes pins 4/5 vs 7/8 with ≤ 5 V at ≤ 1 mA and powers up only if it sees **a node's 10 kΩ ±5 % signature**, or **an already-powered fleet segment (22–28 V)** from a node with local injection. It refuses an open port, an Ethernet port's ~150 Ω DC-coupled termination, a PoE device's 25 kΩ signature, a short, or anything else. Once on, power stays on only while the **presence loop** is closed (D52). On the OUT jack, pins 3 and 6 are tied together and pulled up weakly to 3.3 V, through a series resistor and clamp rated for 60 V on the pins. Every node's IN jack ties pins 3 and 6 to GND. Both wires of the pair always sit at the same potential, so the D17 rule holds. Unplugging either end of the cable opens the loop: the port drops +24 V after a short debounce (~10 ms) and returns to probing. The loop doesn't depend on current, so it works the same in both directions: a node's injection feeding upstream (D13), or the whole chain feeding the hub when its supply fails (D35). An Ethernet port reads as open, because its pair-3 winding has no DC path to GND. The pull-up and clamp must not form a 19–26.5 kΩ PoE signature between pairs 1/2 and 3/6 [U]. Hardware window comparator + latch driving a **bidirectional current-limited switch** (back-to-back N-FETs, so injected power can flow both ways; off, their body diodes block both ways). The D35 zero-drift current sense (INA190 class) is dropped. Firmware can read the port state but isn't needed to keep it safe [U: circuit in Phase 2] |
 | **Node IN jack** | 10 kΩ signature, reverse-polarity protection (a **P-FET, which conducts both ways**, never a series diode, so a node can feed power upstream, D35), input parts rated 60 V, and the injection eFuse's **over-voltage cut-off at ~30 V**. A passive 48 V PoE injector just leaves the node off. A PoE switch sees an invalid signature (10 kΩ is outside PoE's 19–26.5 kΩ window), so it never powers the node |
 | **Fault-tolerant CAN transceiver** (±58 V bus pins, TJA1051T/3 class) | Ethernet signals or stray PoE voltage on pins 1/2 can't damage it. A CAN driver feeding an Ethernet winding is short-circuit current-limited by the transceiver [E] |
 | Distinct cable colour, "24 V – NOT ETHERNET" cable labels, and **port names embossed on the node housing and hub enclosure** (R10) | Kept as the first line of defence |
@@ -111,7 +111,7 @@ stateDiagram-v2
   Probing --> Probing : anything else
   Powered : Powered (+24 V on)
   Powered : current-limited switch
-  Powered --> Probing : < 5 mA for 300 ms
+  Powered --> Probing : presence loop opens
 ```
 
 "Anything else" covers an open jack, an Ethernet port (~150 Ω), a PoE device (25 kΩ) and a short. 22–28 V at the far end means a fleet segment that is already powered.
@@ -243,13 +243,13 @@ Every Tier 2 printer (doc 12 §3.2) uses the same link; only the printer end dif
 4. **Between printers:** if the stock AD5X supplies bond −V to earth, the two printers' grounds also meet through mains earth and through the CAT6 chain. Only a small share of heater current can take that long path [E]. The offset stays far inside CAN's common-mode range (−2 to +7 V). The USB isolator fallback breaks this path too.
 5. Each carrier joins logic GND and power GND at **one star point** near the input connectors. The heater current-sense shunt sits on the power side of that point.
 6. Shields: CAT6 is unshielded (UTP). The USB lead's shield connects at the AD5X end only.
-7. **Injected current** (§6a) returns over the CAT6 GND conductors (four of them since D17) to the loads it feeds. Each source is limited by its eFuse, which keeps every conductor inside the ~0.75 A allowance.
+7. **Injected current** (§6a) returns over the CAT6 GND conductors (pins 7/8; pair 3 is the presence loop since D52) to the loads it feeds. Each source is limited by its eFuse, which keeps every conductor inside the ~0.75 A allowance.
 
 ## 6a. Bus power injection (D13)
 
 | Item | Rule |
 |---|---|
-| Sources | Selected per board by the **INJECT jumpers** (INT, BAR, DIN), each through its own Schottky into the eFuse. Hub: INT (its PSU on the internal XT30, always). Node-heat: INT (the AD5X supply tap or an upgraded internal supply), or DIN with an external brick. Any node: BAR with a 24 V brick or PoE splitter. |
+| Sources | Selected per board by the **INJECT jumpers** (INT, BAR), each through its own Schottky, then the input guard, into the eFuse. Hub: INT (its PSU on the internal XT30, always). Node-heat: INT (the AD5X supply tap or an upgraded internal supply), or a DIN-4 brick on the internal XT30 through its pigtail (D52). Any node: BAR with a 24 V brick or PoE splitter. |
 | Protection | Each source enters the bus through an eFuse with reverse-current blocking, so no supply is back-fed by another, and a short is current-limited at the source. |
 | Load sharing | Diode-OR by voltage. The hub is trimmed to ≈ 24.5 V and local sources sit at their nominal 24.0 V, so the hub carries the bus until cable drop under load pulls a node's local bus voltage below its local source. That source then supplies its stretch of the chain. No sharing controller is needed. |
 | Printer supply protection | If a printer's rail sags (bed + heater load), it falls below the bus voltage and its injection stops by itself, so the bus never takes power from a printer that needs it (R12). The ~1 A limit caps the most it can ever add to the printer supply at ~24 W. |
@@ -265,7 +265,7 @@ Jumpers only choose what **feeds** the bus; every board's logic runs from the bu
 |---|---|---|---|
 | Hub | INT (its PSU) | – | Hub PSU and the fan on ordinary outlets, **never on a printer's plug** |
 | Wired node-heat, printer supply | INT | open | Logic survives the cut through the bus |
-| Wired node-heat, external heater brick | DIN (or BAR) | fitted for BAR | Heater brick **on that printer's plug** (doc 05 §9 test 23) |
+| Wired node-heat, external heater brick | INT (DIN brick on its pigtail), or BAR | fitted for BAR | Heater brick **on that printer's plug** (doc 05 §9 test 23) |
 | Wired node-lite | none, or BAR with a brick | open | Any brick on an ordinary outlet |
 | Wireless-only node-heat (AD5X) | BAR (logic brick) + INT | **open** | **Two supplies:** logic brick on an ordinary outlet, heater from the printer's own supply (INT XT30). The logic brick is never on the printer's plug |
 | Wireless-only node-lite | BAR | open | Logic brick on an ordinary outlet |

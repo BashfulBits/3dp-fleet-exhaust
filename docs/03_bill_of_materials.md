@@ -10,16 +10,16 @@
 
 | Group | Est. cost |
 |---|---|
-| A. Electronics (boards, ESP32s, sensors) | $269 |
+| A. Electronics (boards, ESP32s, sensors) | $240 |
 | B. Chamber heating and recirculation (2 × AD5X) | $63 |
 | C. Dampers and user interface | $34 |
 | D. Power distribution and cabling | $84 |
 | E. Pneumatics and filtration | $86 |
 | F. Enclosure modifications | $38 |
 | G. Safety and smart home | $65 |
-| **Total (cash)**, AD5X supplies reused | **≈ $638** |
-| Contingency if O1 shows the AD5X supplies need upgrading: 2 replacement supplies (~$80), less the hub LRS-100 (a removed stock unit replaces it, −$17) | **+≈ $63 → ≈ $701** |
-| Alternative to upgrading: external DIN-4 heater brick per AD5X (Mean Well GST160A24-R7B, D22) + DIN-4 jack fitted + 2-outlet adapter on its smart plug | ≈ $58 each, **+≈ $115 → ≈ $753** (no mains work in the printers) |
+| **Total (cash)**, AD5X supplies reused | **≈ $609** |
+| Contingency if O1 shows the AD5X supplies need upgrading: 2 replacement supplies (~$80), less the hub LRS-100 (a removed stock unit replaces it, −$17) | **+≈ $63 → ≈ $672** |
+| Alternative to upgrading: external DIN-4 heater brick per AD5X (Mean Well GST160A24-R7B, D22) + DIN pigtail (≈ $3 [E]) + 2-outlet adapter on its smart plug | ≈ $58 each, **+≈ $115 → ≈ $724** (no mains work in the printers) |
 | Reduced-power alternative: barrel brick per AD5X (Mean Well GST120A24-P1M, heater capped ~100 W, D22) + 2-outlet adapter | ≈ $40 each |
 | Optional 24 V brick per extra injection point (larger fleets, D13) or per **wireless-only node** (D16; saves that node's CAT6 cable) | ≈ $8 each |
 | Contingency if R1 fails (the G4 can't be controlled, or stops when the hub goes silent): a fan with a documented interface, e.g. AC Infinity Cloudline 4″ with its controller port, or a 4-wire PWM EC inline fan (D41) | ≈ $100–150, **not in the total** |
@@ -27,8 +27,8 @@
 
 ```mermaid
 pie showData
-  title Cash cost by group (≈ $638)
-  "A. Electronics" : 269
+  title Cash cost by group (≈ $609)
+  "A. Electronics" : 240
   "B. Heating" : 63
   "C. Dampers, UI" : 34
   "D. Power" : 84
@@ -39,7 +39,7 @@ pie showData
 
 ### 1.1 Why this is higher than the first $470–490 estimate
 
-> **Updates 2026-10-25:** D11 (XGZP6897D trunk sensor) took the total from ≈ $570 to ≈ $550. D12 (heater power from each AD5X's own supply, no hub relay, chamber-air KSD301) took it to ≈ $515. D13 (bus power injection) took it to ≈ $527. D17 (RJ45 safety) took it to ≈ $536. D18 (hub LAN jack) and D19 (AD5X recirculation blowers) took it to ≈ $548. D20 (ENS160, −$15) and D22 (three isolated power inputs with jumper selection; DIN-4 jack as a population option, +$25) took it to ≈ $558. D24 (C5 USB lead) took it to ≈ $561. D30 (damper encoders, trunk flow venturi) took it to ≈ $573. D31 (SDP31 on the venturi) took it to ≈ $587. D32 (low-flow thermistor anemometer) took it to ≈ $589. D33 (back to an XGZP6897D on the venturi) took it to ≈ $575. D35 (two-way current sense on the OUT ports) took it to ≈ $577. D36–D37 (reset hold, ideal-diode dev-board feed) took it to ≈ $581. D42 (a separate universal sensor board, ordered on its own, replacing the break-off tab and the XGZP and AS5600 breakouts) took it to ≈ $609. D43 (the carrier's connectors itemised, plus the extra XT30 plugs) took it to ≈ $635. D44 (a denser, diffused LED strip) took it to ≈ $640. D45 (carrier I/O controller, 8-channel I²C switch, 7 headers) took it to ≈ $650 (including the on-carrier I/O expander). D47 (one carrier population: LAN on every board, ILIM and RANGE shunts) took it to ≈ $670. D50 (LM2904 heater current sense, one extended-part fee less) took it to ≈ $666. D51 (clone and Preferred part swaps, rating fixes, carrier lines repriced from JLC stock prices, connectors at LCSC-class clone prices) took it to ≈ $638. The rest of this section explains the original $570.
+> **Updates 2026-10-25:** D11 (XGZP6897D trunk sensor) took the total from ≈ $570 to ≈ $550. D12 (heater power from each AD5X's own supply, no hub relay, chamber-air KSD301) took it to ≈ $515. D13 (bus power injection) took it to ≈ $527. D17 (RJ45 safety) took it to ≈ $536. D18 (hub LAN jack) and D19 (AD5X recirculation blowers) took it to ≈ $548. D20 (ENS160, −$15) and D22 (three isolated power inputs with jumper selection; DIN-4 jack as a population option, +$25) took it to ≈ $558. D24 (C5 USB lead) took it to ≈ $561. D30 (damper encoders, trunk flow venturi) took it to ≈ $573. D31 (SDP31 on the venturi) took it to ≈ $587. D32 (low-flow thermistor anemometer) took it to ≈ $589. D33 (back to an XGZP6897D on the venturi) took it to ≈ $575. D35 (two-way current sense on the OUT ports) took it to ≈ $577. D36–D37 (reset hold, ideal-diode dev-board feed) took it to ≈ $581. D42 (a separate universal sensor board, ordered on its own, replacing the break-off tab and the XGZP and AS5600 breakouts) took it to ≈ $609. D43 (the carrier's connectors itemised, plus the extra XT30 plugs) took it to ≈ $635. D44 (a denser, diffused LED strip) took it to ≈ $640. D45 (carrier I/O controller, 8-channel I²C switch, 7 headers) took it to ≈ $650 (including the on-carrier I/O expander). D47 (one carrier population: LAN on every board, ILIM and RANGE shunts) took it to ≈ $670. D50 (LM2904 heater current sense, one extended-part fee less) took it to ≈ $666. D51 (clone and Preferred part swaps, rating fixes, carrier lines repriced from JLC stock prices, connectors at LCSC-class clone prices) took it to ≈ $638. D52 (pair-3 presence loop in place of the INA190, MX26631DL eFuse with an input guard, CH390D LAN chip, DIN brick on a pigtail) took it to ≈ $609. The rest of this section explains the original $570.
 
 The first estimate used group-level figures. Building the BOM line by line added items those estimates **under-counted**:
 - ΔP tubing, the AD5X USB leads, pre-crimped pigtails, fasteners and standoffs (~$35)
@@ -82,12 +82,12 @@ JLCPCB builds 5 of each board per order, so a fleet of up to 4 printers plus the
 | Universal sensor board, variant E: AS5600 | 4 | $2 | $8 | D30, D42: one per damper, 1 spare. A 5-board JLC order (or bare boards with hand-soldered AS5600). |
 | Sensor-header I/O: 8-channel I²C switch (FCA9548T, C55562906, TCA9548A-compatible) + 2 × CH32V003 (carrier controller and on-carrier I/O expander) + 7 P-FETs (HL3401, C22469449, Preferred) + per-header pull-ups and ESD (H5VL10B) | 5 | $1.70 | $9 | D45, doc 09 §6. Populated on every carrier for one assembly BOM. One I²C segment per header (fixed XGZP6897D addresses, bus capacitance); per-header power, interrupt and CH32 programming. Replaces the 2-channel TCA9543A. |
 | 0.96″ I²C OLED | 1 | $3 | $3 | Hub panel, optional, on its own sensor header (D48). A node OLED is the same part, optional and not in the total. |
-| Bus-injection eFuse with reverse blocking (TPS26632, C1850278, ≈ $3.53) + POWER IN barrel jack + INJECT header and HEAT 2 × 2 header with two shunts (D51) + 3 Schottky, on the carrier | 5 | $3.80 | $19 | D13, D22; one per board, including extended-part share. Repriced from JLC stock prices (D51; was $2.80). |
-| Detect-before-power OUT-port circuit (window comparator, latch, back-to-back N-FETs, current limit, bidirectional zero-drift current sense) | 5 | $2.20 | $11 | D17, D35 (two-way sense, +$0.40); one per board. The TJA1051T/3 transceiver costs about the same as the SN65HVD230 it replaces. |
+| Bus-injection eFuse (MX26631DL, C18197523, ≈ $0.76) + 60 V reverse-blocking N-FET (HL2310A, Preferred) + input guard (RC3P06 60 V P-FET, C5443951, + CJ431 + MMBT3904 + 12 V zener) + POWER IN barrel jack + INJECT header and HEAT 2 × 2 header with two shunts (D51) + 2 Schottky, on the carrier | 5 | $1.15 | $9 | D13, D22, D52; one per board, including the guard FET's extended-part fee. D52: was $3.80 with the TPS26632, whose fixed 35 V clamp doesn't give the 30 V cut-off. |
+| Detect-before-power OUT-port circuit (window comparator, latch, back-to-back N-FETs, current limit, pair-3 presence loop) | 5 | $0.60 | $3 | D17, D52 (the presence loop replaces the D35 INA190 two-way sense and its extended-part fee); one per board. The TJA1051T/3 transceiver costs about the same as the SN65HVD230 it replaces. |
 | Carrier-power reset hold (2 × 2N7002, divider) + ideal-diode dev-board feed (MX66100T, C53121238, D51; alt. TI LM66100DCKR, C2869734; replaces the Schottky) | 5 | $0.20 | $4 | D36, D37; one per board. Includes the ~$3 JLCPCB extended-part fee for the ideal diode [V]. |
-| LAN jack parts: W5500 (C32843, ≈ $2.83) or DM9051 + RJ45 MagJack (HR911105A, C12074, ≈ $1.73) + 25 MHz crystal (C9006, Basic) | 5 | $4.70 | $24 | D18; fitted on every carrier since D47 (was hub only), so any node can take a wired link. The W5500's extended-part fee was already paid for the hub. Repriced from JLC stock prices (D51; was $4). |
-| Input isolation: 3 × ideal-diode controller (MX74700T, C22468156, LM74700-compatible) + N-FET (SP40N05GNJ, C22466763), on the carrier | 5 | $1.50 | $8 | D22; INT, BAR, DIN, populated on all 5 so a DIN jack can be added later. D51: the LM74700-Q1 is ≈ $2.62 each at JLC, so the clone saves ≈ $6 per board. |
-| | | | **$269** | |
+| LAN jack parts: CH390D (C41380359, ≈ $1.20; W5500 as the alternate) + RJ45 MagJack (HR911105A, C12074, ≈ $1.73) + 25 MHz crystal (C9006, Basic, 12 pF) | 5 | $3.10 | $16 | D18; fitted on every carrier since D47 (was hub only), so any node can take a wired link. The CH390D's extended-part fee takes the W5500's place. D52: was $4.70 with the W5500. |
+| Input isolation: 2 × ideal-diode controller (MX74700T, C22468156, LM74700-compatible) + N-FET (SP40N05GNJ, C22466763), on the carrier | 5 | $1.00 | $5 | D22, D52; INT and BAR (a DIN brick uses the INT input through its pigtail). D51: the LM74700-Q1 is ≈ $2.62 each at JLC, so the clone saves ≈ $6 per board. |
+| | | | **$240** | |
 
 **A.1 Carrier connectors, per board (D43).** Populated on all 5 boards for one assembly BOM; JLC THT assembly or hand-soldered. Prices are JLC stock prices for clone parts at a 5-board order (D51); JLC's THT soldering charge is not included [E].
 
@@ -100,9 +100,9 @@ JLCPCB builds 5 of each board per order, so a fleet of up to 4 printers plus the
 | 1 × 22-pin female header (C41376161) | 2 | $0.23 | $0.45 | ESP32-S3 dev board socket |
 | | | | **$1.95** | × 5 boards ≈ $10 (D51; was $5.31 at generic prices) |
 
-Not in this table, because they are priced elsewhere: the POWER IN barrel jack and INJECT/HEAT headers (eFuse line), the LAN MagJack (LAN line), the sensor boards' own JST-XH (their lines), the DIN-4 jack (population option), and the mating plugs (group D).
+Not in this table, because they are priced elsewhere: the POWER IN barrel jack and INJECT/HEAT headers (eFuse line), the LAN MagJack (LAN line), the sensor boards' own JST-XH (their lines), the DIN pigtail (accessory), and the mating plugs (group D).
 
-**Population option (not in the total):** 4-pin DIN power jack (Kycon KPJX-4S class, 7.5 A), ≈ $2.50 per board, THT. Footprint and housing opening on every carrier. Long lead time on the Kycon part; a Same Sky equivalent is listed.
+**Accessory (not in the total):** the **DIN pigtail** for a DIN-4 heater brick (D52): a panel-mount 4-pin DIN power jack (Kycon KPJX-PM-4S class, 7.5 A) with leads to an XT30 plug, ≈ $2–5 [E], bought from a distributor (JLC and LCSC don't stock it). Only nodes that use a DIN brick need one; the carrier has no DIN footprint.
 
 ### B. Chamber heating and recirculation (AD5X ×2)
 

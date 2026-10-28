@@ -1,6 +1,6 @@
 # 01 - System Architecture
 
-> **Status:** Phase 1 design baseline, 2026-10-25, updated 2026-10-27. Every decision is recorded as D1–D51 in [design_decisions.md](design_decisions.md).
+> **Status:** Phase 1 design baseline, 2026-10-25, updated 2026-10-27. Every decision is recorded as D1–D52 in [design_decisions.md](design_decisions.md).
 >
 > **Evidence key used across docs 01–08:** **[V]** verified against a primary source · **[E]** engineering estimate · **[U]** unverified, needs a measurement or a test on the real hardware.
 
@@ -88,7 +88,7 @@ Each row is an approved decision. The full record and the trade studies are in [
 ### 4.2 Logic bus and wired CAN from the hub; heater power from each printer (D4, amended by D12)
 
 - **Node logic** comes from a small hub PSU over the CAT6 daisy chain, so nodes keep running when a printer is off and can still purge it.
-- **Heater power** comes from **each AD5X's own internal 24 V supply**, reused if its label shows headroom or upgraded if not, or from an external 24 V DIN-4 brick on the same smart plug (O1, D22, doc 02 §3.1). The Shelly plug that feeds a printer therefore removes printer *and* heater power in one cut.
+- **Heater power** comes from **each AD5X's own internal 24 V supply**, reused if its label shows headroom or upgraded if not, or from an external 24 V DIN-4 brick on the same smart plug, connected through a pigtail to the internal XT30 (O1, D52, D22, doc 02 §3.1). The Shelly plug that feeds a printer therefore removes printer *and* heater power in one cut.
 - **Why no hub heater relay (D12):** every fault the relay covered is a heater runaway, and the node handles all single faults itself (two series switches; a hardware enable chain with housing and chamber-air thermostats; a TCO in the load path). A runaway needs a double fault. At that point the print is lost anyway, so a per-printer mains cut costs nothing extra.
 - **Extensibility:** adding a printer needs only a CAT6 patch cable, a node and a smart plug (Shelly, or any plug via HA, D14). There's no heavy cable, hub relay or larger hub PSU per printer. A CAT6 segment carries about 36 W (1.5 A, kept there on purpose, D21). **Power injection at the nodes (D13)** removes that as a chain limit: every carrier can feed the bus through a current-limited, reverse-blocking eFuse, the AD5X nodes do so from their heater tap, and any node can take a 24 V brick. With every printer off, the hub carries the chain alone: the idle load (~1–2 W per node) plus the busiest node's alarm peak, which is what its supply is sized for (D35, doc 04 §6a).
 - **ESP-NOW backup (D16):** the same messages also go over ESP32 peer-to-peer radio, so an unplugged or damaged cable costs nothing. A node can also run **wireless-only** (no CAT6) with a 24 V brick (doc 07 §6.4).
@@ -153,7 +153,7 @@ Prints started from the touchscreen, the Flashforge app or FlashPrint follow the
 | 07 | Firmware, zmod plugin, protocols, G-code API, notifications, dashboard |
 | 08 | Printable parts catalogue |
 | 09 | Sensor bus and carrier I/O controller: per-header I²C segments, power and interrupts, in-system programming of every CH32V003 |
-| Design decisions | Decision record D1–D51, cost-reduction pass, trade studies T1–T3 |
+| Design decisions | Decision record D1–D52, cost-reduction pass, trade studies T1–T3 |
 | 12 | Porting guide: printer packs, link tiers, profile schema, mechanical interface, safety contract, licensing |
 | `printers/` | Printer packs: AD5X and C5 Pro specifics (enclosure mods, USB connection point, Klipper integration, printer-specific parts) |
 

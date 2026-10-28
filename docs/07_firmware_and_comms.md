@@ -8,9 +8,9 @@
 
 | Component | Runs on | Stack | Repo path (Phase 2) |
 |---|---|---|---|
-| **Node firmware** | Carrier ESP32-S3, roles node-heat / node-lite | PlatformIO, Arduino-ESP32 3.x (ESP-IDF 5 underneath), C++ | `firmware/fleet_node/` |
+| **Node firmware** | Carrier ESP32-S3, roles node-heat / node-lite | **ESP-IDF 5.x** (FreeRTOS), C++, `idf.py` and the IDF component manager (D52) | `firmware/fleet_node/` |
 | **Hub firmware** | Carrier ESP32-S3, hub role | Same toolchain; same shared library | `firmware/fleet_node/` (one codebase, role from config) |
-| **Shared library** | — | CAN messages, USB protocol, control loops, sensor drivers | `firmware/lib/fleet_common/` |
+| **Shared library** | — | CAN messages, USB protocol, control loops, sensor drivers | `firmware/components/fleet_common/` |
 | **`fleet_exhaust` zmod plugin** | Each printer | Klipper config macros + klippy extra (Python) + `install.sh`, `uninstall.sh`, `update.sh` | Separate repo `fleet-exhaust-klipper` (D27) |
 | **Orca profiles** | Your PC | Printer and filament G-code snippets | `slicer_profiles/orca/` |
 | Dashboard | Hub | Static web page served from LittleFS + JSON/WebSocket API | `firmware/fleet_node/data/` |
@@ -34,9 +34,11 @@ flowchart TB
 - **USB link (every printer, D24):** NDJSON frames with a CRC between the klippy extra and the node.
 - **Moonraker WebSocket:** the backup link on every printer (the C5's only link if O10 finds no `cdc_acm`).
 - **Other printer links:** one `PrinterLink` implementation per link type (doc 12 §3.3). `marlin_serial` (D48: UART on the AUX header or USB host, with a fixed read-and-display command allowlist) is specified but not built.
-- Node and hub firmware share the `fleet_common` library; the dashboard is served from LittleFS. Home Assistant uses MQTT discovery.
+- Node and hub firmware share the `fleet_common` component; the dashboard is served from LittleFS. Home Assistant uses MQTT discovery.
 
-**Why PlatformIO C++ rather than ESPHome:** the node and hub need a CAN protocol, a USB-serial protocol, a Moonraker WebSocket client, cascaded control loops, the G4 fan protocol (R1) and hardware-coupled safety logic. In ESPHome nearly all of that would be custom components. Home Assistant integration stays available through MQTT discovery (§9).
+**Why ESP-IDF C++ rather than ESPHome:** the node and hub need a CAN protocol, a USB-serial protocol, a Moonraker WebSocket client, cascaded control loops, the G4 fan protocol (R1) and hardware-coupled safety logic. In ESPHome nearly all of that would be custom components. Home Assistant integration stays available through MQTT discovery (§9).
+
+**Why plain ESP-IDF rather than Arduino-ESP32 (D52):** the design already uses ESP-IDF drivers directly: RMT with DMA and open-drain loopback (doc 09 §4.1a), continuous ADC with DMA, TWAI, ESP-NOW, the task and RTC watchdogs and NVS. Arduino would only add a layer on top. Vendor drivers come from the component manager: `espressif/ch390` (LAN), `esp_websocket_client` (Moonraker), `mqtt`, `esp_http_server`, `led_strip` and LittleFS.
 
 ## 2. Firmware architecture (node and hub)
 
@@ -454,5 +456,5 @@ Each node-heat keeps a small first-order model of its chamber: predicted tempera
 | Check | How |
 |---|---|
 | **Plug-off survival** | Whenever a printer's plug reads off in normal use (a user switch-off, not a cut), its node must still be online 10 s later. If it drops, the hub raises a **High** alert "node powered from the printer's plug": its purge and fire response would fail at a real cut. Costs nothing: the plug read-back and node heartbeat already exist |
-| **Hub supply lost** | The hub's OUT switch reports current direction (doc 04 §3a). Current flowing **into** the hub can only mean its own supply has failed (it is trimmed above every local source). The hub sends a **High** "hub supply lost, running on printer power" push and enters back-fed mode |
-| **Back-fed mode** | While back-fed: LED brightness capped and **one damper servo moving at a time**, so a single injecting node's ~1 A limit carries the whole chain even in an alarm; in a fire or runaway, **siren and push go before the cut** (doc 05 §3.4, §5), since the cut printer may be the hub's only power; the dashboard shows the mode. It ends when forward current returns |
+| **Hub supply lost** | The hub reads its own supply input: the INT heater-rail voltage, through the carrier I/O expander (doc 02 §2.4). If it drops below ~20 V while the hub stays up on the bus, its supply has failed and the chain is feeding it (D52; the OUT-port current direction this used is gone with the INA190). The hub sends a **High** "hub supply lost, running on printer power" push and enters back-fed mode |
+| **Back-fed mode** | While back-fed: LED brightness capped and **one damper servo moving at a time**, so a single injecting node's ~1 A limit carries the whole chain even in an alarm; in a fire or runaway, **siren and push go before the cut** (doc 05 §3.4, §5), since the cut printer may be the hub's only power; the dashboard shows the mode. It ends when the hub's supply input returns |

@@ -93,7 +93,7 @@ The node gets its printer-specific behaviour from the profile, not from code. Th
 | `chamber.native_heater` | bool | The printer heats its own chamber (C5: true). The node then never fits or runs a heater |
 | `heater.allowed` | bool | Node heater permitted (needs `role: node-heat`, Tier ≥ 1) |
 | `heater.max_w` | number | Upper bound; the firmware still applies the input caps (doc 05 §3.3) |
-| `heater.supply` | enum | `printer_tap`, `upgraded_internal`, `din_brick`, `barrel_brick` |
+| `heater.supply` | enum | `printer_tap`, `upgraded_internal`, `din_brick`, `barrel_brick`. The carrier can't tell a DIN brick on its pigtail from a printer supply on the internal XT30, so `din_brick` is what skips the bed interlock and rail throttle (doc 05 §3.3, D52) |
 | `heater.bed_interlock` | bool | Hold the heater during bed ramp (true when the supply is shared) |
 | `door.source` | enum | `node_reed`, `link` (named objects), `none` |
 | `door.objects` | list | Printer object names for `link` (C5: `topDoor`, `frontDoor`) |
