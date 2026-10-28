@@ -131,7 +131,7 @@ Rules applied:
 | 1 | Chamber-air NTC (ADC) | – (fitted, spare) | **Anemometer reference NTC** (D32) | ADC1_CH0. 47 kΩ pull-up, ≈ 4.6 kΩ with the RANGE 1 shunt on (node-heat, D47) |
 | 2 | Heater-housing NTC (ADC) | – (fitted, spare) | **Anemometer heated NTC** (D32) | ADC1_CH1. RANGE 2 shunt as for GPIO 1 |
 | 3 | **Board identity** (role shunt divider, D46) | Same | Same | ADC1_CH2, read once at boot. Strapping pin for the JTAG source, which only matters if an eFuse selects it |
-| 4 | Heater current, INA180 out (ADC) | – | – | ADC1_CH3; sampled at a fixed rate by ADC1 continuous mode with DMA (below) |
+| 4 | Heater current, LM2904 out (ADC, D50) | – | – | ADC1_CH3; sampled at a fixed rate by ADC1 continuous mode with DMA (below) |
 | 5 | AUX A: spare, or **UART1 TX** to the printer (D48) | Same | **Smoke dry-contact input** (edge interrupt; D49, was GPIO 6) | Through a 2N7002 level shifter to the AUX header (below), so digital only. The heater-rail voltage moved to the carrier I/O expander's ADC (D47) |
 | 6 | AUX B: spare, or **UART1 RX** from the printer (D48) | Same | **Acknowledge button** (edge interrupt, debounced; D49, was GPIO 5): the on-board tact switch, or a remote button on AUX B | Level shifter as GPIO 5; 5 V-tolerant at the connector. The on-board tact switch is on this line (D49). The external heater-input sense (D22) moved to the carrier I/O expander's ADC (D47) |
 | 7 | Heater low-side PWM | – | – | 10 kΩ pull-down |
@@ -152,6 +152,14 @@ Rules applied:
 | 41 | **CAN TX** | CAN TX | CAN TX | TWAI, routed through the GPIO matrix; pull-up on the transceiver's TXD so the bus stays recessive while the pin floats at reset. The KSD301 loop sense moved to the carrier I/O expander |
 | 42 | **CAN RX** | CAN RX | CAN RX | TWAI. The 24V_HEAT switched-output sense moved to the carrier I/O expander |
 | 47 | **Carrier CH32 SWIO/INT** (D45, doc 09 §4.1) | Same | Same | Open-drain, **2.2 kΩ** pull-up; RMT TX + RX on the one pin (doc 09 §4.1a). Programs the carrier CH32 and carries its interrupt. The board status LED moved to the carrier I/O expander |
+
+**Heater current sense (D50).** The 5 mΩ low-side shunt feeds one half of an LM2904 (LCSC C18229, Preferred) as a non-inverting amplifier, gain 40 (39 kΩ / 1 kΩ, 1 %), powered from `+5V_LOGIC`:
+- **Input:** shunt → 1 kΩ → + input. A **330 kΩ from 3.3 V** to the + input adds a pedestal of ≈ 10 mV, so the output never sits on the 0 V rail when the amplifier's offset (up to ±7 mV) is negative. With the pedestal, zero current reads ≈ 0.4 V, away from the ADC's poor region near 0 V. A 10 nF at the + input filters PWM edges.
+- **Output:** 1 kΩ in series into GPIO 4, because the output can reach ≈ 3.5 V when saturated; the resistor limits the current into the pin's clamp. The output clips at ≈ 12 A, so cold-PTC inrush peaks read as full scale.
+- The unused half is tied off as a follower to GND.
+- **Zero at boot:** before the safety task starts the charge pump, the high side is off in hardware (the gate driver has no enable) and the low side is off, so current is zero unless both switches have failed. The firmware averages GPIO 4 for ~100 ms and stores that as the zero. The zero also cancels the ADC's own offset. A zero outside the window that pedestal and offset can explain (≈ 0.12–0.68 V) is a fault: the heater stays locked out and the node alerts, since it means both switches or the amplifier have failed.
+- **Re-zero:** only while both switches are commanded off, and an update that moves more than 50 mA from the boot zero is refused (and counted), so a slowly rising leak can't hide in the zero.
+- After zeroing, the error left is drift (≈ 7 µV/°C, about 60 mA over a 40 °C swing) and ±6 % gain (shunt and resistors), against the 0.3 A L4 threshold (doc 05 §3.1) [E].
 
 **Board identity (D46).** A 2 × 3 pin header with one shunt (the same 2.54 mm header and shunt as TERM) selects the board's role. GPIO 3 has 100 kΩ to 3.3 V, plus 100 nF to GND so the ADC sees a low source impedance. The shunt adds a resistor to GND (1 % parts) [E]:
 

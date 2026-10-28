@@ -37,7 +37,7 @@
 | L1 | Node PID on chamber-air NTC | Setpoint ≤ `chamber.cap_c` (AD5X: 60 °C) | — |
 | L2 | **Firmware limits:** chamber > cap + 5 °C (AD5X: 65 °C); housing NTC > (measured normal max + 10 °C); NTC vs SHT40 disagree by > 5 °C; NTC open or short | Heater off, alert | L1 tuning |
 | L3 | **Gain watchdog** (`verify_heater` equivalent): heater ≥ 50 % for `check_gain_time` 600–900 s with < 1 °C rise, or a drop > 5 °C below target while heating (hysteresis) | Heater off, alert | Sensor plausibility |
-| L4 | **Current-sense checks:** current > 0.3 A while commanded off with one switch still working (welded FET) → the other switch off, heater **locked out** until reset, alert. Current flowing with **both** switches commanded off → **runaway report** to the hub (§3.4). Current < 30 % of expected while on → open element, tripped TCO, or (C8) fan stall | Heater off or runaway report, alert | Temperature sensors |
+| L4 | **Current-sense checks:** current > 0.3 A while commanded off with one switch still working (welded FET) → the other switch off, heater **locked out** until reset, alert. Current flowing with **both** switches commanded off → **runaway report** to the hub (§3.4). Current < 30 % of expected while on → open element, tripped TCO, or (C8) fan stall. Currents are measured from a zero taken at boot with both switches off; a zero outside its window locks the heater out (D50, doc 04 §4) | Heater off or runaway report, alert | Temperature sensors |
 | L5 | **Hardware enable chain:** charge-pump (needs a toggling GPIO) in series with the **KSD301 loop** (heater-housing KSD301 + **chamber-air KSD301 ≈ 70 °C**) drives the high-side switch | MCU hang, housing over-temperature, or chamber air over-temperature | **All firmware** |
 | L6 | **TCO** (one-shot) in series with the element | Rated per §3.2 | Everything electronic |
 | L7 | **10 A fuses** at the printer supply tap and on the node's ORed heater rail | Short circuit | Everything |
@@ -53,7 +53,7 @@ flowchart TB
   HS --> TCO["TCO, one-shot<br>(L6)"]
   TCO --> PTC["150 W PTC"]
   PTC --> LS["Low-side N-FET<br>PWM, GPIO 7"]
-  LS --> SH["5 mΩ shunt + INA180<br>(L4)"]
+  LS --> SH["5 mΩ shunt + LM2904<br>(L4)"]
   ST["Safety task 10 Hz<br>(L2–L4)"] --> CP["Charge pump<br>GPIO 15"]
   CP --> KSD["KSD301 loop, NC<br>(L5)"]
   KSD --> GD["High-side<br>gate driver"]
@@ -103,7 +103,7 @@ A runaway means heat the node can't stop, which needs a double fault (both switc
 
 | # | Trigger | Signals |
 |---|---|---|
-| RW-a | Node reports **current > 0.3 A for ≥ 10 s with both switches commanded off**, and housing or chamber temperature rising | INA180 current + NTC trend |
+| RW-a | Node reports **current > 0.3 A for ≥ 10 s with both switches commanded off**, and housing or chamber temperature rising | Heater current + NTC trend |
 | RW-b | Hub sees **chamber > cap + 10 °C (AD5X: 70 °C) on both the NTC and the SHT40** for ≥ 60 s. Node-heat only: a printer that heats its own chamber relies on its own firmware for that heater | Two separate temperature sensors |
 
 **Response:** the damper is commanded to purge to shed heat, then that printer's plug is cut at once without waiting for the damper (by the node directly with the `shelly_node` backend, otherwise by the hub) (printer and heater power go together), and an emergency push is sent. The damper goes first because a node that wrongly runs from that printer's plug would die at the cut (D35, §2). If any fire signal (§5) joins in, the fire response takes over and closes the damper. The print is lost either way, so there's no grace period. If the node is too dead to report, the TCO in the load path is the last layer and needs no electronics.
@@ -342,7 +342,7 @@ The other printers keep running. The **room smoke alarm** remains the primary li
 1. Pull each node's ESP32 board while heating: the heater must stop (L5).
 2. Hold GPIO 15 static (test firmware build): the heater must stop (L5).
 3. Open the KSD301 loop at the housing thermostat, then at the chamber-air thermostat: the heater must stop each time; the carrier I/O expander reports it (doc 02 §2.4). Heat the chamber-air KSD301 with a hot-air gun and confirm it opens near its rating.
-4. Command the heater off with a jumper simulating a welded low-side FET: the node turns the high side off and locks the heater out (L4).
+4. Command the heater off with a jumper simulating a welded low-side FET: the node turns the high side off and locks the heater out (L4). Then reboot with a bench supply injecting 3 A through the shunt (beyond the ±1.4 A the offset can explain) (heater unplugged): the boot zero is refused and the heater stays locked out (D50). With nothing injected, the zeroed reading is within ±0.1 A.
 5. Runaway (test mode): inject "current with both switches off" plus a rising temperature: that printer's plug is cut within ~10 s, by the node with `shelly_node`, otherwise by the hub (RW-a). Repeat with two chamber sensors over 70 °C (RW-b).
 6. Unplug CAN to a heating node: the hub alerts within 10 s; the node turns its heater off at 30 s.
 7. Kill the hub (pull its ESP32): heaters off at 30 s, the **fan keeps running** (R1 gate), and the printer `_NOTIFY` fires.
