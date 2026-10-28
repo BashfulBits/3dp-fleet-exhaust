@@ -122,7 +122,7 @@ stateDiagram-v2
 
 Rules applied:
 - The dev board's **BOOT button (GPIO 0)** is read after boot as the node's **CLEAR button** (doc 05 §4.1); nothing on the carrier connects to GPIO 0. Holding it through a reset only enters the bootloader, with every output off and the latches kept in NVS.
-- Strapping pins: **GPIO 0** is read only as the service button and **GPIO 3** only as the board-identity input (D46); avoid 45 and 46. Also avoid native USB (19, 20), UART0 console (43, 44), flash/PSRAM (26–37), and the DevKitC onboard RGB pins (38, 48).
+- Strapping pins: **GPIO 0** is read only as the service button and **GPIO 3** only as the board-identity input (D46); avoid 45. **GPIO 46 is used as an input only** (the `24V_HEAT` sense, D64): it is low whenever the high side is off, including at reset, and a normal boot (GPIO 0 high) ignores it [E: confirm in the S3 strapping table]. Also avoid native USB (19, 20), UART0 console (43, 44), flash/PSRAM (26–37), and the DevKitC onboard RGB pins (38, 48).
 - Analog inputs use **ADC1 only** (ADC2 is unusable while Wi-Fi is active).
 
 | GPIO | Node-heat | Node-lite | Hub | Notes |
@@ -150,7 +150,8 @@ Rules applied:
 | 39 | Output B1: AD5X recirculation-duct blower (O3) | – | Output B1: **anemometer heater** (PWM, D32) | Pull-down; JTAG pin, used as GPIO |
 | 40 | Output B2: spare | – | **Buzzer** | Pull-down |
 | 41 | **CAN TX** | CAN TX | CAN TX | TWAI, routed through the GPIO matrix; pull-up on the transceiver's TXD so the bus stays recessive while the pin floats at reset. The KSD301 loop sense moved to the carrier I/O controller |
-| 42 | **CAN RX** | CAN RX | CAN RX | TWAI. The 24V_HEAT switched-output sense moved to the carrier I/O controller |
+| 42 | **CAN RX** | CAN RX | CAN RX | TWAI. |
+| 46 | **High-side output sense** (`24V_HEAT` through a divider and clamp, D64) | Same | Same | Digital input, strapping pin used as an input only (above). Low whenever the high side is off. Moved here from the carrier I/O controller by D64 so a welded high-side FET is seen directly by the safety task |
 | 47 | **Carrier I/O controller interrupt** (D45, D54, doc 09 §2.3) | Same | Same | Input, 10 kΩ pull-up; the controller pulls it low (open-drain) when a header or the door needs service. The board status LED moved to the carrier I/O controller |
 
 **Heater current sense (D50).** The 5 mΩ low-side shunt feeds one half of an LM2904 (LCSC C18229, Preferred) as a non-inverting amplifier, gain 40 (39 kΩ / 1 kΩ, 1 %), powered from `+5V_LOGIC`:
