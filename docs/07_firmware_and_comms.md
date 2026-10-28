@@ -33,6 +33,7 @@ flowchart TB
 
 - **USB link (every printer, D24):** NDJSON frames with a CRC between the klippy extra and the node.
 - **Moonraker WebSocket:** the backup link on every printer (the C5's only link if O10 finds no `cdc_acm`).
+- **Other printer links:** one `PrinterLink` implementation per link type (doc 12 §3.3). `marlin_serial` (D48: UART on the AUX header or USB host, with a fixed read-and-display command allowlist) is specified but not built.
 - Node and hub firmware share the `fleet_common` library; the dashboard is served from LittleFS. Home Assistant uses MQTT discovery.
 
 **Why PlatformIO C++ rather than ESPHome:** the node and hub need a CAN protocol, a USB-serial protocol, a Moonraker WebSocket client, cascaded control loops, the G4 fan protocol (R1) and hardware-coupled safety logic. In ESPHome nearly all of that would be custom components. Home Assistant integration stays available through MQTT discovery (§9).

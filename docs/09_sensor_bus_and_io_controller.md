@@ -82,8 +82,9 @@ The carrier CH32 **does not** carry I²C. SDA and SCL run from the ESP32. Puttin
 - **Address clashes go away:** two boards with the same fixed address (two XGZP6897D at 0x6D, two SHT40 at 0x44) can be on any two headers.
 - **Firmware selects one channel at a time.** Enabling several channels at once adds their loads together and joins their address spaces.
 - **Isolation during power cycling:** a deselected channel cuts SDA/SCL to a header that is switched off (§2.2).
+- **Displays get their own channel (D48).** An OLED never shares a channel with a sensor; the default is header 4 (channel 3) on every role. The firmware selects the display channel only while it writes a frame (≤ 2 Hz) and deselects it straight after, so a display that locks up is selected as little as possible.
 - **Stuck bus:** a sensor that holds SDA low only blocks its own channel. The ESP32 deselects it and switches its power off and on through the carrier CH32.
-- **Alternative:** the ESP32-S3's second I²C controller could split the headers into two groups. That costs two more GPIOs, which the node-heat carrier doesn't have (doc 04 §4), and still shares a segment between headers. The TCA9548A is preferred.
+- **Alternative:** the ESP32-S3's second I²C controller could split the headers into two groups. That costs two more GPIOs. GPIO 5/6 are the only spare pair, and they are kept for the AUX header and its UART printer link (D48). It would also still share a segment between headers. The TCA9548A is preferred.
 - **Cost:** the TCA9548A is ≈ $0.5–1 [E], in place of the TCA9543A (≈ $0.5 [E]).
 
 ## 4. Programming every CH32V003 from one ESP32 pin

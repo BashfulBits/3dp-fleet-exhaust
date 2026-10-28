@@ -132,10 +132,10 @@ Rules applied:
 | 2 | Heater-housing NTC (ADC) | – (fitted, spare) | **Anemometer heated NTC** (D32) | ADC1_CH1. RANGE 2 shunt as for GPIO 1 |
 | 3 | **Board identity** (role shunt divider, D46) | Same | Same | ADC1_CH2, read once at boot. Strapping pin for the JTAG source, which only matters if an eFuse selects it |
 | 4 | Heater current, INA180 out (ADC) | – | – | ADC1_CH3; sampled at a fixed rate by ADC1 continuous mode with DMA (below) |
-| 5 | Spare input 1 | Spare input 1 | **Panel button** (edge interrupt, debounced) | ADC1_CH4 if a builder needs an analog input. The heater-rail voltage moved to the carrier I/O expander's ADC (D47) |
-| 6 | Spare input 2 | Spare input 2 | **Smoke dry-contact input** (edge interrupt) | ADC1_CH5 if needed. The external heater-input sense (D22) moved to the carrier I/O expander's ADC (D47) |
+| 5 | AUX A: spare, or **UART1 TX** to the printer (D48) | Same | **Panel button** (edge interrupt, debounced) | Through a 2N7002 level shifter to the AUX header (below), so digital only. The heater-rail voltage moved to the carrier I/O expander's ADC (D47) |
+| 6 | AUX B: spare, or **UART1 RX** from the printer (D48) | Same | **Smoke dry-contact input** (edge interrupt) | Level shifter as GPIO 5; 5 V-tolerant at the connector. The external heater-input sense (D22) moved to the carrier I/O expander's ADC (D47) |
 | 7 | Heater low-side PWM | – | – | 10 kΩ pull-down |
-| 8 | I²C SDA | I²C SDA | I²C SDA | On-board XGZP, carrier CH32 (I²C target), 8-channel I²C switch; behind it, one channel per external sensor header 1–6 and one for the on-carrier I/O expander in slot 7 (header 1 = sensor head; header 2 = node damper encoder, or hub trunk XGZP + OLED; header 3 = hub trunk-flow XGZP, D30/D33; D45, doc 09 §3) |
+| 8 | I²C SDA | I²C SDA | I²C SDA | On-board XGZP, carrier CH32 (I²C target), 8-channel I²C switch; behind it, one channel per external sensor header 1–6 and one for the on-carrier I/O expander in slot 7 (header 1 = sensor head; header 2 = node damper encoder, or hub trunk XGZP; header 3 = hub trunk-flow XGZP, D30/D33; header 4 = optional OLED on any role, on its own channel, D48; D45, doc 09 §3) |
 | 9 | I²C SCL | I²C SCL | I²C SCL | |
 | 10 | **LAN CS** (D45) | LAN CS | LAN CS | SPI2 IO MUX pin (no GPIO matrix). The LAN parts are fitted on every carrier (D47); a node without a LAN cable leaves the chip idle |
 | 11 | **LAN MOSI** (D45) | LAN MOSI | LAN MOSI | SPI2 IO MUX pin |
@@ -168,6 +168,21 @@ The firmware reads GPIO 3 once at boot, before ADC1 starts its continuous scan. 
 - **Short press:** opens Wi-Fi provisioning for 10 minutes.
 - **Hold ≥ 10 s:** factory reset of NVS (Wi-Fi credentials, node ID, calibration), refused while the heater is on. After the reset, the role comes back from the shunt.
 
+**AUX header (D48).** One JST-XH 5 replaces the two spare-input headers. Each contact has its own GND pin, so two pre-crimped pigtails can share one housing with no splice:
+
+| Pin | Signal | Hub | UART printer link (`marlin_serial`, doc 12) |
+|---|---|---|---|
+| 1 | 3.3 V (sensor LDO) | – | not connected |
+| 2 | GND | Panel button return | Printer GND |
+| 3 | A: GPIO 5 | Panel button | **TX**, node → printer RX |
+| 4 | B: GPIO 6 | Smoke dry contact | **RX**, printer TX → node |
+| 5 | GND | Smoke contact return | – |
+
+- **Levels:** each line runs through a 2N7002 shifter (gate to 3.3 V, 10 kΩ pull-up to 3.3 V on the ESP32 side, 4.7 kΩ to 3.3 V on the connector side). A 3.3 V printer works both ways. A 5 V printer's TX is blocked by the FET, so the ESP32 never sees 5 V; ≈ 0.4 mA flows back into the 3.3 V rail through the pull-up. The node's TX reaches a 5 V AVR at 3.3 V against a 3.0 V threshold, which works but with little margin [E]; for those boards doc 12 prefers the USB-host route.
+- **Speed:** ≈ 0.5 µs rise on a 1 m cable [E], fine at 115200 and 250000 baud.
+- **Peripheral:** UART1 through the GPIO matrix. UART0 (GPIOs 43, 44) stays the console.
+- A and B are digital only: the shifter doesn't pass an analog level.
+
 It is reached with the node housing open. Holding it at power-up still enters download mode, as on any dev board.
 
 **Peripheral use: no bit-banged interfaces.** Every interface runs on an ESP32-S3 peripheral:
@@ -181,8 +196,9 @@ It is reached with the node housing open. Holding it at power-up still enters do
 | Carrier CH32 SWIO | **RMT TX + RX channels** on GPIO 47 | One frame fits a channel's block, so no DMA is needed (doc 09 §4.1a) |
 | Servo, fan PWM, heater PWM, B1 PWM | LEDC | At most four frequencies, which fits LEDC's four timers |
 | Heater-enable charge pump | **Plain GPIO, toggled by the safety task** | Deliberately not a peripheral. A hardware PWM keeps running if the safety task hangs, which would defeat layer L5 (doc 05 §3.1, doc 07 §2) |
-| Analog inputs (GPIOs 1, 2, 4, 5, 6 on node-heat) | **ADC1 continuous mode with DMA** | Scans every ADC1 input at a fixed rate, so the heater-current samples (GPIO 4) are evenly spaced without the CPU timing each read. ESP-IDF doesn't mix one-shot and continuous mode on one ADC unit [E], so all ADC1 inputs move to continuous mode together |
-| Hub panel button, hub smoke dry contact (GPIOs 5, 6) | **GPIO edge interrupts** | A press or an alarm is seen at once, not at the next poll. The button is debounced in software |
+| Analog inputs (GPIOs 1, 2, 4 on node-heat; 1, 2 on the hub) | **ADC1 continuous mode with DMA** | Scans every ADC1 input at a fixed rate, so the heater-current samples (GPIO 4) are evenly spaced without the CPU timing each read. ESP-IDF doesn't mix one-shot and continuous mode on one ADC unit [E], so all ADC1 inputs move to continuous mode together |
+| Hub panel button, hub smoke dry contact (GPIOs 5, 6, AUX) | **GPIO edge interrupts** | A press or an alarm is seen at once, not at the next poll. The button is debounced in software. Neither depends on I²C |
+| UART printer link on a node (GPIOs 5, 6, AUX; D48) | **UART1** | Only with `link: marlin_serial`, `link_port: uart` (doc 12 §3.2) |
 | Fan tach | PCNT | |
 
 **RMT budget:** 2 of the 4 TX channels and 1 of the 4 RX channels, leaving room for a second LED chain later.
@@ -254,11 +270,11 @@ Checked at commissioning (doc 05 §9 test 29) and continuously by the hub: when 
 | Mains | IEC inlet (fused, switched) | LRS-100-24 L/N/PE (PE to the PSU case and the inlet earth only) |
 | 24 V logic | PSU +V/−V, lead with an XT30 | Carrier internal XT30 (INJECT INT fitted), CAT6 power via carrier |
 | Buzzer | Carrier B2 | Active 24 V buzzer |
-| Panel | LED1 → WS2812 ×2; GPIO 5 ← button; I²C 2 → OLED | Panel |
+| Panel | LED1 → WS2812 ×2; AUX A (GPIO 5) ← button; sensor header 4 (switch channel 3) → optional OLED (D48) | Panel |
 | Trunk ΔP | Sensor header 2 (switch channel 1) | Sensor board P (XGZP6897D), tubes to the trunk tap and room |
 | Trunk flow (D30) | Sensor header 3 (switch channel 2) | Sensor board P (D33), tubes to the venturi inlet and throat taps |
 | Low-flow anemometer (D32) | NTC 1 (GPIO 1), NTC 2 (GPIO 2), B1 (GPIO 39) | C18 probe: reference NTC at the venturi inlet, heated NTC + heater resistor in the throat |
 | Filter ΔP | On-board XGZP barbs | Filter housing inlet and outlet taps |
 | Room sensor | Sensor header 1 (switch channel 0) | Sensor head |
 | Fan | Fan A (+ adapter per R1) | G4 control port |
-| Smoke | GPIO 6 | Optional relay-output smoke detector (dry contact) |
+| Smoke | AUX B (GPIO 6) | Optional relay-output smoke detector (dry contact) |

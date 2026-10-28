@@ -129,6 +129,7 @@ The duct system builds on **[ModulAir](https://makerworld.com/en/collections/734
 | C16 | **Damper encoder mount** (D30) | ASA | Cap holding a 6 × 2.5 mm diametric magnet on the blade shaft's free end (opposite the servo), and a bracket holding the sensor board E (AS5600) 1–2 mm from it, centred on the shaft. Remix onto the chosen damper body (doc 08 §3b) |
 | C17 | **Trunk flow venturi** (D30) | PETG | ModulAir L bayonet ends (D34), 50 mm throat, smooth bore, ring of 4 taps at inlet and throat with barbs; fits between the filter housing and the wall sleeve (doc 06 §4.3). Print in two halves along the axis or vertically in sections; sand the throat. Ports for the C18 probe in the throat (downstream of the throat taps) and for the reference NTC at the inlet |
 | C18 | **Anemometer probe** (D32) | ASA | Plug for the C17 throat port that carries the heated element across the centreline on its leads, the body kept ≥ 10 mm from any plastic; a small plug for the reference NTC at the inlet. Also the **10 mm and 15 mm reference venturis** (PETG, L bayonet ends, taps as C17) used only for calibration (doc 06 §4.4) |
+| C19 | **OLED bezel** (D48, optional) | PETG (hub), ASA (node) | Front bezel and clip for a 0.96″ I²C OLED module on a sensor-header cable (≤ 1 m), so a node's display can sit at the printer's front rather than on the housing at the exhaust port. The hub panel's OLED uses the C9 front panel. Look for an existing 0.96″ OLED case first (policy above) |
 
 ## 5. Phase 2 verification checklist (per existing model)
 
