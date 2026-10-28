@@ -206,7 +206,7 @@ Bleed flows (≈ 0.5–9 CFM in total) are too small for any pressure-based mete
 |---|---|
 | Probe (doc 08 C18) | **Heated element:** a 2.2 kΩ ½ W metal-film resistor with a 100k glass-bead NTC bonded to its body (thermal epoxy), held across the throat centreline on its leads, axis horizontal and across the flow, downstream of the throat taps. **Reference:** a second 100k bead at the venturi inlet, upstream and out of the heated wake. |
 | Drive | Hub output B1 (24 V, PWM). Up to ~0.27 W; ~0.1–0.2 W in use [E]. |
-| Loop | Firmware holds the element at air + **20 K** (reference NTC). Heater power P = duty × V²/R; conductance **G = P/ΔT** rises with flow, roughly G = G₀ + B·Q^n with n ≈ 0.4–0.5 (King's law). |
+| Loop | Firmware holds the element at air + **20 K** (reference NTC). Heater power P = duty × V²/R, with V the hub's measured bus voltage (D64; ≈ 23.55–23.9 V, moving with chain load, and ≈ 22.5 V in back-fed mode, a −12 % power error if 24 V were assumed). Readings taken in back-fed mode are flagged as degraded; conductance **G = P/ΔT** rises with flow, roughly G = G₀ + B·Q^n with n ≈ 0.4–0.5 (King's law). |
 | Temperature compensation | Air conductivity rises ~0.3 %/K; G is corrected to 25 °C using the reference NTC, and the residual is fitted against temperature from the overlap points (calibration 2). |
 | Limits | Element ≤ 80 °C and ΔT ≤ 30 K in firmware; a heater with no rise, or an open or shorted NTC, turns B1 off (doc 05). Even at full duty in still air the element stays below ~140 °C, far below any fume ignition point, and the probe holds it on its leads clear of the plastic. |
 | Readings | 10 s averages, reported as CFM with its validity band. Above ~20 CFM the venturi takes over, with a blend between 10 and 20 CFM. |

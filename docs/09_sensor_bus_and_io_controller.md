@@ -36,7 +36,7 @@ Three pin rules drive the plan:
 | Function | Pins | Notes |
 |---|---|---|
 | I²C target (upstream) / bootloader UART | PA2 (SDA / TX), PA3 (SCL / RX) | **330 Ω in series with PA2** (§4.3) |
-| Header INT 1–8 | PA0, PA1, PA4, PA5, PA6, PF3, PA8, PA11 | EXTI 0, 1, 4, 5, 6, 3, 8, 11. Header 6 moved from PA7 to PF3 (D61) to free an ADC channel; EXTI 3 is free because PA3 is I²C only [E: confirm PF3 can select EXTI 3 in the PY32F030 reference manual; else use PA13 / EXTI 13 and give up the SWDIO pad] |
+| Header INT 1–8 | PA0, PA1, PA4, PA5, PA11, PF3, PA8 (7 and 8 shared) | EXTI 0, 1, 4, 5, 11, 3, 8. Header 6 moved from PA7 to PF3 (D61) to free an ADC channel; EXTI 3 is free because PA3 is I²C only [E: confirm PF3 can select EXTI 3 in the PY32F030 reference manual; else header 6 joins the shared gate too, as a 3-input AND]. **Headers 7 and 8 share PA8 (D64):** their INT lines meet in a single 2-input AND gate (74LVC1G08 class, ≈ $0.03 [E: pick a Basic part at layout]) powered from `+3V3_SENS`, whose output drives PA8. Each line keeps its own pull-up after its header's FET, and the gate's inputs have no clamp to its supply, so an off header isn't back-powered. On PA8 the firmware reads both sensors to find which one fired. Header 5 moved from PA6 to PA11 to free an ADC channel for the bus voltage |
 | Header P-FET gate 1–8 | PB2, PB3, PB4, PB5, PB6, PB7, PB8, PF0 | Gate pull-downs hold every header on while the pins float (§2.2) |
 | Interrupt out to the ESP32 (GPIO 47) | PA12 | Open-drain, active low |
 | Door reed | PA15 | EXTI 15; input only (a bootloader RX candidate, so harmless) |
@@ -44,18 +44,21 @@ Three pin rules drive the plan:
 | Heater-rail voltage | PB0 (ADC_IN8) | 12-bit; ≈ 8 mV per step on the rail divider [E] |
 | Injection current (eFuse IMON, D61) | PA7 (ADC_IN7) | 47 kΩ + 100 nF at the eFuse, ≈ 1.3 V per amp, ≈ 0.6 mA per step [E] |
 | Board status LED | PA14 | If the bootloader drives PA14 as TX, the LED lights solid: a free "in bootloader" indicator |
-| SWD test pads (bench debugging, §4.5) | PA13 (SWDIO), PA14 (SWCLK) | Pads only |
+| Tap-side heater voltage (D64) | PB1 (ADC_IN9) | Divider on the internal XT30's side of the tap ideal diode, same values as the rail divider: shows whether the tap is live, and is the reading the 23.0 V throttle uses while it is |
+| Bus voltage (D64) | PA6 (ADC_IN6) | Divider on the RJ45 bus rail, top resistor ≥ 100 kΩ like the rail divider. For the anemometer power (doc 06 §4.4), bus telemetry and back-fed mode |
+| Tap ideal-diode disable (D64) | PA13 | Drives a 2N7002 that pulls the MX74700T's EN low. Floating (reset, bootloader, SWD in use) leaves the diode on. Shared with the SWDIO pad: firmware releases it to SWD on a bench command [E: confirm the PY32 allows switching PA13 between GPIO and SWD at run time; else SWD needs a reset with BOOT0] |
+| SWD test pads (bench debugging, §4.5) | PA13 (SWDIO, shared with the diode disable), PA14 (SWCLK) | Pads only |
 | Header group rail sense (D56) | PF1 | Digital input through a divider: low when the header group's current-limit switch is in limit |
-| Spare | PA13, PB1 (ADC_IN9; the barrel heater-input sense until D64) | |
+| Spare | None | |
 
-25 of 28 pins are used. The 32-pin part's other pinouts (K1x, K3x, K4x) move pins around, so the PCB uses K2x only [E].
+All 28 pins are used (D64). The 32-pin part's other pinouts (K1x, K3x, K4x) move pins around, so the PCB uses K2x only [E].
 
 ### 2.2 Per-header power
 
 - **Group current limit (D56):** the eight P-FETs take their 3.3 V from `+3V3_SENS` through one current-limit switch (SY6280AAAC class, ≈ 1 A, doc 02 §2.2), so a shorted cable sags only the headers, not the controller or the I²C switch. The AUX header's 3.3 V pin shares this group rail (D57). The controller sees the group rail low on PF1 and tells the ESP32, which switches the headers back on one at a time to find the short and leaves that one off.
 - **P-FET** (HL3401 class, SOT-23, ≈ $0.04, a Preferred part, D51) from the group rail to the header's 3.3 V pin, with a **gate pull-down** (100 kΩ [E]). With the controller in reset, in its bootloader, blank or absent, its pins float and every header is **on**. The controller drives the gate high to switch a header off.
 - **Pull-ups go after the FET:** SDA, SCL (on that header's switch channel) and INT (10 kΩ [E]) all pull up to the header's switched 3.3 V. A header that is off is not back-powered through its pull-ups.
-- **Firmware rule:** before switching a header off, the ESP32 deselects its switch channel. Otherwise SDA and SCL from the powered side would feed the unpowered board through its I/O clamp diodes. The controller masks that header's INT line while it is off, since the pull-up after the FET lets it fall.
+- **Firmware rule:** before switching a header off, the ESP32 deselects its switch channel. Otherwise SDA and SCL from the powered side would feed the unpowered board through its I/O clamp diodes. The controller masks that header's INT line while it is off, since the pull-up after the FET lets it fall. Headers 7 and 8 share PA8 through the AND gate (§2.1), so while either is off the shared line is masked and the ESP32 polls the other header's sensor instead.
 - **Why every external header is switched:** the sensors on them (SHT40, ENS160, XGZP6897D, AS5600, an OLED) have no reset pin. One that latches up or holds SDA low after ESD or a brownout only recovers when its power is removed. Deselecting its channel isolates it but doesn't reset it. The cable is also the likeliest place for a fault.
 - Every header line gets the same ESD protection as the carrier's other signal inputs (doc 02 §2.2).
 
@@ -67,7 +70,7 @@ Each header's INT pin is an EXTI input with its own line. Sensor boards drive it
 
 The controller takes the slow, non-safety signals that would otherwise need ESP32 GPIOs, so every role has the same pin map and the same parts (D47), LAN included (doc 04 §4):
 
-- **Takes:** the door reed, the KSD301 loop sense, the 24V_HEAT switched-output sense, the **heater-rail voltage** and the **injection current** (ADC; the last from the eFuse's IMON pin, D61), and the board status LED (doc 02 §2.4). LED chain 2 stays dropped from the fixed map.
+- **Takes:** the door reed, the KSD301 loop sense, the 24V_HEAT switched-output sense, the **heater-rail voltage**, the **tap-side heater voltage**, the **bus voltage** and the **injection current** (ADC; the last from the eFuse's IMON pin, D61), the tap ideal-diode disable (D64), and the board status LED (doc 02 §2.4). LED chain 2 stays dropped from the fixed map.
 - **Frees:** GPIOs 13, 21, 41, 42 and 47 (D45). CAN TX/RX and the servo output (all GPIO-matrix peripherals) use 41, 42 and 21, which leaves GPIOs 10–13, the S3's IO MUX pins for SPI2, to the LAN SPI (doc 04 §4). GPIO 47 is the controller's interrupt line.
 - **ADC reference (D56):** the ADC runs from `+3V3_SENS`, which the sensor buck (LMR14030, D60) sets only to ≈ ±3 % (±2 % reference over temperature plus the 1 % divider). The firmware measures the PY32's internal reference channel and scales the rail readings by it, so the D53 rail throttle (23.0 V) stays within ≈ ±1 % [E].
 - **Interrupt:** a door change reaches the ESP32 in a few milliseconds through §2.3.
@@ -135,7 +138,7 @@ The on-board XGZP6897D, the switch and (while running) the controller all see th
 
 ### 4.5 Bench debugging and fallback
 
-The carrier keeps **four SWD test pads** (3.3 V, GND, PA13, PA14) for bench debugging with any CMSIS-DAP probe. They are also the fallback if the bootloader path fails O15: each controller is then programmed once by probe and updated over I²C by an application-level loader [E]. The PY32's SWD stays enabled unless firmware remaps PA13/PA14, and PA14 only drives the status LED.
+The carrier keeps **four SWD test pads** (3.3 V, GND, PA13, PA14) for bench debugging with any CMSIS-DAP probe. They are also the fallback if the bootloader path fails O15: each controller is then programmed once by probe and updated over I²C by an application-level loader [E]. The PY32's SWD stays enabled unless firmware remaps PA13/PA14, and PA14 only drives the status LED. Since D64 the firmware remaps PA13 as the tap ideal-diode disable, and hands it back to SWD on a bench command; the heater is held off while it does, since the probe's traffic switches the diode. The node's logic doesn't depend on the diode (doc 02 §2.2). From a blank or crashed controller the pin is still SWD at reset.
 
 ## 5. Sensor board changes (amends D42)
 
