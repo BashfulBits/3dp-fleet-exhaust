@@ -144,7 +144,7 @@ Not in this table, because they are priced elsewhere: the POWER IN barrel jack a
 | CAT6 patch cables, **distinct colour** (1 × 3 m hub→node 1, 2 × 1.5 m node→node, 1 spare) | 4 | $3.75 | $15 | Daisy chain; labelled "24 V – not Ethernet" (R10). |
 | 14 AWG 2-conductor cable | 3 m | $1.20 | $4 | Two short heater leads from each printer's supply tap (≤ 1.5 m). 14 AWG keeps the heater return share in the USB-link ground low (R11, doc 04 §6). |
 | JST-XH pre-crimped pigtail kit (2/3/4-pin) + housings | 1 | $10 | $10 | No crimp tool needed. |
-| JST-SH 4-pin pre-made cables, Qwiic / STEMMA QT class: 500 mm, and 1 m for the hub's trunk sensors | 10 | $1.50 | $15 | D69. One per sensor-board link (3 sensor heads, 3 encoders, the hub room head, 2 trunk sensors) plus 1 spare. Bought, no crimping. |
+| JST-SH 4-pin pre-made cables, Qwiic / STEMMA QT class, 500 mm (the longest stock length; a generic 1 m cable where a hub run needs it) | 10 | $1.50 | $15 | D69. One per sensor-board link (3 sensor heads, 3 encoders, the hub room head, 2 trunk sensors) plus 1 spare. Bought, no crimping. |
 | Silicone tubing 2 × 4 mm | 5 m | $1.20 | $6 | ΔP sensor taps. |
 | USB-C plug → 4-pin header lead, **VBUS not connected** | 2 | $3 | $6 | AD5X link (doc 04 §5). |
 | USB-C plug → USB-A plug lead, **VBUS not connected** | 1 | $3 | $3 | C5 link via its external USB port (D24). A small USB 2.0 hub (~$8) keeps the port usable for a thumb drive; the J34 fallback adds a CH334F hub board (~$5). |
