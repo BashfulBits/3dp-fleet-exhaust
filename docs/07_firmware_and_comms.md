@@ -53,6 +53,7 @@ flowchart TB
 | Configuration | NVS: Wi-Fi credentials, notification URLs (hub), Moonraker host (nodes), Shelly IPs (hub), tuning values. Set from the hub web page; nodes receive theirs over CAN. |
 | Secrets | Never in the repo. `secrets.example.h` documents the fields. |
 | Logging | Ring buffer of events in RAM, flushed to LittleFS hourly; shown on the dashboard. |
+| Debugging | JTAG over the dev board's own USB port in a debug USB mode, core dumps, and a hold on the carrier I/O controller for its SWD header; no probe or pin change on the ESP32 (§11.8, D65) |
 | Sensors | Drivers are plugins behind one interface, and the installed sensors come from a config, not from code (§2.1, D55). |
 
 ### 2.1 Sensor drivers and the installed-sensor config (D55)
@@ -498,3 +499,19 @@ Each node-heat keeps a small first-order model of its chamber: predicted tempera
 | **Plug-off survival** | Whenever a printer's plug reads off in normal use (a user switch-off, not a cut), its node must still be online 10 s later. If it drops, the hub raises a **High** alert "node powered from the printer's plug": its purge and fire response would fail at a real cut. Costs nothing: the plug read-back and node heartbeat already exist |
 | **Hub supply lost** | The hub reads its own supply input: the internal XT60's voltage on the tap side of its ideal diode (D64), through the carrier I/O controller (doc 02 §2.4). If it drops below ~20 V while the hub stays up on the bus, its supply has failed and the chain is feeding it (D52; the OUT-port current direction this used is gone with the INA190). The hub sends a **High** "hub supply lost, running on printer power" push and enters back-fed mode. **A controller that stops answering counts as back-fed** (D64): the reading is missing, and in a fire the siren and push must go before the cut, so the hub assumes the safe order and raises a "carrier I/O controller silent" alert. Back-fed mode ends only when the controller reads the supply again |
 | **Back-fed mode** | While back-fed: LED brightness capped and **one damper servo moving at a time**, so a single injecting node's ~1 A limit carries the whole chain even in an alarm; in a fire or runaway, **siren and push go before the cut** (doc 05 §3.4, §5), since the cut printer may be the hub's only power; the dashboard shows the mode and the hub's measured bus voltage (D64), and anemometer readings are flagged as degraded (doc 06 §4.4). It ends when the hub's supply input returns |
+
+### 11.8 Debugging (D65)
+
+**ESP32: JTAG over the dev board's USB port.** The ESP32-S3's built-in **USB-Serial-JTAG** controller gives full OpenOCD and GDB debugging (breakpoints, hardware watchpoints, both cores, peripheral registers, flashing and a console) on the native "USB" port, with no probe and no carrier pins [V: ESP-IDF USB device documentation]. It shares that port's internal PHY with the USB device stack that carries the printer link (§6.1), and only one can run at a time; starting the device stack takes the PHY away from USB-Serial-JTAG [V: same]. So:
+
+| Item | Design |
+|---|---|
+| **Debug USB mode** | A console command (UART0, or the dashboard with the PIN) sets an NVS flag, and on the next boot the firmware doesn't start the USB device stack, so the port stays USB-Serial-JTAG. The laptop cable replaces the printer lead: `idf.py flash`, `idf.py monitor`, `idf.py openocd` and `idf.py gdb` all use it. The flag clears on the next power-on reset, so a forgotten flag can't leave the printer link dead [E] |
+| Printer link meanwhile | Falls back to Moonraker over Wi-Fi (§1). A UART printer link on the AUX header (D48) is unaffected |
+| Heating | Allowed. Between halts the safety task runs as normal; at a breakpoint the charge-pump wave stops, so the high side switches off in hardware (§2), and the hub sees the node silent and alerts as for any dropout |
+| Power | The carrier must be on its own 24 V supply, or the reset hold keeps the ESP32 in reset (D36) |
+| Never | Burn `USB_PHY_SEL` or the JTAG eFuses: the first moves the PHY permanently and the others change the JTAG source, and neither is needed |
+
+**ESP32: without a laptop.** A crash writes an ESP-IDF **core dump** to its flash partition, and the dashboard offers it for download, for `idf.py coredump-info` (backtrace, tasks, variables). The optional **runtime GDB stub** on UART0 (the dev board's UART port) lets GDB stop and inspect a running node while the printer link stays up, with fewer breakpoints than JTAG [E].
+
+**Carrier I/O controller (PY32).** Its SWD header, debug build and pin rules are in doc 09 §4.5. On the ESP32 side, the **`IOC_HOLD`** console command stops the ESP32 from resetting and reprogramming the controller when it stops answering at a breakpoint (doc 09 §4.2), until the next power cycle. While the controller is silent the heater is held off, as for any mid-run reset of the controller, and heating resumes when its readings return.
