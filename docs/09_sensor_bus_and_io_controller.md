@@ -1,6 +1,6 @@
 # 09 - Sensor Bus and Carrier I/O Controller
 
-> Design baseline, 2026-10-28 (D45, D54, D55). How the carrier reaches up to eight external sensor boards through one I²C switch, with per-header power and interrupts, how the ESP32 programs the carrier I/O controller and any sensor-board MCU through each part's ROM bootloader, and which sensors the headers support (§8). Phase 2 builds it after the bench test in O15.
+> Design baseline, 2026-10-28 (D45, D54, D55). How the carrier reaches up to eight external sensor boards through one I²C switch, with per-header power, how the ESP32 programs the carrier I/O controller and any sensor-board MCU through each part's ROM bootloader, and which sensors the headers support (§8). Phase 2 builds it after the bench test in O15.
 
 Evidence key, as in the other docs: **[V]** verified from a datasheet, reference manual or released source; **[E]** engineering estimate; **[U]** unverified, needs a test.
 
@@ -10,17 +10,17 @@ Evidence key, as in the other docs: **[V]** verified from a datasheet, reference
 
 | Function | How |
 |---|---|
-| **Up to 8 external sensor headers** per carrier, one per switch channel | JST-XH 5: 3.3 V, GND, SDA, SCL, INT |
+| **Up to 8 external sensor headers** per carrier, one per switch channel | JST-XH 4: 3.3 V, GND, SDA, SCL (D68) |
 | **Each header on its own I²C segment** | TCA9548A-compatible 8-channel switch (§3) |
 | **Per-header power switching** | One P-FET per header, on by default (§2.2) |
-| **Per-header interrupt** | Each header's INT pin goes to its own EXTI line on the carrier I/O controller (§2.3) |
-| **Slow carrier I/O** | The same controller reads the door, the KSD301 loop sense and four ADC channels (heater rail, tap side, bus, injection current), and drives the board status LED (§2.4, doc 02 §2.4) |
+| **Interrupt to the ESP32** | Every input the carrier I/O controller reads can flag the ESP32 on one line (§2.3). Header sensors are polled (D68) |
+| **Slow carrier I/O** | The same controller reads the door, the KSD301 loop sense, the board identity and four ADC channels (heater rail, tap side, bus, injection current), and drives the fan A and B1 PWM and the board status LED (§2.4, doc 02 §2.4) |
 | **In-system programming of every MCU** (blank, running or hung) | Each MCU's **ROM bootloader** on its own I²C pins, driven by the ESP32's UART through the GPIO matrix (§4). No programmer chip, no debug protocol and no extra ESP32 pin |
 | **A base set of sensors, plus bought boards** | The base set (own boards S, P, E and the on-board sensors) can feed control and safety. Bought 3.3 V I²C boards from the catalogue feed alerts and the dashboard only (§8, D55) |
 
-A sensor board with an MCU on it (D42: an ADC, I/O expander, light sensor or protocol bridge) is programmed through the header it is plugged into, with no pads and no separate programmer. A sensor board without one leaves the fifth pin as its sensor's interrupt output, or unconnected. The reference build's sensor boards S, P and E have no MCU.
+A sensor board with an MCU on it (D42: an ADC, I/O expander, light sensor or protocol bridge) is programmed through the header it is plugged into, with no pads and no separate programmer. Header sensors are polled; the headers have no interrupt line (D68). The reference build's sensor boards S, P and E have no MCU.
 
-**The carrier I/O controller is needed for heating, not for sensing.** If it is missing or not yet programmed, every header is powered (the gate pull-downs hold the FETs on) and the ESP32 still reads every sensor through the switch. Per-header interrupts, power cycling and the slow carrier I/O are lost, and since the heater-input readings come from it, **the heater is held off** (D47).
+**The carrier I/O controller is needed for heating, not for sensing.** If it is missing or not yet programmed, every header is powered (the gate pull-downs hold the FETs on) and the ESP32 still reads every sensor through the switch. Power cycling, output B1 and the slow carrier I/O are lost, fan A runs at full speed, the board identity goes unchecked (the role stored in NVS is used, with an alert), and since the heater-input readings come from it, **the heater is held off** (D47).
 
 ## 2. Carrier I/O controller (PY32F030)
 
@@ -30,51 +30,53 @@ A sensor board with an MCU on it (D42: an ADC, I/O expander, light sensor or pro
 
 Three pin rules drive the plan:
 - **I²C target on PA2/PA3.** PA2 is both I2C_SDA and USART1_TX, and PA3 both I2C_SCL and USART1_RX [V: datasheet pin table], and the ROM bootloader listens on that USART (§4.1). So the bootloader is reachable on the two I²C wires.
-- **Bootloader pins carry only inputs or the status LED.** The bootloader also uses the USART on PA9/PA10 and PA14/PA15 [V: PY32F003 reference manual §3.6.2, same family], and may drive its TX candidates (PA9, PA14) while it runs [U]. Nothing on those pins may switch a header or signal the ESP32.
-- **One EXTI line per interrupt.** EXTI lines are shared by pin number across ports, so the eight header INT lines and the door each take a different number.
+- **Bootloader pins carry only inputs or SWD.** The bootloader also uses the USART on PA9/PA10 and PA14/PA15 [V: PY32F003 reference manual §3.6.2, same family], and may drive its TX candidates (PA9, PA14) while it runs [U]. Nothing on those pins may switch a header or signal the ESP32.
+- **One EXTI line per interrupt.** EXTI lines are shared by pin number across ports, so the inputs that flag the ESP32 each take a different number: door 15, KSD301 loop 10, group rail sense 3 (D68).
 
 | Function | Pins | Notes |
 |---|---|---|
 | I²C target (upstream) / bootloader UART | PA2 (SDA / TX), PA3 (SCL / RX) | **330 Ω in series with PA2** (§4.3) |
-| Header INT 1–8 | PA0, PA1, PA4, PA5, PA11, PF3, PA8, PA9 | EXTI 0, 1, 4, 5, 11, 3, 8, 9. Header 6 moved from PA7 to PF3 (D61) to free an ADC channel; EXTI 3 is free because PA3 is I²C only [V: PY32F030 reference manual §12.3.5, EXTI3 selects PA3, PB3 or PF3]. Header 5 moved from PA6 to PA11 (D64) to free an ADC channel for the bus voltage. Header 8 took PA9 when the 24V_HEAT sense moved to the ESP32 (D64); INT is an input, so the bootloader-pin rule holds |
 | Header P-FET gate 1–8 | PB2, PB3, PB4, PB5, PB6, PB7, PB8, PF0 | Gate pull-downs hold every header on while the pins float (§2.2) |
-| Interrupt out to the ESP32 (GPIO 47) | PA12 | Open-drain, active low |
+| Interrupt out to the ESP32 (GPIO 47) | PA12 | Open-drain, active low. Flags any change on the controller's own inputs (§2.3) |
+| Board identity (D46, D68) | PA0 (ADC_IN0) | The role shunt divider (doc 04 §4), moved from ESP32 GPIO 3 by D68. Read once after Go; the ESP32 compares it with the stored role |
+| Output B1 PWM (D68) | PA8 (TIM1_CH1) | Moved from ESP32 GPIO 39. Duty set by the ESP32 over I²C; the B1 gate pull-down holds the output off while the pin floats (reset, bootloader, blank) |
+| Fan A PWM (D68) | PA5 (TIM3_CH2), open-drain | Moved from ESP32 GPIO 16, on its own timer. Floats while the controller is in reset, in its bootloader or blank, so a 4-wire fan runs at full speed (S-3). Enable and tach stay on the ESP32 |
 | Door reed | PA15 | EXTI 15; input only (a bootloader RX candidate, so harmless) |
-| KSD301 loop sense | PA10 | Input only |
+| KSD301 loop sense | PA10 | EXTI 10; input only |
 | Heater-rail voltage | PB0 (ADC_IN8) | 12-bit; ≈ 8 mV per step on the rail divider [E] |
 | Injection current (eFuse IMON, D61) | PA7 (ADC_IN7) | 47 kΩ + 100 nF at the eFuse, ≈ 1.3 V per amp, ≈ 0.6 mA per step [E] |
-| Board status LED | PA14 | If the bootloader drives PA14 as TX, the LED lights solid: a free "in bootloader" indicator. Also SWCLK: in a debug session the LED flickers with the clock, and the debug build never drives it (§4.5) |
+| Board status LED | PA11 | Moved from PA14 by D68, so SWCLK carries nothing else. It no longer lights while the bootloader runs |
 | Tap-side heater voltage (D64) | PB1 (ADC_IN9) | Divider on the internal XT60's side of the tap ideal diode, same values as the rail divider: shows whether the tap is live, and is the reading the 23.0 V throttle uses while it is |
 | Bus voltage (D64) | PA6 (ADC_IN6) | Divider on the RJ45 bus rail, top resistor ≥ 100 kΩ like the rail divider. For the anemometer power (doc 06 §4.4), bus telemetry and back-fed mode |
 | Tap ideal-diode disable (D64) | PF1 | Drives a 2N7002 that pulls the MX74700T's EN low, with a **4.7 kΩ gate pull-down** so the diode stays on while the pin floats: PF1 resets in analog mode (GPIOF MODER reset value 0xFFFFFCFF) [V: reference manual §9.4.1], and stays there in the bootloader, blank or crashed. Moved from PA13 by D65, so a debug session never touches the diode or the two-supply check |
-| SWD debug header (§4.5, D65) | PA13 (SWDIO, shared with the group rail sense), PA14 (SWCLK, shared with the status LED), PF2 (NRST) | 1 × 5 2.54 mm pin header: 3.3 V, SWDIO, SWCLK, NRST, GND. PF2 has no other use and stays a reset input |
-| Header group rail sense (D56) | PA13 | Digital input through a divider: low when the header group's current-limit switch is in limit. Each leg ≥ 47 kΩ [E], so it doesn't load SWDIO. Moved from PF1 by D65: it is the function a debug session can lose. The normal build makes PA13 a GPIO input ≈ 500 ms after reset; the debug build leaves it SWDIO and doesn't read it (§4.5) |
-| Spare | None | |
+| SWD debug header (§4.5, D65) | PA13 (SWDIO), PA14 (SWCLK), PF2 (NRST) | 1 × 5 2.54 mm pin header: 3.3 V, SWDIO, SWCLK, NRST, GND. Since D68 these pins carry nothing else, so SWD stays enabled in normal use. PF2 stays a reset input |
+| Header group rail sense (D56) | PF3 | EXTI 3. Digital input through a divider: low when the header group's current-limit switch is in limit. Moved from PA13 by D68 |
+| Spare | PA1, PA4 (ADC_IN1, 4), PA9 (input only: a bootloader TX candidate) | Freed by D68 |
 
-All 28 pins are used (D64), and PF2-NRST goes only to the debug header (D65). The 32-pin part's other pinouts (K1x, K3x, K4x) move pins around, so the PCB uses K2x only [E].
+Three pins are spare (D68), and PF2-NRST goes only to the debug header (D65). The 32-pin part's other pinouts (K1x, K3x, K4x) move pins around, so the PCB uses K2x only [E].
 
 ### 2.2 Per-header power
 
-- **Group current limit (D56):** the eight P-FETs take their 3.3 V from `+3V3_SENS` through one current-limit switch (SY6280AAAC class, ≈ 1 A, doc 02 §2.2), so a shorted cable sags only the headers, not the controller or the I²C switch. The AUX header's 3.3 V pin shares this group rail (D57). The controller sees the group rail low on PA13 (D65) and tells the ESP32, which switches the headers back on one at a time to find the short and leaves that one off.
+- **Group current limit (D56):** the eight P-FETs take their 3.3 V from `+3V3_SENS` through one current-limit switch (SY6280AAAC class, ≈ 1 A, doc 02 §2.2), so a shorted cable sags only the headers, not the controller or the I²C switch. The AUX header's 3.3 V pin shares this group rail (D57). The controller sees the group rail low on PF3 (D68) and tells the ESP32, which switches the headers back on one at a time to find the short and leaves that one off.
 - **P-FET** (HL3401 class, SOT-23, ≈ $0.04, a Preferred part, D51) from the group rail to the header's 3.3 V pin, with a **gate pull-down** (100 kΩ [E]). With the controller in reset, in its bootloader, blank or absent, its pins float and every header is **on**. The controller drives the gate high to switch a header off.
-- **Pull-ups go after the FET:** SDA, SCL (on that header's switch channel) and INT (10 kΩ [E]) all pull up to the header's switched 3.3 V. A header that is off is not back-powered through its pull-ups.
-- **Firmware rule:** before switching a header off, the ESP32 deselects its switch channel. Otherwise SDA and SCL from the powered side would feed the unpowered board through its I/O clamp diodes. The controller masks that header's INT line while it is off, since the pull-up after the FET lets it fall.
+- **Pull-ups go after the FET:** SDA and SCL (on that header's switch channel) pull up to the header's switched 3.3 V. A header that is off is not back-powered through its pull-ups.
+- **Firmware rule:** before switching a header off, the ESP32 deselects its switch channel. Otherwise SDA and SCL from the powered side would feed the unpowered board through its I/O clamp diodes.
 - **Why every external header is switched:** the sensors on them (SHT40, ENS160, XGZP6897D, AS5600, an OLED) have no reset pin. One that latches up or holds SDA low after ESD or a brownout only recovers when its power is removed. Deselecting its channel isolates it but doesn't reset it. The cable is also the likeliest place for a fault.
 - Every header line gets the same ESD protection as the carrier's other signal inputs (doc 02 §2.2).
 
-### 2.3 Interrupt aggregation
+### 2.3 Interrupt to the ESP32
 
-Each header's INT pin is an EXTI input with its own line. Sensor boards drive it open-drain, active low. On any edge (and on a door change), the controller sets a bit in its pending register and pulls PA12 low, which is the ESP32's interrupt line on GPIO 47. The ESP32 reads and clears the pending register over I²C, then services whatever is flagged.
+Every input the controller reads directly can flag the ESP32 (D68). The door, the KSD301 loop sense and the header group rail sense are EXTI inputs with their own lines, and an ADC reading that crosses a threshold the ESP32 has set raises the same flag [E]. On any of these, the controller sets a bit in its pending register and pulls PA12 low, which is the ESP32's interrupt line on GPIO 47. The ESP32 reads and clears the pending register over I²C, then services whatever is flagged. The sensor headers have no INT pins: every header sensor is polled, and the sensor manager probes for new boards at boot and every 10 s [E] (doc 07 §2.1).
 
 ### 2.4 Carrier I/O (was the slot-7 expander)
 
 The controller takes the slow, non-safety signals that would otherwise need ESP32 GPIOs, so every role has the same pin map and the same parts (D47), LAN included (doc 04 §4):
 
-- **Takes:** the door reed, the KSD301 loop sense, the **heater-rail voltage**, the **tap-side heater voltage**, the **bus voltage** and the **injection current** (ADC; the last from the eFuse's IMON pin, D61), the tap ideal-diode disable (D64), and the board status LED (doc 02 §2.4). LED chain 2 stays dropped from the fixed map.
-- **Frees:** GPIOs 13, 21, 41, 42 and 47 (D45). CAN TX/RX and the servo output (all GPIO-matrix peripherals) use 41, 42 and 21, which leaves GPIOs 10–13, the S3's IO MUX pins for SPI2, to the LAN SPI (doc 04 §4). GPIO 47 is the controller's interrupt line.
+- **Takes:** the door reed, the KSD301 loop sense, the **heater-rail voltage**, the **tap-side heater voltage**, the **bus voltage** and the **injection current** (ADC; the last from the eFuse's IMON pin, D61), the tap ideal-diode disable (D64), the board identity and the fan A and B1 PWM (D68), and the board status LED (doc 02 §2.4). LED chain 2 stays dropped from the fixed map.
+- **Frees:** GPIOs 13, 21, 41, 42 and 47 (D45). CAN TX/RX and the servo output (all GPIO-matrix peripherals) use 41, 42 and 21, which leaves GPIOs 10–13, the S3's IO MUX pins for SPI2, to the LAN SPI (doc 04 §4). GPIO 47 is the controller's interrupt line. D68 then moves CAN to GPIOs 16 and 18 so GPIOs 39–42 can be the ESP32's JTAG pins (doc 04 §4).
 - **ADC reference (D56):** the ADC runs from `+3V3_SENS`, which the sensor buck (LMR14030, D60) sets only to ≈ ±3 % (±2 % reference over temperature plus the 1 % divider). The firmware measures the PY32's internal reference channel and scales the rail readings by it, so the D53 rail throttle (23.0 V) stays within ≈ ±1 % [E].
-- **Interrupt:** a door change reaches the ESP32 in a few milliseconds through §2.3.
-- **Failure behaviour:** nothing it carries feeds a safety layer (S-7). A missing, silent or not-yet-programmed controller blanks the door input (the AD5X falls back to Moonraker), the KSD sense and the status LED, and removes the heater-input readings, so the firmware **holds the heater off** (and turns it off if the controller stops answering mid-heat). That is the safe direction.
+- **Interrupt:** a change on any of its inputs (door, KSD301 loop, group rail) reaches the ESP32 in a few milliseconds through §2.3.
+- **Failure behaviour:** nothing it carries feeds a safety layer (S-7). A missing, silent or not-yet-programmed controller blanks the door input (the AD5X falls back to Moonraker), the KSD sense and the status LED, lets fan A run at full speed, stops output B1 (the AD5X recirculation blower or the hub anemometer, which then alerts), leaves the board identity unchecked, and removes the heater-input readings, so the firmware **holds the heater off** (and turns it off if the controller stops answering mid-heat). That is the safe direction.
 - **No power switching of its own:** it is the carrier's own firmware, with no cable. A reset command over I²C or its hardware watchdog restarts it, and every reset lands in the ROM bootloader (§4.1), so it never needs a power cycle to recover.
 - **It sits on the ESP32's main I²C bus,** not behind the switch. If it ever held SDA low, it would block the whole bus, which is why its firmware enables the watchdog at start-up, resets its I²C peripheral when the bus has seen no valid transaction for 1 s [E], and the ESP32 runs the usual nine-clock bus recovery before reporting a fault.
 
@@ -133,23 +135,22 @@ The on-board XGZP6897D, the switch and (while running) the controller all see th
 ### 4.4 Sensor-board MCUs
 
 - Same conventions as the controller: **I²C target on PA2/PA3, BOOT0 strapped high, nothing that matters on PA9/PA10/PA14/PA15**. The default part is a **PY32F003F18P6TU** (TSSOP20, 64 KB / 8 KB, LCSC C5379864, ≈ $0.31) [V: datasheet, JLC stock]. It has one I²C; a board that relays to a sensor drives the sensor side in software.
-- The fifth pin is the board's **INT** output (open-drain, active low) on any GPIO that isn't a bootloader pin.
+- It reports events in a **status register** that the ESP32 polls; the header has no INT pin (D68).
 - A board doesn't run on its own: after power-up it waits in its bootloader until the ESP32 sends Go (§4.2 step 2). That's fine here, because the ESP32 is the only host.
 
 ### 4.5 Bench debugging and fallback
 
 The carrier has a **1 × 5 2.54 mm SWD header** (D65): 3.3 V, SWDIO (PA13), SWCLK (PA14), NRST (PF2), GND, for any CMSIS-DAP probe (a DAPLink clone on Dupont leads is enough) with pyOCD or OpenOCD and Puya's device pack [E]. It is also the fallback if the bootloader path fails O15: each controller is then programmed once by probe and updated over I²C by an application-level loader [E].
 
-- **The debug pins carry only functions a session can lose** (D65). PA14 drives the status LED, and PA13 reads the header group rail sense. Everything that controls power or the heater (the header P-FETs, the diode disable on PF1, the ADC channels, the KSD301 loop, the door and the interrupts) is on other pins, so debugging never stops it.
+- **The debug pins carry nothing else** (D68). The status LED is on PA11 and the group rail sense on PF3, so a probe can attach to the normal build at any time and debugging never stops another function.
 - **NRST** allows connect-under-reset. Because BOOT0 is strapped high, every reset lands in the ROM bootloader (§4.1): the probe halts there, then loads and starts the image at 0x08000000, or lets the ESP32 send Go as usual [E].
-- **Normal build:** about 500 ms after the application starts [E], firmware makes PA13 a GPIO input and drives the LED on PA14, which ends SWD until the next reset. A probe can attach under reset or inside that window.
-- **Debug build** (a build flag): it leaves PA13 and PA14 as SWD, never drives the LED and doesn't read the group rail. Every other function runs as in the normal build, including the two-supply check. It reports itself in the firmware version the ESP32 reads (§4.2), and the dashboard shows "I/O controller debug build". The ESP32 then infers a group current limit from every powered header failing at once [E].
+- **One build:** the application leaves PA13 and PA14 as SWD, so there is no separate debug build (D65's debug build and 500 ms window went with D68).
 - **ESP32 hold** (doc 07 §11.8): when the core stops at a breakpoint, the controller stops answering I²C, and the ESP32 would normally reset it and run the boot flow again (§4.2). The `IOC_HOLD` console command stops that until the next power cycle. While the controller is silent, the heater is held off as for any mid-run reset (§4.2), so a halt is always safe; heating resumes when the readings return.
 
 ## 5. Sensor board changes (amends D42)
 
-- The connector is **JST-XH 5**: 3.3 V, GND, SDA, SCL, INT. The first four pins keep their order.
-- On a board with an MCU, the fifth pin is its INT output (§4.4). On a board without one, it's the sensor's own interrupt output (open-drain) or left unconnected: on board S it is the ENS160's INTn, and on boards P and E it is unconnected (D67).
+- The connector is **JST-XH 4**: 3.3 V, GND, SDA, SCL (D68; D45 and D67 had a fifth INT pin).
+- A board with an MCU reports events in a status register (§4.4). The ENS160's INTn on board S is left unconnected.
 - The pull-ups stay on the carrier, after the header FET (§2.2). The sensor board still has none.
 
 ## 6. Cost per carrier [E]
@@ -159,9 +160,9 @@ The carrier has a **1 × 5 2.54 mm SWD header** (D65): 3.3 V, SWDIO (PA13), SWCL
 | PY32F030K28U6TR (QFN32) + 100 nF, BOOT0 pull-up, PA2 series resistor, status-LED resistor | 1 | $0.42 |
 | TCA9548A-compatible switch (FCA9548T, D51) | 1 | $0.58 |
 | HL3401-class P-FET + gate pull-down | 8 | $0.34 |
-| Pull-ups (3 per header), single-line ESD diodes (H5VL10B class) | — | $0.23 |
-| JST-XH 5 headers | 8 | $0.12 |
-| **Total** | | **≈ $1.70** |
+| Pull-ups (2 per header, D68), single-line ESD diodes (H5VL10B class) | — | $0.22 |
+| JST-XH 4 headers (D68) | 8 | $0.12 |
+| **Total** | | **≈ $1.69** |
 
 Every part above is fitted on every carrier, including headers 5–8 and their FETs (D47: one population, one assembly order). That is the same total as D45's two CH32V003s and seven headers: the second MCU, slot 7's FET, pull-ups and ESD go, and two external headers come in.
 
@@ -173,52 +174,52 @@ Every part above is fitted on every carrier, including headers 5–8 and their F
 
 ### 8.1 What a header can take
 
-- **3.3 V and I²C only.** A header gives switched 3.3 V, GND, SDA, SCL and INT (§2.2, §5). A sensor that needs 5 V, an analog input, a UART or RS485 doesn't plug in directly. It needs a board with an MCU (§4.4, §8.5) or stays out.
+- **3.3 V and I²C only.** A header gives switched 3.3 V, GND, SDA and SCL (§2.2, §5); every header sensor is polled (D68). A sensor that needs 5 V, an analog input, a UART or RS485 doesn't plug in directly. It needs a board with an MCU (§4.4, §8.5) or stays out.
 - **Fixed addresses don't matter.** Each header is its own switch channel (§3), so two boards with the same fixed address never share a segment. No address-translator MCU is needed.
 - **Current:** header 3.3 V comes from the carrier's sensor buck (`+3V3_SENS`, 2 A, D56) through the header group's ≈ 1 A current limit (§2.2). Keep the total for all headers to **≈ 0.5 A** (worst case with eight boards from the base set and the catalogue: ≈ 0.4 A average, ≈ 0.6 A peak, mostly SCD41, BMV080 and electrochemical boards [E]). The limit's tolerance (0.75–1.25 A) clears the peaks.
 - **Temperature:** a sensor in the chamber must be rated for chamber air (up to the printer's hard limit plus margin; ≈ 65 °C on the reference printers). Most CO₂, particulate and humidity parts are rated to ≈ 50 °C, so they belong on room-side or exhaust-side headers.
-- **Bought boards (DFRobot Gravity and similar):** Gravity I²C boards use a 4-pin PH2.0 plug. They connect with a crimped **JST-XH 5 → PH2.0-4P adapter cable** (3.3 V, GND, SDA, SCL; INT not connected). The PH2.0 pin order differs from the header's, so the cable follows the board's silkscreen [E: check each board]. No soldering. Fermion-style breakouts ship with loose pin headers that must be soldered into the through-holes; they take a crimped Dupont-to-XH lead.
+- **Bought boards (DFRobot Gravity and similar):** Gravity I²C boards use a 4-pin PH2.0 plug. They connect with a crimped **JST-XH 4 → PH2.0-4P adapter cable** (3.3 V, GND, SDA, SCL). The PH2.0 pin order differs from the header's, so the cable follows the board's silkscreen [E: check each board]. No soldering. Fermion-style breakouts ship with loose pin headers that must be soldered into the through-holes; they take a crimped Dupont-to-XH lead.
 
 ### 8.2 Base set
 
 The sensors the core design is built around. They are on the carrier or on the framework's own sensor boards (doc 02 §2.3), have drivers in the core firmware, and are the **only sensors that may feed a control loop or a safety check** (doc 07 §2.1).
 
-| Sensor | Measures | Where | Interface | INT | Used for |
-|---|---|---|---|---|---|
-| **SHT40** | Temperature, RH | Board S | I²C 0x44 | No pin; polled | Chamber air, RW-b (doc 05), ENS160 compensation |
-| **AHT20** (alternate on S, room side only) | Temperature, RH | Board S | I²C 0x38 | No pin; polled | Hub room head. Normal range 10–50 °C; above that its humidity reading drifts [V: AHT20 datasheet], so never in the chamber |
-| **ENS160** | MOX gas, raw element resistances | Board S | I²C 0x52/0x53 | **Yes:** INTn on new data (D67) | Purge end (D20), room VOC trend |
-| **XGZP6897D** (±500 Pa class; ±1 kPa on the hub) | Differential pressure | Board P, on-board | I²C 0x6D | No pin; polled (status register) | Chamber ΔP, trunk vacuum, trunk flow, filter loading (D11, D33) |
-| **SDP31** (upgrade) | Differential pressure | Bought, same header | I²C 0x21 | Polled; its IRQn pin isn't used [U: whether the part supports it] | Trunk flow if the venturi needs it (doc 03) |
-| **AS5600** | Magnetic angle | Board E | I²C 0x36 | No pin (OUT is analog/PWM); polled | Damper position (D30) |
-| NTC 100k ×2 | Temperature | On-board ADC | — | — | Chamber and housing temperature |
-| Dual-NTC anemometer | Air speed | On-board ADC | — | — | Venturi flow (D32) |
-| KSD301, door reed, smoke and CO alarm contacts | Switch states | Carrier I/O controller, AUX | — | Door on its own EXTI line (§2.1), not a header INT | Safety chain, door, room alarms |
+| Sensor | Measures | Where | Interface | Used for |
+|---|---|---|---|---|
+| **SHT40** | Temperature, RH | Board S | I²C 0x44 | Chamber air, RW-b (doc 05), ENS160 compensation |
+| **AHT20** (alternate on S, room side only) | Temperature, RH | Board S | I²C 0x38 | Hub room head. Normal range 10–50 °C; above that its humidity reading drifts [V: AHT20 datasheet], so never in the chamber |
+| **ENS160** | MOX gas, raw element resistances | Board S | I²C 0x52/0x53 | Purge end (D20), room VOC trend |
+| **XGZP6897D** (±500 Pa class; ±1 kPa on the hub) | Differential pressure | Board P, on-board | I²C 0x6D | Chamber ΔP, trunk vacuum, trunk flow, filter loading (D11, D33) |
+| **SDP31** (upgrade) | Differential pressure | Bought, same header | I²C 0x21 | Trunk flow if the venturi needs it (doc 03) |
+| **AS5600** | Magnetic angle | Board E | I²C 0x36 | Damper position (D30) |
+| NTC 100k ×2 | Temperature | On-board ADC | — | Chamber and housing temperature |
+| Dual-NTC anemometer | Air speed | On-board ADC | — | Venturi flow (D32) |
+| KSD301, door reed, smoke and CO alarm contacts | Switch states | Carrier I/O controller, AUX | — | Safety chain, door, room alarms |
 
 ### 8.3 Catalogue (bought boards, supported in software)
 
-Bought 3.3 V I²C boards with drivers in the firmware's sensor catalogue (doc 07 §2.1). Their readings go to **alerts, the daily digest, the dashboard and MQTT, never to a control loop or a safety check**. All are polled: the PH2.0-4P adapter cable (§8.1) leaves the header INT open. Where the chip has an interrupt, the INT column marks it; using it needs that pin wired to the header's fifth pin and the driver's `poll` set to use INT (doc 07 §2.1). Promoting one to the base set takes a decision row. Prices are DFRobot list prices, 2026-10 [V: dfrobot.com]; anything marked [U] needs checking on the product's wiki first.
+Bought 3.3 V I²C boards with drivers in the firmware's sensor catalogue (doc 07 §2.1). Their readings go to **alerts, the daily digest, the dashboard and MQTT, never to a control loop or a safety check**. All are polled (D68). Promoting one to the base set takes a decision row. Prices are DFRobot list prices, 2026-10 [V: dfrobot.com]; anything marked [U] needs checking on the product's wiki first.
 
-| Sensor (DFRobot SKU) | Measures | ≈ Price | Placement | INT | Why it's here |
-|---|---|---|---|---|---|
-| ENS160 + BME280 (SEN0335) | TVOC, eCO₂, T/RH/P | $29.90 | Room | No (adapter); the ENS160 has one | A ready-made room head on the base-set ENS160 driver |
-| BME688 / BME680 (SEN0617, SEN0629, SEN0248) | VOC, T/RH/P | $12.90–19.90 | Room | No (adapter) | Alternative room head |
-| SHT31/35/40 breakouts, SHT31 probe (SEN0331, SEN0333, SEN0428, SEN0385) | T/RH | $7.50–19.90 | Room, duct, outdoors | No (adapter); the SHT31/35 have one (ALERT) [E] | Same driver family as the SHT40; the probe reaches into a duct |
-| AHT20 (SEN0528) | T/RH | $3.90 | Room | No (adapter) | The cheapest T/RH |
-| STCC4 CO₂ (SEN0678) | CO₂, T/RH | $14.90 | Room | No (adapter) | Ventilation context; operating range [U] |
-| SCD41 CO₂ (SEN0536) | CO₂, T/RH | $44.90 | Room (0–50 °C) | No (adapter) | Same Sensirion driver family |
-| BMV080 (SEN0663) | PM1, PM2.5, PM10 | $29.90 | Room | No (adapter); the chip has one [E] | Shows whether the exhaust keeps room particulates down; operating range [U] |
-| Gravity PM2.5 (SEN0460) | PM1, PM2.5, PM10 | $39.90 | Room | No (adapter) | Alternative; 3.3 V operation [U] |
-| SFA40 (SEN0661) | Formaldehyde, 0–2000 ppb | $49.50 | Room, exhaust | No (adapter) | Mostly relevant to resin printers |
-| Electrochemical CO (SEN0466) | CO, 0–1000 ppm | $66.90 | Chamber, exhaust | No (adapter) | Early warning of smouldering. It doesn't replace the room CO alarm (doc 05 S-6). Rated range [U] |
-| MiCS-4514 (SEN0377) | CO, NO₂, NH₃ | $39.90 | Room | No (adapter) | Low relevance; supported because it's I²C |
-| PAV3015 (SEN0639) | Air velocity, 0–15 m/s | $49.90 | Duct | No (adapter) | A calibrated reference for commissioning the venturi and anemometer; supply [U] |
-| LWLP5000 (SEN0343) | Differential pressure, ±500 Pa | $39.90 | Duct | No (adapter) | A cross-check for board P |
-| BMP585 / BMP581 / BMP388 / ICP-10111 (SEN0664–0667, SEN0251, SEN0516/0517) | Barometric pressure | $5.90–11.90 | Anywhere | No (adapter); the BMP585/581/388 have one [E] | Air-density correction for flow; room baseline. Two barometers are not a substitute for a differential sensor |
-| MLX90614 (SEN0206, SEN0263) | Non-contact surface temperature | $18.50–59.00 | Chamber | No (adapter) | Watches a heater shroud or electronics bay for hot spots, in addition to the KSD301 |
-| INA219 wattmeter (SEN0291) | Current, voltage, power to 26 V | $6.90 | Carrier side | No (adapter) | Fan or PTC current where the carrier doesn't measure it (fan health, R8) |
-| 6DOF IMU (SEN0692, SEN0693) | Vibration | $6.90–9.90 | Fan | No (adapter); the chip has one [E] | Bearing-wear trend; experimental |
-| mmWave presence (SEN0610) | Room occupancy | $12.90 | Room | No (adapter); the chip has one [E] (presence OUT) | Quiet-purge or courtesy behaviour while someone is in the room |
+| Sensor (DFRobot SKU) | Measures | ≈ Price | Placement | Why it's here |
+|---|---|---|---|---|
+| ENS160 + BME280 (SEN0335) | TVOC, eCO₂, T/RH/P | $29.90 | Room | A ready-made room head on the base-set ENS160 driver |
+| BME688 / BME680 (SEN0617, SEN0629, SEN0248) | VOC, T/RH/P | $12.90–19.90 | Room | Alternative room head |
+| SHT31/35/40 breakouts, SHT31 probe (SEN0331, SEN0333, SEN0428, SEN0385) | T/RH | $7.50–19.90 | Room, duct, outdoors | Same driver family as the SHT40; the probe reaches into a duct |
+| AHT20 (SEN0528) | T/RH | $3.90 | Room | The cheapest T/RH |
+| STCC4 CO₂ (SEN0678) | CO₂, T/RH | $14.90 | Room | Ventilation context; operating range [U] |
+| SCD41 CO₂ (SEN0536) | CO₂, T/RH | $44.90 | Room (0–50 °C) | Same Sensirion driver family |
+| BMV080 (SEN0663) | PM1, PM2.5, PM10 | $29.90 | Room | Shows whether the exhaust keeps room particulates down; operating range [U] |
+| Gravity PM2.5 (SEN0460) | PM1, PM2.5, PM10 | $39.90 | Room | Alternative; 3.3 V operation [U] |
+| SFA40 (SEN0661) | Formaldehyde, 0–2000 ppb | $49.50 | Room, exhaust | Mostly relevant to resin printers |
+| Electrochemical CO (SEN0466) | CO, 0–1000 ppm | $66.90 | Chamber, exhaust | Early warning of smouldering. It doesn't replace the room CO alarm (doc 05 S-6). Rated range [U] |
+| MiCS-4514 (SEN0377) | CO, NO₂, NH₃ | $39.90 | Room | Low relevance; supported because it's I²C |
+| PAV3015 (SEN0639) | Air velocity, 0–15 m/s | $49.90 | Duct | A calibrated reference for commissioning the venturi and anemometer; supply [U] |
+| LWLP5000 (SEN0343) | Differential pressure, ±500 Pa | $39.90 | Duct | A cross-check for board P |
+| BMP585 / BMP581 / BMP388 / ICP-10111 (SEN0664–0667, SEN0251, SEN0516/0517) | Barometric pressure | $5.90–11.90 | Anywhere | Air-density correction for flow; room baseline. Two barometers are not a substitute for a differential sensor |
+| MLX90614 (SEN0206, SEN0263) | Non-contact surface temperature | $18.50–59.00 | Chamber | Watches a heater shroud or electronics bay for hot spots, in addition to the KSD301 |
+| INA219 wattmeter (SEN0291) | Current, voltage, power to 26 V | $6.90 | Carrier side | Fan or PTC current where the carrier doesn't measure it (fan health, R8) |
+| 6DOF IMU (SEN0692, SEN0693) | Vibration | $6.90–9.90 | Fan | Bearing-wear trend; experimental |
+| mmWave presence (SEN0610) | Room occupancy | $12.90 | Room | Quiet-purge or courtesy behaviour while someone is in the room |
 
 ### 8.4 Not supported on a header
 

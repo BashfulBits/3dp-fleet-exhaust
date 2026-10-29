@@ -49,7 +49,7 @@ The CAT6 daisy chain carries 24 V logic power and CAN, with ESP-NOW radio as a b
 | [06 Pneumatics and ducting](docs/06_pneumatics_and_ducting.md) | Layout, control loops, purge, material policy, heat budget, filter |
 | [07 Firmware and comms](docs/07_firmware_and_comms.md) | Firmware, zmod plugin, G-code API, protocols, notifications, dashboard |
 | [08 Printable parts](docs/08_printable_catalog.md) | Existing models to verify and custom parts to design |
-| [09 Sensor bus and I/O controller](docs/09_sensor_bus_and_io_controller.md) | Up to 8 sensor headers, one I²C segment each, per-header power and interrupts, programming every MCU through its ROM bootloader, and the supported sensors (base set and bought-board catalogue) |
+| [09 Sensor bus and I/O controller](docs/09_sensor_bus_and_io_controller.md) | Up to 8 sensor headers, one I²C segment each, per-header power, programming every MCU through its ROM bootloader, and the supported sensors (base set and bought-board catalogue) |
 | [12 Porting guide](docs/12_porting_guide.md) | Adding other printers: printer packs, link tiers, profile schema, mechanical interface, safety contract, licensing |
 | [13 Build your own](docs/13_build_your_own.md) | Quick start: does it fit, plan your fleet, staged build, reading order |
 | [Design decisions](docs/design_decisions.md) | Decision record D1–D64, the cost-reduction pass and the trade studies behind them |

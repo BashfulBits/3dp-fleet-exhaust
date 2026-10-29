@@ -152,7 +152,7 @@ Prints started from the touchscreen, the Flashforge app or FlashPrint follow the
 | 06 | Pneumatics: ducting, filter, outlet, control loops, purge, heat budget |
 | 07 | Firmware, zmod plugin, protocols, G-code API, notifications, dashboard |
 | 08 | Printable parts catalogue |
-| 09 | Sensor bus and carrier I/O controller: per-header I²C segments, power and interrupts, programming every MCU through its ROM bootloader, supported sensors |
+| 09 | Sensor bus and carrier I/O controller: per-header I²C segments and power, programming every MCU through its ROM bootloader, supported sensors |
 | Design decisions | Decision record D1–D64, cost-reduction pass, trade studies T1–T3 |
 | 12 | Porting guide: printer packs, link tiers, profile schema, mechanical interface, safety contract, licensing |
 | 13 | Build-your-own quick start |

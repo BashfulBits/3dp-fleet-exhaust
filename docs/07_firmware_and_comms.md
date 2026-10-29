@@ -79,7 +79,7 @@ flowchart TB
 | `channels` | Typed outputs with SI units: `temperature_c`, `rh_pct`, `pressure_pa`, `dp_pa`, `angle_deg`, `voc_raw`, `co2_ppm`, `pm2_5_ugm3`, `co_ppm`, `current_a`, … |
 | `tier` | `base` or `catalogue` (doc 09 §8). Only `base` channels may feed a control loop or the safety task |
 | `limits` | Rated operating temperature, supply current and warm-up time, so the dashboard can warn about a misplaced or overloaded sensor (doc 09 §8.1) |
-| `poll` | Sample interval and whether it uses the header's INT line |
+| `poll` | Sample interval (every header sensor is polled; the headers have no INT line, D68) |
 | `needs` | Inputs from other roles, e.g. the ENS160 driver takes T/RH from the co-located SHT40 for compensation |
 | `init()`, `read()`, `reset()` | Non-blocking; each call has a time budget, and a driver that overruns is marked failed |
 
@@ -89,7 +89,7 @@ flowchart TB
 
 - **Role defaults:** each firmware role (`node-heat`, `node-lite`, `hub`) ships a default list matching the reference wiring (board S on header 1, and so on), so a standard build needs no editing.
 - **Required roles:** `node-heat` needs `chamber.temp` from a base driver before it enables the heater, on top of the on-board NTCs (doc 05). A required role that is missing, fails its probe or goes stale (no good reading for 3 intervals) raises a fault and takes that role's safe action. A catalogue role that fails only raises an info alert.
-- **Discovery:** at boot, and when a header's INT or a hot-plug is seen, the manager probes each powered channel against the registry's known addresses. A configured sensor that is missing raises a fault. A known sensor that is found but not configured appears on the dashboard as "found, unassigned", one click from being added. Nothing found is ever used without a config entry.
+- **Discovery:** at boot and every 10 s [E] (D68), the manager probes each powered channel against the registry's known addresses. A configured sensor that is missing raises a fault. A known sensor that is found but not configured appears on the dashboard as "found, unassigned", one click from being added. Nothing found is ever used without a config entry.
 - **Fault recovery:** a driver that keeps failing gets its header power-cycled through the carrier I/O controller (doc 09 §2.2), at most once per 10 min [E], and the event is logged.
 - **Alerts:** catalogue roles take generic threshold rules from the config (role, threshold, hold time, severity: digest, alert or info), so `room.pm2_5` above a level for 10 min, for example, needs no new code.
 - **Outputs:** every configured channel appears on the dashboard and in MQTT discovery (§9) under its role name, with units from the driver.
@@ -500,7 +500,7 @@ Each node-heat keeps a small first-order model of its chamber: predicted tempera
 | **Hub supply lost** | The hub reads its own supply input: the internal XT60's voltage on the tap side of its ideal diode (D64), through the carrier I/O controller (doc 02 §2.4). If it drops below ~20 V while the hub stays up on the bus, its supply has failed and the chain is feeding it (D52; the OUT-port current direction this used is gone with the INA190). The hub sends a **High** "hub supply lost, running on printer power" push and enters back-fed mode. **A controller that stops answering counts as back-fed** (D64): the reading is missing, and in a fire the siren and push must go before the cut, so the hub assumes the safe order and raises a "carrier I/O controller silent" alert. Back-fed mode ends only when the controller reads the supply again |
 | **Back-fed mode** | While back-fed: LED brightness capped and **one damper servo moving at a time**, so a single injecting node's ~1 A limit carries the whole chain even in an alarm; in a fire or runaway, **siren and push go before the cut** (doc 05 §3.4, §5), since the cut printer may be the hub's only power; the dashboard shows the mode and the hub's measured bus voltage (D64), and anemometer readings are flagged as degraded (doc 06 §4.4). It ends when the hub's supply input returns |
 
-### 11.8 Debugging (D65)
+### 11.8 Debugging (D65, D68)
 
 **ESP32: JTAG over the dev board's USB port.** The ESP32-S3's built-in **USB-Serial-JTAG** controller gives full OpenOCD and GDB debugging (breakpoints, hardware watchpoints, both cores, peripheral registers, flashing and a console) on the native "USB" port, with no probe and no carrier pins [V: ESP-IDF USB device documentation]. It shares that port's internal PHY with the USB device stack that carries the printer link (§6.1), and only one can run at a time; starting the device stack takes the PHY away from USB-Serial-JTAG [V: same]. So:
 
@@ -510,8 +510,10 @@ Each node-heat keeps a small first-order model of its chamber: predicted tempera
 | Printer link meanwhile | Falls back to Moonraker over Wi-Fi (§1). A UART printer link on the AUX header (D48) is unaffected |
 | Heating | Allowed. Between halts the safety task runs as normal; at a breakpoint the charge-pump wave stops, so the high side switches off in hardware (§2), and the hub sees the node silent and alerts as for any dropout |
 | Power | The carrier must be on its own 24 V supply, or the reset hold keeps the ESP32 in reset (D36) |
-| Never | Burn `USB_PHY_SEL` or the JTAG eFuses: the first moves the PHY permanently and the others change the JTAG source, and neither is needed |
+| Never | Burn `USB_PHY_SEL`: it moves the PHY permanently. The JTAG eFuses are only for pad JTAG (below) |
+
+**ESP32: pad JTAG while the printer link runs (D68).** GPIOs 39–42 go only to a **1 × 6 2.54 mm JTAG header** (3.3 V, TMS, TCK, TDO, TDI, GND) for an ESP-Prog-class FT2232H probe with OpenOCD. The printer link keeps the USB port, so a fault that only shows while printing can be debugged live. It needs the `STRAP_JTAG_SEL` eFuse burned once on that board (GPIO 3, held low at reset by the fan A enable pull-down, then selects pad JTAG), or `DIS_USB_JTAG`. A burned board can no longer use JTAG over USB (the USB serial console still works); an unburned board uses the debug USB mode above [E: ESP-IDF JTAG documentation]. Breakpoints behave as in the table: heating is safe at a halt.
 
 **ESP32: without a laptop.** A crash writes an ESP-IDF **core dump** to its flash partition, and the dashboard offers it for download, for `idf.py coredump-info` (backtrace, tasks, variables). The optional **runtime GDB stub** on UART0 (the dev board's UART port) lets GDB stop and inspect a running node while the printer link stays up, with fewer breakpoints than JTAG [E].
 
-**Carrier I/O controller (PY32).** Its SWD header, debug build and pin rules are in doc 09 §4.5. On the ESP32 side, the **`IOC_HOLD`** console command stops the ESP32 from resetting and reprogramming the controller when it stops answering at a breakpoint (doc 09 §4.2), until the next power cycle. While the controller is silent the heater is held off, as for any mid-run reset of the controller, and heating resumes when its readings return.
+**Carrier I/O controller (PY32).** Its SWD header is free for a probe at any time in the normal build (D68); the pin rules are in doc 09 §4.5. On the ESP32 side, the **`IOC_HOLD`** console command stops the ESP32 from resetting and reprogramming the controller when it stops answering at a breakpoint (doc 09 §4.2), until the next power cycle. While the controller is silent the heater is held off, as for any mid-run reset of the controller, and heating resumes when its readings return.
