@@ -122,7 +122,7 @@ stateDiagram-v2
 
 Rules applied:
 - The carrier's **BOOT button (GPIO 0)** is read after boot as the node's **CLEAR button** (doc 05 §4.1); nothing else on the carrier connects to GPIO 0. Holding it through a reset only enters the bootloader, with every output off and the latches kept in NVS.
-- Strapping pins: **GPIO 0** is read only as the service button. **GPIO 3** (fan A enable) and **GPIO 45** (output B2) are outputs with pull-downs, so both are low at reset (D68): GPIO 45 low selects the 3.3 V flash supply the WROOM-1 modules use [V: ESP32-S3 datasheet strapping table], and GPIO 3 low selects pad JTAG on a board whose `STRAP_JTAG_SEL` eFuse is burned (doc 07 §11.8). Nothing may pull either pin high at reset. **GPIO 46 is used as an input only** (the `24V_HEAT` sense, D64): it is low whenever the high side is off, including at reset, and a normal boot (GPIO 0 high) ignores it, and it matters only when download mode is entered, where it must be low or floating, which it is because the high side is off in hardware [V: Espressif esptool boot-mode documentation]. Also avoid native USB (19, 20, the USB-C receptacle) and flash/PSRAM (26–37). **GPIOs 43 and 44** are UART0, brought out to the 1 × 3 console header (D72). **GPIOs 38 and 48** are free since D72 (a DevKitC's RGB LED used one of them). **GPIOs 39–42 are the JTAG pins** (D68) and carry nothing else.
+- Strapping pins: **GPIO 0** is read only as the service button. **GPIO 3** (fan A enable) and **GPIO 45** (output B2) are outputs with pull-downs, so both are low at reset (D68): GPIO 45 low selects the 3.3 V flash supply the WROOM-1 modules use [V: ESP32-S3 datasheet strapping table], and GPIO 3 low selects pad JTAG on a board whose `STRAP_JTAG_SEL` eFuse is burned (doc 07 §11.8). Nothing may pull either pin high at reset. **GPIO 46 is used as an input only** (the `24V_HEAT` sense, D64): it is low whenever the high side is off, including at reset, and a normal boot (GPIO 0 high) ignores it, and it matters only when download mode is entered, where it must be low or floating, which it is because the high side is off in hardware [V: Espressif esptool boot-mode documentation]. Also avoid native USB (19, 20, the USB-C receptacle) and flash/PSRAM (26–37). **GPIOs 43 and 44** are UART0, brought out to the 1 × 3 console header (D72). **GPIO 38** is the LAN module's interrupt and **GPIO 48** is free since D72 (a DevKitC's RGB LED used one of them). **GPIOs 39–42 are the JTAG pins** (D68) and carry nothing else.
 - Analog inputs use **ADC1 only** (ADC2 is unusable while Wi-Fi is active).
 
 | GPIO | Node-heat | Node-lite | Hub | Notes |
@@ -147,7 +147,7 @@ Rules applied:
 | 17 | Fan A tach in | – | **G4 tach/health** (per R1) | Pull-up + clamp |
 | 18 | **CAN RX** (D68, was GPIO 42) | CAN RX | CAN RX | TWAI. Fan A enable moved to GPIO 3 |
 | 21 | **Servo PWM** (50 Hz) | Servo PWM | – | Pull-down, held low at boot (was GPIO 12). LED chain 2 was dropped from the fixed map (D45) |
-| 38 | Free (D72) | Free | Free | Was a DevKitC RGB LED pin |
+| 38 | **LAN interrupt** (W5500 INTn, D72) | Same | Same | Input, 10 kΩ pull-up, active low, falling-edge interrupt; idle high with no module fitted. Was a DevKitC RGB LED pin |
 | 39 | **JTAG TCK** (MTCK, D68) | Same | Same | To the 1 × 6 JTAG header only. Output B1 moved to the carrier I/O controller (PA8) |
 | 40 | **JTAG TDO** (MTDO, D68) | Same | Same | JTAG header only. Output B2 moved to GPIO 45 |
 | 41 | **JTAG TDI** (MTDI, D68) | Same | Same | JTAG header only. CAN TX moved to GPIO 16 |
@@ -206,7 +206,7 @@ It is reached with the node housing open. Holding it at power-up still enters do
 |---|---|---|
 | CAN | TWAI | |
 | I²C | I²C 0 | Sensor headers, on-board XGZP, carrier I/O controller |
-| LAN | SPI2 on the IO MUX pins | GPIOs 10–13, to the W5500 module socket (D72) |
+| LAN | SPI2 on the IO MUX pins | GPIOs 10–13, to the W5500 module socket, and the module's interrupt on GPIO 38 (D72) |
 | LED chain 1 (bed strip, or the hub panel) | **Carrier I/O controller TIM3 PWM with DMA** (PA5, D70, D71) | The controller renders the stream from colour and pattern commands sent over I²C (doc 09 §2.1). The ESP32's RMT drove it with DMA before D70 |
 | MCU programming (carrier I/O controller, sensor-board MCUs) | **UART2** on GPIO 8/9 through the GPIO matrix, open-drain, 115200 8E1 | Only while programming; the I²C driver is detached for that time (doc 09 §4) |
 | Servo, heater PWM, fan A PWM | LEDC | Three frequencies, inside LEDC's four timers. B1 PWM is a timer on the carrier I/O controller (D68) |
@@ -218,7 +218,7 @@ It is reached with the node housing open. Holding it at power-up still enters do
 
 **RMT budget:** none since D70 (LED chain 1 is on the carrier I/O controller); all 4 TX channels are free for a second LED chain later.
 
-**LAN module socket (D18, D45, D72):** the W5500 module needs four GPIOs (SCK, MOSI, MISO, CS; polling mode, no interrupt). They are **GPIOs 10–13 on every carrier**, the S3's IO MUX pins for SPI2, so the SPI runs on the peripheral directly (up to 80 MHz) and not through the GPIO matrix (40 MHz, with extra delay on MISO) [E: confirm in the S3 technical reference manual]. CAN and the servo output use the matrix and moved to GPIOs 41, 42 and 21 to make room. There are no 0 Ω links, and the same map applies to all roles. The default SPI clock is 20 MHz; the W5500's own limit is higher, and bring-up checks 20 and 40 MHz with the module on the socket [E: a plug-in module adds lead length]. The module's interrupt isn't wired (the driver polls), and its own RC resets it.
+**LAN module socket (D18, D45, D72):** the W5500 module needs four SPI GPIOs (SCK, MOSI, MISO, CS) and its interrupt on GPIO 38. They are **GPIOs 10–13 on every carrier**, the S3's IO MUX pins for SPI2, so the SPI runs on the peripheral directly (up to 80 MHz) and not through the GPIO matrix (40 MHz, with extra delay on MISO) [E: confirm in the S3 technical reference manual]. CAN and the servo output use the matrix and moved to GPIOs 41, 42 and 21 to make room. There are no 0 Ω links, and the same map applies to all roles. The default SPI clock is 20 MHz; the W5500's own limit is higher, and bring-up checks 20 and 40 MHz with the module on the socket [E: a plug-in module adds lead length]. The interrupt keeps the driver from polling the chip; the module's own RC resets it.
 
 The KSD301 and charge-pump chain works in **hardware**. The carrier I/O controller only *reports* its state; the firmware can't override it.
 
