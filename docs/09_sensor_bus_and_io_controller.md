@@ -14,7 +14,7 @@ Evidence key, as in the other docs: **[V]** verified from a datasheet, reference
 | **Each header on its own I²C segment** | TCA9548A-compatible 8-channel switch (§3) |
 | **Per-header power switching** | One P-FET per header, on by default (§2.2) |
 | **Interrupt to the ESP32** | Every input the carrier I/O controller reads can flag the ESP32 on one line (§2.3). Header sensors are polled (D68) |
-| **Slow carrier I/O** | The same controller reads the door, the KSD301 loop sense, the board identity and four ADC channels (heater rail, tap side, bus, injection current), and drives the B1 PWM, LED chain 1 and the board status LED (§2.4, doc 02 §2.4) |
+| **Slow carrier I/O** | The same controller reads the door, the board identity and four ADC channels (heater rail, tap side, bus, injection current), and drives the B1 PWM, LED chain 1 and the board status LED (§2.4, doc 02 §2.4) |
 | **In-system programming of every MCU** (blank, running or hung) | Each MCU's **ROM bootloader** on its own I²C pins, driven by the ESP32's UART through the GPIO matrix (§4). No programmer chip, no debug protocol and no extra ESP32 pin |
 | **A base set of sensors, plus bought boards** | The base set (own boards S, P, E and the on-board sensors) can feed control and safety. Bought 3.3 V I²C boards from the catalogue feed alerts and the dashboard only (§8, D55) |
 
@@ -31,7 +31,7 @@ A sensor board with an MCU on it (D42: an ADC, I/O expander, light sensor or pro
 Three pin rules drive the plan:
 - **I²C target on PA2/PA3.** PA2 is both I2C_SDA and USART1_TX, and PA3 both I2C_SCL and USART1_RX [V: datasheet pin table], and the ROM bootloader listens on that USART (§4.1). So the bootloader is reachable on the two I²C wires.
 - **Bootloader pins carry only inputs or SWD.** The bootloader also uses the USART on PA9/PA10 and PA14/PA15 [V: PY32F003 reference manual §3.6.2, same family], and may drive its TX candidates (PA9, PA14) while it runs [U]. Nothing on those pins may switch a header or signal the ESP32.
-- **One EXTI line per interrupt.** EXTI lines are shared by pin number across ports, so the inputs that flag the ESP32 each take a different number: door 15, KSD301 loop 10, group rail sense 3 (D68).
+- **One EXTI line per interrupt.** EXTI lines are shared by pin number across ports, so the inputs that flag the ESP32 each take a different number: door 15, group rail sense 3 (D68; the KSD301 loop sense on EXTI 10 moved to the ESP32 by D74).
 
 | Function | Pins | Notes |
 |---|---|---|
@@ -42,18 +42,16 @@ Three pin rules drive the plan:
 | Output B1 PWM (D68) | PA8 (TIM1_CH1) | Moved from ESP32 GPIO 39. Duty set by the ESP32 over I²C; the B1 gate pull-down holds the output off while the pin floats (reset, bootloader, blank) |
 | LED chain 1 (D70, D71) | PA5 (TIM3_CH2, AF13) | Moved from ESP32 GPIO 14 (D70). TIM3 PWM; TIM3's update request (TIM3_CH2 has no DMA mapping) drives DMA that writes CCR2 once per LED bit, from a 2-LED circular double buffer (byte memory to 32-bit peripheral, never byte to byte; driver after [MaJerle's STM32 WS281x driver](https://github.com/MaJerle/stm32-ws2811-ws2812-ws2812b-ws281x-tim-pwm-dma-timer), D71): 1.25 µs bits, 333 ns high for a 0 and 667 ns for a 1 (D71). Inverted polarity for the inverting 2N7002 shifter (doc 02 §2.2); a final 0 % duty holds the strip's data line low to latch. The ESP32 sends colours and patterns over I²C. While the controller is in reset, in its bootloader or blank, the strip receives nothing and holds its last colours or stays dark |
 | Door reed | PA15 | EXTI 15; input only (a bootloader RX candidate, so harmless) |
-| KSD301 loop sense | PA10 | EXTI 10; input only |
 | Heater-rail voltage | PB0 (ADC_IN8) | 12-bit; ≈ 8 mV per step on the rail divider [E] |
 | Injection current (eFuse IMON, D61) | PA7 (ADC_IN7) | 47 kΩ + 100 nF at the eFuse, ≈ 1.3 V per amp, ≈ 0.6 mA per step [E] |
 | Board status LED | PA11 | Moved from PA14 by D68, so SWCLK carries nothing else. It no longer lights while the bootloader runs |
 | Tap-side heater voltage (D64) | PB1 (ADC_IN9) | Divider on the internal XT60's side of the tap ideal diode, same values as the rail divider: shows whether the tap is live, and is the reading the 23.0 V throttle uses while it is |
 | Bus voltage (D64) | PA6 (ADC_IN6) | Divider on the RJ45 bus rail, top resistor ≥ 100 kΩ like the rail divider. For the anemometer power (doc 06 §4.4), bus telemetry and back-fed mode |
-| Tap ideal-diode disable (D64) | PF1 | Drives a 2N7002 that pulls the MX74700T's EN low, with a **4.7 kΩ gate pull-down** so the diode stays on while the pin floats: PF1 resets in analog mode (GPIOF MODER reset value 0xFFFFFCFF) [V: reference manual §9.4.1], and stays there in the bootloader, blank or crashed. Moved from PA13 by D65, so a debug session never touches the diode or the two-supply check |
 | SWD debug header (§4.5, D65) | PA13 (SWDIO), PA14 (SWCLK), PF2 (NRST) | 1 × 5 2.54 mm pin header: 3.3 V, SWDIO, SWCLK, NRST, GND. Since D68 these pins carry nothing else, so SWD stays enabled in normal use. PF2 stays a reset input |
 | Header group rail sense (D56) | PF3 | EXTI 3. Digital input through a divider: low when the header group's current-limit switch is in limit. Moved from PA13 by D68 |
-| Spare | PA1, PA4 (ADC_IN1, 4), PA9 (input only: a bootloader TX candidate) | Freed by D68; PA1 again by D71 |
+| Spare | PA1, PA4 (ADC_IN1, 4), PA9 (input only: a bootloader TX candidate), PA10 (input only: a bootloader RX candidate), PF1 | Freed by D68; PA1 again by D71; PA10 (KSD301 loop sense) and PF1 (tap ideal-diode disable) by D74, which moved both to the ESP32 (doc 04 §4) |
 
-Three pins are spare (D68), and PF2-NRST goes only to the debug header (D65). The 32-pin part's other pinouts (K1x, K3x, K4x) move pins around, so the PCB uses K2x only [E].
+Five pins are spare (D68, D74), and PF2-NRST goes only to the debug header (D65). The 32-pin part's other pinouts (K1x, K3x, K4x) move pins around, so the PCB uses K2x only [E].
 
 ### 2.2 Per-header power
 
@@ -66,16 +64,16 @@ Three pins are spare (D68), and PF2-NRST goes only to the debug header (D65). Th
 
 ### 2.3 Interrupt to the ESP32
 
-Every input the controller reads directly can flag the ESP32 (D68). The door, the KSD301 loop sense and the header group rail sense are EXTI inputs with their own lines, and an ADC reading that crosses a threshold the ESP32 has set raises the same flag [V: PY32F030 analog watchdog, datasheet §3.10; per-channel limits checked in firmware]. On any of these, the controller sets a bit in its pending register and pulls PA12 low, which is the ESP32's interrupt line on GPIO 47. The ESP32 reads and clears the pending register over I²C, then services whatever is flagged. The sensor headers have no INT pins: every header sensor is polled, and the sensor manager probes for new boards at boot and every 10 s [E] (doc 07 §2.1).
+Every input the controller reads directly can flag the ESP32 (D68). The door and the header group rail sense are EXTI inputs with their own lines, and an ADC reading that crosses a threshold the ESP32 has set raises the same flag [V: PY32F030 analog watchdog, datasheet §3.10; per-channel limits checked in firmware]. On any of these, the controller sets a bit in its pending register and pulls PA12 low, which is the ESP32's interrupt line on GPIO 47. The ESP32 reads and clears the pending register over I²C, then services whatever is flagged. The sensor headers have no INT pins: every header sensor is polled, and the sensor manager probes for new boards at boot and every 10 s [E] (doc 07 §2.1).
 
 ### 2.4 Carrier I/O (was the slot-7 expander)
 
 The controller takes the slow, non-safety signals that would otherwise need ESP32 GPIOs, so every role has the same pin map and the same parts (D47), LAN included (doc 04 §4):
 
-- **Takes:** the door reed, the KSD301 loop sense, the **heater-rail voltage**, the **tap-side heater voltage**, the **bus voltage** and the **injection current** (ADC; the last from the eFuse's IMON pin, D61), the tap ideal-diode disable (D64), the board identity and the B1 PWM (D68), LED chain 1 (D70), and the board status LED (doc 02 §2.4). LED chain 2 stays dropped from the fixed map.
+- **Takes:** the door reed, the **heater-rail voltage**, the **tap-side heater voltage**, the **bus voltage** and the **injection current** (ADC; the last from the eFuse's IMON pin, D61), the board identity and the B1 PWM (D68), LED chain 1 (D70), and the board status LED (doc 02 §2.4). LED chain 2 stays dropped from the fixed map.
 - **Frees:** GPIOs 13, 21, 41, 42 and 47 (D45). CAN TX/RX and the servo output (all GPIO-matrix peripherals) use 41, 42 and 21, which leaves GPIOs 10–13, the S3's IO MUX pins for SPI2, to the LAN SPI (doc 04 §4). GPIO 47 is the controller's interrupt line. D68 then moves CAN to GPIOs 16 and 18 so GPIOs 39–42 can be the ESP32's JTAG pins (doc 04 §4).
 - **ADC reference (D56):** the ADC runs from `+3V3`, which the 3.3 V buck (LMR14030, D60) sets only to ≈ ±3 % (±2 % reference over temperature plus the 1 % divider). The firmware measures the PY32's internal reference channel and scales the rail readings by it, so the D53 rail throttle (23.0 V) stays within ≈ ±1 % [E]. Since D72 the ESP32 runs from the same rail, so the controller reports the measured rail voltage to the ESP32, which scales its NTC readings by it (doc 02 §2.2).
-- **Interrupt:** a change on any of its inputs (door, KSD301 loop, group rail) reaches the ESP32 in a few milliseconds through §2.3.
+- **Interrupt:** a change on any of its inputs (door, group rail) reaches the ESP32 in a few milliseconds through §2.3.
 - **Failure behaviour:** nothing it carries feeds a safety layer (S-7). A missing, silent or not-yet-programmed controller blanks the door input (the AD5X falls back to Moonraker), the KSD sense, the status LED and LED chain 1, stops output B1 (the AD5X recirculation blower or the hub anemometer, which then alerts), leaves the board identity unchecked, and removes the heater-input readings, so the firmware **holds the heater off** (and turns it off if the controller stops answering mid-heat). That is the safe direction.
 - **No power switching of its own:** it is the carrier's own firmware, with no cable. A reset command over I²C or its hardware watchdog restarts it, and every reset lands in the ROM bootloader (§4.1), so it never needs a power cycle to recover.
 - **It sits on the ESP32's main I²C bus,** not behind the switch. If it ever held SDA low, it would block the whole bus, which is why its firmware enables the watchdog at start-up, resets its I²C peripheral when the bus has seen no valid transaction for 1 s [E], and the ESP32 runs the usual nine-clock bus recovery before reporting a fault.
