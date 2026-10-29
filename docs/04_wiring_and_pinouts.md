@@ -39,12 +39,12 @@ RJ45 IN/OUT on every carrier; a TERM jumper on every carrier, fitted at the two 
 
 | Cable | From → to | Type | Conductors | Connectors | Length |
 |---|---|---|---|---|---|
-| **Local injection** (optional) | 24 V brick or PoE splitter → any node's POWER IN barrel, INJECT BAR fitted | Brick lead | +24 V, GND | 5.5 × 2.5 mm barrel | as needed |
-| **Wireless-only node** (optional, no CAT6) | 24 V brick on an ordinary outlet (not the printer's plug) → node POWER IN, INJECT BAR fitted (§6b) | Brick lead | +24 V, GND | 5.5 × 2.5 mm barrel | as needed |
+| **Local injection** (optional) | 24 V brick or PoE splitter → any node's POWER IN barrel, INJECT BAR fitted | Brick lead | +24 V, GND | 5.5 × 2.1 mm barrel (D66) | as needed |
+| **Wireless-only node** (optional, no CAT6) | 24 V brick on an ordinary outlet (not the printer's plug) → node POWER IN, INJECT BAR fitted (§6b) | Brick lead | +24 V, GND | 5.5 × 2.1 mm barrel (D66) | as needed |
 | **Bus** | Hub → node 1 → node 2 → node 3 | CAT6 patch, **distinct colour, labelled "24 V – NOT ETHERNET"** (R10) | 4 pairs (§3) | RJ45 | ~3 m, 1.5 m, 1.5 m |
 | **Heater feed** | AD5X supply terminals → inline ATO 10 A (≤ 15 cm from the terminals) → strain relief → node-heat internal XT60 (inside the housing, D64) | 14 AWG 2-conductor | 24V_HEAT, GND | Supply terminal / XT60 | ≤ 1.5 m |
 | **External heater feed** (optional, D22) | 24 V DIN-4 brick, **plugged in on the printer's own smart plug** → node-heat **HEATER DIN** jack, in place of the printer tap (D52, D64) | Brick lead | +24 V, GND (2 pins each) | 4-pin DIN | brick lead |
-| **Reduced-power heater feed** (optional, D22, D64) | 24 V barrel brick ≤ 5 A, **on the printer's own smart plug** → node-heat **HEATER barrel** jack, in place of the printer tap (`heater_power` ≤ 95 W) | Brick lead | +24 V, GND | 5.5 × 2.5 mm barrel | brick lead |
+| **Barrel heater feed** (optional, D22, D64, D66) | 24 V barrel brick, ≥ 160 W and ≤ 10 A for full power (a 120 W brick at `heater_power` ≤ 95 W), **on the printer's own smart plug** → node-heat **HEATER barrel** jack (15 A), in place of the printer tap | Brick lead | +24 V, GND | 5.5 × 2.5 mm barrel | brick lead |
 | **Heater element** | Node XT60 out (inside the housing, through a strain relief, D64) → PTC (via TCO) | Element leads + TCO in series on the + lead | 2 | XT60 | ≤0.5 m |
 | **Heater fan** (separate leads, C8) or 5015 blower (fallback) | Node fan A → fan | 22–24 AWG | 24 V, GND, (tach), (PWM) | JST-XH 4 | ≤0.5 m |
 | **Recirculation-duct blower** (AD5X, O3) | Node B1 → 5015 blower | 22–24 AWG | 24 V, switched GND (PWM and tach leads unused) | JST-XH 2 | ≤1 m |

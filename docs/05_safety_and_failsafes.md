@@ -97,7 +97,7 @@ PTC cold current is 2–3× rated [E], and the heater shares the printer's own s
 
 **External heater brick (D22, D52, D64).** A DIN-4 brick plugs into the HEATER DIN jack, or a barrel brick into the HEATER barrel jack, in place of the printer tap. A printed shutter leaves only one of the two jacks open and covers both when the tap is used (doc 08 C21). If a tap and a brick are connected anyway, the **tap ideal diode** stops the brick back-feeding the printer's 24 V rail after its plug is cut, which would keep the mainboard and bed powered past the mains cut, and the **two-supply check** (doc 02 §2.2: the diode turned off for a ≈ 50 ms heater pulse at boot and before each heating session) finds the brick at any voltage, refuses to heat and alerts "two heater supplies connected, remove one". Otherwise the bed interlock and learned cap act the same on every supply, and the rail throttle differs only in its threshold (above). The soft-start ramp stays: a brick's over-current protection would otherwise hiccup on the cold inrush.
 - **The brick must be on the printer's own smart plug.** If the plug reports off (Shelly read-back, or a cut the hub just made) while the heater rail is still live, the node **locks the heater out** and alerts "heater supply not on the printer's plug". Commissioning test 23 checks this before first use.
-- A logic brick on an ordinary outlet goes into the POWER IN barrel, which never reaches the heater rail (D64). A brick in the wrong barrel is safe: a heater brick in POWER IN leaves the heater rail dead (the node alerts "no heater supply"), and a logic brick in the HEATER barrel is caught by the plug check above.
+- A logic brick on an ordinary outlet goes into the POWER IN barrel, which never reaches the heater rail (D64). A brick in the wrong barrel is safe: a heater brick in POWER IN leaves the heater rail dead (the node alerts "no heater supply"), and a logic brick's 5.5 × 2.1 mm plug doesn't fit the 5.5 × 2.5 mm HEATER barrel (D66). A heater plug does go onto the POWER IN pin, loosely, and that case is the safe one.
 
 ### 3.4 Heater runaway → mains cut
 
@@ -328,7 +328,7 @@ The other printers keep running. The **room smoke alarm** remains the primary li
 | Conductor sizing | 14 AWG heater leads ≤ 1.5 m (doc 04 §6); CAT6 ≤ 0.75 A per conductor (logic only; ≈ 1.5 A per segment, kept low so CCA or Cat5 patch cables are safe, D21); 1 oz copper with ≥ 4 mm stitched pours on both layers along the carrier heater path (D59). |
 | Inside the AD5X | Reuse: 24 V DC work at the supply terminals only. Upgrade: mains work in the printer base to the original standard (same terminals, earth bond restored, cover refitted). |
 | Hot parts | Heater element in a sheet-aluminium shroud; printed parts near heat in ASA; no PETG inside heated chambers (ARG-12). |
-| Connectors | Locking or friction-latched (RJ45, XT60, DIN-4, JST-XH); the barrel jack is friction-only, so it carries ≤ 5 A; THT for power. |
+| Connectors | Locking or friction-latched (RJ45, XT60, DIN-4, JST-XH); the barrel jacks are friction-only, so each is rated ≥ 1.5 × the current through it (HEATER barrel 15 A for ≤ ≈ 7.8 A, D66); THT for power. |
 
 ## 8. Room safety
 
