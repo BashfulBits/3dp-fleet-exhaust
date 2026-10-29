@@ -63,7 +63,7 @@ printers/
 
 **Tier 2b ports and rules (D48):**
 - **`link_port: uart`:** the carrier's AUX header (doc 04 §4: A = TX, B = RX, GND) to the board's TFT or serial header. The AUX lines are 5 V-tolerant. Current 32-bit boards are 3.3 V and work both ways. The pack must confirm that port is enabled in that printer's firmware [U per printer].
-- **`link_port: usb_host`:** the dev board's native USB port as a USB host, to the printer's USB (CH340, CP210x or CDC-ACM). Preferred for 5 V 8-bit boards, where the node's 3.3 V TX has little margin. Whether the printer enumerates with VBUS left unconnected (doc 04 §5) is [U per printer].
+- **`link_port: usb_host`:** the carrier's USB-C (the module's native USB, D72) as a USB host, to the printer's USB (CH340, CP210x or CDC-ACM). Preferred for 5 V 8-bit boards, where the node's 3.3 V TX has little margin. Whether the printer enumerates with VBUS left unconnected (doc 04 §5) is [U per printer].
 - **Command allowlist:** the node sends only `M105`, `M155`, `M27`, `M31`, `M115` and `M117`, never motion, temperature, fan or file commands. The firmware enforces the list and a pack can't widen it.
 
 Every node also uses power metering as a cross-check whatever its tier: a printer that drops to 0 W is "printer off" within seconds.

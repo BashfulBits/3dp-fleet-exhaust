@@ -53,7 +53,7 @@ flowchart TB
 | Configuration | NVS: Wi-Fi credentials, notification URLs (hub), Moonraker host (nodes), Shelly IPs (hub), tuning values. Set from the hub web page; nodes receive theirs over CAN. |
 | Secrets | Never in the repo. `secrets.example.h` documents the fields. |
 | Logging | Ring buffer of events in RAM, flushed to LittleFS hourly; shown on the dashboard. |
-| Debugging | JTAG over the dev board's own USB port in a debug USB mode, core dumps, and a hold on the carrier I/O controller for its SWD header; no probe or pin change on the ESP32 (§11.8, D65) |
+| Debugging | JTAG over the carrier's USB-C (the module's native USB) in a debug USB mode, the UART0 console header, core dumps, and a hold on the carrier I/O controller for its SWD header; no probe or pin change on the ESP32 (§11.8, D65) |
 | Sensors | Drivers are plugins behind one interface, and the installed sensors come from a config, not from code (§2.1, D55). |
 
 ### 2.1 Sensor drivers and the installed-sensor config (D55)
@@ -239,9 +239,9 @@ CAN 2.0A, 125 kbit/s. `n` = node ID 1–15: each message type has a block of 16 
 | 0x080 | Hub → all | On event | **Fire / emergency**: affected node, action (close damper, heater off) |
 | 0x100 | Hub → all | 1 Hz | Hub heartbeat: trunk-active flag, trunk ΔP, fan state, purge-token holder, **`ZERO_WINDOW_OPEN` flag** (doc 06 §4.1), hub fault flags |
 | 0x110+n | Node → hub | 1 Hz | Node heartbeat: role, state, chamber temp, ΔP, damper (commanded and measured), heater %, door, zero status (accepted / rejected / stale), fault flags |
-| 0x120+n | Node → hub | On change | Detail: RH, VOC raw, mode, purge state, link state, **plug state / power / health** (`shelly_node` backend) |
+| 0x120+n | Node → hub | On change | Detail: RH, VOC raw, mode, purge state, link state, **plug state / power / health** (`shelly_node` or `tasmota_node` backend) |
 | 0x130+n | Node → hub | On event | Requests: trunk on/off, `PURGE_REQUEST`/`PURGE_RELEASE`, **`HEATER_RUNAWAY`** (RW-a, doc 05 §3.4: the hub cuts that printer's Shelly) |
-| 0x140+n | Hub → node | On event | Grants: purge token, config push, acknowledge, **`MAINS_CUT`** (`shelly_node` backend: the node switches its plug off and confirms) |
+| 0x140+n | Hub → node | On event | Grants: purge token, config push, acknowledge, **`MAINS_CUT`** (`shelly_node` or `tasmota_node` backend: the node switches its plug off and confirms) |
 
 **Error handling (D16):**
 - The TWAI controller **recovers automatically from bus-off** (after the standard 128 × 11 recessive bits), with back-off if it keeps recurring.
@@ -356,6 +356,8 @@ Each printer has a `cut` config in the hub (dashboard, stored in NVS):
 ```json
 {"backend": "shelly_node", "fallback_host": "shellyplusplugus-a1b2c3.local"}
 {"backend": "shelly", "host": "192.168.1.51"}
+{"backend": "tasmota_node", "fallback_host": "athom-plug-1.local"}
+{"backend": "tasmota", "host": "192.168.1.52"}
 {"backend": "ha", "switch": "switch.ad5x_1_plug", "power": "sensor.ad5x_1_plug_power"}
 {"backend": "none"}
 ```
@@ -375,7 +377,7 @@ The node runs a small Wi-Fi access point of its own **alongside** its normal hom
 | Cut on a hub decision | RW-b or corroborated fire: the hub sends `MAINS_CUT` over CAN (0x140+n); the node executes it and confirms with a read-back |
 | Node dead or AP gone | The plug falls back to `sta1`, and the hub reaches it directly at `fallback_host` (reserved IP on the hub network, or mDNS on home Wi-Fi) [U: measure the Shelly's fallback time at commissioning] |
 | Setup | The hub dashboard pushes the node's AP credentials to the plug once, while the plug is on home Wi-Fi (or on the plug's own setup AP) |
-| Limits | Shelly plugs only. HA-controlled plugs (Matter, Zigbee, etc.) can't join an arbitrary AP; they use the `ha` backend |
+| Limits | Shelly plugs here; Tasmota plugs use the same design as `tasmota_node` (§10.3). HA-controlled plugs (Matter, Zigbee, ESPHome, etc.) can't be pointed at an arbitrary AP by the hub; they use the `ha` backend |
 
 Networks around one printer with the `shelly_node` backend (plus the hub's fallback network, §11.4):
 
@@ -405,7 +407,28 @@ Plug Wi-Fi: `sta` = home Wi-Fi, `sta1` = the hub's own network (§11.4), so the 
 | Metering (dashboard, F-e) and read-back | `GET http://<shelly>/rpc/Switch.GetStatus?id=0` → `output`, `apower` (W), polled every 5 s |
 | Health | No answer for 1 min → plug-unreachable alert |
 
-### 10.3 `ha` backend (Home Assistant REST API)
+### 10.3 `tasmota_node` and `tasmota` backends (D73)
+
+For metering plugs sold with **Tasmota** on them (e.g. Athom's Tasmota US plug V2 or V3, with a relay). **`tasmota_node`** follows `shelly_node` (§10.1) in everything but the calls below: the node hosts the plug's network, cuts it on its own decisions and executes the hub's `MAINS_CUT`. **`tasmota`** follows `shelly` (§10.2): hub → plug over the home LAN, with the hub's own network as the plug's fallback. Where the other docs say `shelly_node` or `shelly`, the Tasmota backend of the same kind behaves the same way.
+
+All calls use Tasmota's HTTP command API, `GET http://<plug>/cm?cmnd=<command>`, with the plug's web password (`WebPassword`) sent as the `user`/`password` parameters on the node's WPA2 AP or the hub network only, and never logged [E: check whether the build accepts HTTP Basic authentication instead].
+
+| Use | Command |
+|---|---|
+| Mains cut | `Power Off` |
+| Read-back | `Power` → `{"POWER":"OFF"}` within 5 s, as for every backend |
+| Metering (dashboard, F-e) | `Status 8` → `StatusSNS.ENERGY.Power` (W), polled every 5 s. The HLW8032 reads unreliably below ≈ 5 W [V: Athom product notes], far below any printer's idle draw |
+| Health | No answer for 1 min → plug-unreachable alert |
+| Wi-Fi (`tasmota_node`) | `Backlog SSId1 fleet-node<n>; Password1 <pass>; SSId2 <hub network>; Password2 <pass>`: AP1 is the node's access point, AP2 the hub's network |
+| Back to AP1 | Tasmota stays on AP2 after a fallback until AP2 fails. When the plug answers on the hub network while the node's AP is up, the hub sends `Ap 1` so the plug rejoins the node [U: check the switch-over time at commissioning] |
+| Restore after power loss | `PowerOnState 3` (last saved state), with `SetOption0 1` (save the power state) [E: confirm the values on the device] |
+| Plug-local power limit (D16) | `MaxPower <W>` (printer peak × 1.3), `MaxPowerHold`, `MaxPowerWindow`; read back at startup, alert if missing [U: confirm the plug's build includes the power-limit commands] |
+| No cloud, no MQTT | `MqttHost` empty; Tasmota has no vendor cloud |
+| Setup | The hub dashboard sends the settings above in one `Backlog` while the plug is on home Wi-Fi or its own setup AP, then reads each back. A plug whose `Power` command fails (a metering-only "no relay" model) is refused |
+
+ESPHome plugs get no backend of their own: their networks and limits are compiled into the firmware, so the hub can't move them onto a node's AP. They use `ha` (§10.4).
+
+### 10.4 `ha` backend (Home Assistant REST API)
 
 | Use | Call |
 |---|---|
@@ -417,13 +440,13 @@ Plug Wi-Fi: `sta` = home Wi-Fi, `sta1` = the hub's own network (§11.4), so the 
 
 The REST call goes straight to the plug's entity, so no HA automation is needed and nothing breaks if automations are edited. For this role, use plugs whose integration is **local** (Matter, Zigbee, Z-Wave, ESPHome, Tasmota, Shelly). Avoid cloud-polled integrations.
 
-### 10.4 Configuration rules (all backends)
+### 10.5 Configuration rules (all backends)
 
 - **Auto-on after power loss: "restore last state"** (or the plug's equivalent), so a power blip doesn't leave printers off. A plug that was cut was off, so it comes back off; the latched re-cut (doc 05 §4.1) covers anything else (D38).
-- Shelly cloud disabled with the `shelly` backend.
+- Shelly cloud disabled with the `shelly` backend; MQTT host empty with the Tasmota backends.
 - **The hub never switches a printer back on automatically** after a cut.
 - **The hub PSU and the exhaust fan are never on a printer's plug** (doc 04 §6b).
-- **Plug-local power limit (D16):** on Shelly plugs, set the switch's own over-power limit (Gen2 `Switch.SetConfig` `power_limit`, plus `current_limit` where available) to the printer's measured peak draw × 1.3 [U: confirm the fields on the device]. The plug then trips by itself on a gross overload, even with the hub, node and Wi-Fi all down. The hub reads the setting back at startup and alerts if it's missing. On HA-backend plugs, use the plug's own overload setting if it has one.
+- **Plug-local power limit (D16):** on Tasmota plugs, `MaxPower` (§10.3). On Shelly plugs, set the switch's own over-power limit (Gen2 `Switch.SetConfig` `power_limit`, plus `current_limit` where available) to the printer's measured peak draw × 1.3 [U: confirm the fields on the device]. The plug then trips by itself on a gross overload, even with the hub, node and Wi-Fi all down. The hub reads the setting back at startup and alerts if it's missing. On HA-backend plugs, use the plug's own overload setting if it has one.
 - Under the `ha` backend, **require a confirmation in HA before the plug can be switched** (for example `tap_action` with `confirmation:` on its dashboard card, and the same on any voice or automation exposure), so it can't be turned back on or off by accident. Hiding it isn't enough: it would also hide its state.
 
 ## 11. Robustness features (D16)
@@ -469,7 +492,7 @@ See §6.2: automatic bus-off recovery, error-counter reporting, segment localisa
 - The hub runs its own WPA2 access point `fleet-hub` permanently, alongside its home-Wi-Fi connection.
 - If the router is down:
   - the dashboard is still reachable at `http://192.168.4.1`
-  - Shelly plugs use the hub network as their fallback (§10.1, §10.2)
+  - Shelly and Tasmota plugs use the hub network as their fallback (§10.1–§10.3)
   - ESP-NOW keeps running on the same channel
 - Notifications (Pushover) still need the internet; while it's down they queue, and the panel buzzer and bed LEDs carry the alarms.
 
@@ -500,20 +523,22 @@ Each node-heat keeps a small first-order model of its chamber: predicted tempera
 | **Hub supply lost** | The hub reads its own supply input: the internal XT60's voltage on the tap side of its ideal diode (D64), through the carrier I/O controller (doc 02 §2.4). If it drops below ~20 V while the hub stays up on the bus, its supply has failed and the chain is feeding it (D52; the OUT-port current direction this used is gone with the INA190). The hub sends a **High** "hub supply lost, running on printer power" push and enters back-fed mode. **A controller that stops answering counts as back-fed** (D64): the reading is missing, and in a fire the siren and push must go before the cut, so the hub assumes the safe order and raises a "carrier I/O controller silent" alert. Back-fed mode ends only when the controller reads the supply again |
 | **Back-fed mode** | While back-fed: LED brightness capped and **one damper servo moving at a time**, so a single injecting node's ~1 A limit carries the whole chain even in an alarm; in a fire or runaway, **siren and push go before the cut** (doc 05 §3.4, §5), since the cut printer may be the hub's only power; the dashboard shows the mode and the hub's measured bus voltage (D64), and anemometer readings are flagged as degraded (doc 06 §4.4). It ends when the hub's supply input returns |
 
-### 11.8 Debugging (D65, D68)
+### 11.8 Debugging (D65, D68, D72)
 
-**ESP32: JTAG over the dev board's USB port.** The ESP32-S3's built-in **USB-Serial-JTAG** controller gives full OpenOCD and GDB debugging (breakpoints, hardware watchpoints, both cores, peripheral registers, flashing and a console) on the native "USB" port, with no probe and no carrier pins [V: ESP-IDF USB device documentation]. It shares that port's internal PHY with the USB device stack that carries the printer link (§6.1), and only one can run at a time; starting the device stack takes the PHY away from USB-Serial-JTAG [V: same]. So:
+**ESP32: UART0 console header (D72).** GPIOs 43/44 and GND on a 1 × 3 2.54 mm header take a 3.3 V USB-UART adapter. It carries the ESP-IDF console and log output whatever the native USB is doing, so it is the console while the printer link holds the USB port. With BOOT held through a reset (a power cycle), the ROM bootloader listens on it, so `esptool` can reflash a board whose native USB is misconfigured.
+
+**ESP32: JTAG over the carrier's USB-C.** The ESP32-S3's built-in **USB-Serial-JTAG** controller gives full OpenOCD and GDB debugging (breakpoints, hardware watchpoints, both cores, peripheral registers, flashing and a console) on the native USB port (the carrier's USB-C receptacle, D72), with no probe [V: ESP-IDF USB device documentation]. It shares that port's internal PHY with the USB device stack that carries the printer link (§6.1), and only one can run at a time; starting the device stack takes the PHY away from USB-Serial-JTAG [V: same]. So:
 
 | Item | Design |
 |---|---|
 | **Debug USB mode** | A console command (UART0, or the dashboard with the PIN) sets an NVS flag, and on the next boot the firmware doesn't start the USB device stack, so the port stays USB-Serial-JTAG. The laptop cable replaces the printer lead: `idf.py flash`, `idf.py monitor`, `idf.py openocd` and `idf.py gdb` all use it. The flag clears on the next power-on reset, so a forgotten flag can't leave the printer link dead [E] |
 | Printer link meanwhile | Falls back to Moonraker over Wi-Fi (§1). A UART printer link on the AUX header (D48) is unaffected |
 | Heating | Allowed. Between halts the safety task runs as normal; at a breakpoint the charge-pump wave stops, so the high side switches off in hardware (§2), and the hub sees the node silent and alerts as for any dropout |
-| Power | The carrier must be on its own 24 V supply, or the reset hold keeps the ESP32 in reset (D36) |
+| Power | The carrier must be on its own 24 V supply: its USB-C has no VBUS connection, so USB alone doesn't start the board (D72) |
 | Never | Burn `USB_PHY_SEL`: it moves the PHY permanently. The JTAG eFuses are only for pad JTAG (below) |
 
 **ESP32: pad JTAG while the printer link runs (D68).** GPIOs 39–42 go only to a **1 × 6 2.54 mm JTAG header** (3.3 V, TMS, TCK, TDO, TDI, GND) for an ESP-Prog-class FT2232H probe with OpenOCD. The printer link keeps the USB port, so a fault that only shows while printing can be debugged live. It needs the `STRAP_JTAG_SEL` eFuse burned once on that board (GPIO 3, held low at reset by the fan A enable pull-down, then selects pad JTAG), or `DIS_USB_JTAG`. A burned board can no longer use JTAG over USB (the USB serial console still works); an unburned board uses the debug USB mode above [V: ESP-IDF "Configure Other JTAG Interface": GPIO 3 low at reset selects GPIOs 39–42; burning `DIS_USB_JTAG` leaves the USB CDC console working]. Breakpoints behave as in the table: heating is safe at a halt.
 
-**ESP32: without a laptop.** A crash writes an ESP-IDF **core dump** to its flash partition, and the dashboard offers it for download, for `idf.py coredump-info` (backtrace, tasks, variables). The optional **runtime GDB stub** on UART0 (the dev board's UART port) lets GDB stop and inspect a running node while the printer link stays up, with fewer breakpoints than JTAG [E].
+**ESP32: without a laptop.** A crash writes an ESP-IDF **core dump** to its flash partition, and the dashboard offers it for download, for `idf.py coredump-info` (backtrace, tasks, variables). The optional **runtime GDB stub** on UART0 (the carrier's 1 × 3 console header, D72) lets GDB stop and inspect a running node while the printer link stays up, with fewer breakpoints than JTAG [E].
 
 **Carrier I/O controller (PY32).** Its SWD header is free for a probe at any time in the normal build (D68); the pin rules are in doc 09 §4.5. On the ESP32 side, the **`IOC_HOLD`** console command stops the ESP32 from resetting and reprogramming the controller when it stops answering at a breakpoint (doc 09 §4.2), until the next power cycle. While the controller is silent the heater is held off, as for any mid-run reset of the controller, and heating resumes when its readings return.

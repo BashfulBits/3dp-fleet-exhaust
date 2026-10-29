@@ -121,13 +121,13 @@ stateDiagram-v2
 ## 4. ESP32-S3 GPIO map (carrier, all roles)
 
 Rules applied:
-- The dev board's **BOOT button (GPIO 0)** is read after boot as the node's **CLEAR button** (doc 05 §4.1); nothing on the carrier connects to GPIO 0. Holding it through a reset only enters the bootloader, with every output off and the latches kept in NVS.
-- Strapping pins: **GPIO 0** is read only as the service button. **GPIO 3** (fan A enable) and **GPIO 45** (output B2) are outputs with pull-downs, so both are low at reset (D68): GPIO 45 low selects the 3.3 V flash supply the WROOM-1 modules use [V: ESP32-S3 datasheet strapping table], and GPIO 3 low selects pad JTAG on a board whose `STRAP_JTAG_SEL` eFuse is burned (doc 07 §11.8). Nothing may pull either pin high at reset. **GPIO 46 is used as an input only** (the `24V_HEAT` sense, D64): it is low whenever the high side is off, including at reset, and a normal boot (GPIO 0 high) ignores it, and it matters only when download mode is entered, where it must be low or floating, which it is because the high side is off in hardware [V: Espressif esptool boot-mode documentation]. Also avoid native USB (19, 20), UART0 console (43, 44), flash/PSRAM (26–37), and the DevKitC onboard RGB pins (38, 48). **GPIOs 39–42 are the JTAG pins** (D68) and carry nothing else.
+- The carrier's **BOOT button (GPIO 0)** is read after boot as the node's **CLEAR button** (doc 05 §4.1); nothing else on the carrier connects to GPIO 0. Holding it through a reset only enters the bootloader, with every output off and the latches kept in NVS.
+- Strapping pins: **GPIO 0** is read only as the service button. **GPIO 3** (fan A enable) and **GPIO 45** (output B2) are outputs with pull-downs, so both are low at reset (D68): GPIO 45 low selects the 3.3 V flash supply the WROOM-1 modules use [V: ESP32-S3 datasheet strapping table], and GPIO 3 low selects pad JTAG on a board whose `STRAP_JTAG_SEL` eFuse is burned (doc 07 §11.8). Nothing may pull either pin high at reset. **GPIO 46 is used as an input only** (the `24V_HEAT` sense, D64): it is low whenever the high side is off, including at reset, and a normal boot (GPIO 0 high) ignores it, and it matters only when download mode is entered, where it must be low or floating, which it is because the high side is off in hardware [V: Espressif esptool boot-mode documentation]. Also avoid native USB (19, 20, the USB-C receptacle) and flash/PSRAM (26–37). **GPIOs 43 and 44** are UART0, brought out to the 1 × 3 console header (D72). **GPIOs 38 and 48** are free since D72 (a DevKitC's RGB LED used one of them). **GPIOs 39–42 are the JTAG pins** (D68) and carry nothing else.
 - Analog inputs use **ADC1 only** (ADC2 is unusable while Wi-Fi is active).
 
 | GPIO | Node-heat | Node-lite | Hub | Notes |
 |---|---|---|---|---|
-| 0 | **Service button** (the dev board's BOOT button, D46) | Same | Same | Input only; nothing on the carrier connects to it. Held at power-up, it enters download mode as usual |
+| 0 | **Service button** (the carrier's BOOT tact switch, D46, D72) | Same | Same | Input; 10 kΩ pull-up per Espressif's module reference. Held at power-up, it enters download mode as usual |
 | 1 | Chamber-air NTC (ADC) | – (fitted, spare) | **Anemometer reference NTC** (D32) | ADC1_CH0. 47 kΩ pull-up, ≈ 4.6 kΩ with the RANGE 1 shunt on (node-heat, D47) |
 | 2 | Heater-housing NTC (ADC) | – (fitted, spare) | **Anemometer heated NTC** (D32) | ADC1_CH1. RANGE 2 shunt as for GPIO 1 |
 | 3 | **Fan A high-side enable** (D68, was GPIO 18) | – | Fan A enable (if used) | 10 kΩ pull-down, low at reset (strapping pin, above). The board identity moved to the carrier I/O controller (D68, below) |
@@ -137,7 +137,7 @@ Rules applied:
 | 7 | Heater low-side PWM | – | – | 10 kΩ pull-down |
 | 8 | I²C SDA | I²C SDA | I²C SDA | On-board XGZP, carrier I/O controller (I²C target), 8-channel I²C switch; behind it, one channel per external sensor header 1–8 (header 1 = sensor head; header 2 = node damper encoder, or hub trunk XGZP; header 3 = hub trunk-flow XGZP, D30/D33; header 4 = optional OLED on any role, on its own channel, D48; D45, D54, doc 09 §3). While the ESP32 programs an MCU, GPIO 8 carries UART2 RX instead (doc 09 §4.1) |
 | 9 | I²C SCL | I²C SCL | I²C SCL | UART2 TX while programming (doc 09 §4.1) |
-| 10 | **LAN CS** (D45) | LAN CS | LAN CS | SPI2 IO MUX pin (no GPIO matrix). The LAN parts are fitted on every carrier (D47); a node without a LAN cable leaves the chip idle |
+| 10 | **LAN CS** (D45) | LAN CS | LAN CS | SPI2 IO MUX pin (no GPIO matrix), to the 2 × 5 LAN module socket (D72). Only a board with a W5500 module plugged in uses it |
 | 11 | **LAN MOSI** (D45) | LAN MOSI | LAN MOSI | SPI2 IO MUX pin |
 | 12 | **LAN SCK** (D45) | LAN SCK | LAN SCK | SPI2 IO MUX pin |
 | 13 | **LAN MISO** (D45) | LAN MISO | LAN MISO | SPI2 IO MUX pin. The door input is read through the carrier I/O controller (doc 02 §2.4) |
@@ -147,15 +147,19 @@ Rules applied:
 | 17 | Fan A tach in | – | **G4 tach/health** (per R1) | Pull-up + clamp |
 | 18 | **CAN RX** (D68, was GPIO 42) | CAN RX | CAN RX | TWAI. Fan A enable moved to GPIO 3 |
 | 21 | **Servo PWM** (50 Hz) | Servo PWM | – | Pull-down, held low at boot (was GPIO 12). LED chain 2 was dropped from the fixed map (D45) |
+| 38 | Free (D72) | Free | Free | Was a DevKitC RGB LED pin |
 | 39 | **JTAG TCK** (MTCK, D68) | Same | Same | To the 1 × 6 JTAG header only. Output B1 moved to the carrier I/O controller (PA8) |
 | 40 | **JTAG TDO** (MTDO, D68) | Same | Same | JTAG header only. Output B2 moved to GPIO 45 |
 | 41 | **JTAG TDI** (MTDI, D68) | Same | Same | JTAG header only. CAN TX moved to GPIO 16 |
 | 42 | **JTAG TMS** (MTMS, D68) | Same | Same | JTAG header only. CAN RX moved to GPIO 18 |
 | 45 | Output B2: spare (D68, was GPIO 40) | – | **Buzzer** | Pull-down, low at reset (strapping pin, above) |
 | 46 | **High-side output sense** (`24V_HEAT` through a divider and clamp, D64) | Same | Same | Digital input, strapping pin used as an input only (above). Low whenever the high side is off. Moved here from the carrier I/O controller by D64 so a welded high-side FET is seen directly by the safety task |
+| 43 | **UART0 TX** (console header, D72) | Same | Same | 1 × 3 header with GPIO 44 and GND; the ROM bootloader and the ESP-IDF console use it |
+| 44 | **UART0 RX** (console header, D72) | Same | Same | |
 | 47 | **Carrier I/O controller interrupt** (D45, D54, doc 09 §2.3) | Same | Same | Input, 10 kΩ pull-up; the controller pulls it low (open-drain) when any of its own inputs changes (door, KSD301 loop, group rail; doc 09 §2.3). The board status LED moved to the carrier I/O controller |
+| 48 | Free (D72) | Free | Free | Was a DevKitC RGB LED pin |
 
-**Heater current sense (D50).** The 5 mΩ low-side shunt feeds one half of an LM2904 (LCSC C18229, Preferred) as a non-inverting amplifier, gain 40 (39 kΩ / 1 kΩ, 1 %), powered from `+5V_LOGIC`:
+**Heater current sense (D50).** The 5 mΩ low-side shunt feeds one half of an LM2904 (LCSC C18229, Preferred) as a non-inverting amplifier, gain 40 (39 kΩ / 1 kΩ, 1 %), powered from `+5V_PWR` through 10 Ω and 10 µF (D72; `+5V_LOGIC` before):
 - **Input:** shunt → 1 kΩ → + input. A **330 kΩ from 3.3 V** to the + input adds a pedestal of ≈ 10 mV, so the output never sits on the 0 V rail when the amplifier's offset (up to ±7 mV) is negative. With the pedestal, zero current reads ≈ 0.4 V, away from the ADC's poor region near 0 V. A 10 nF at the + input filters PWM edges.
 - **Output:** 1 kΩ in series into GPIO 4, because the output can reach ≈ 3.5 V when saturated; the resistor limits the current into the pin's clamp. The output clips at ≈ 12 A, so cold-PTC inrush peaks read as full scale.
 - The unused half is tied off as a follower to GND.
@@ -174,7 +178,7 @@ Rules applied:
 
 The ESP32 reads it from the controller once at boot, after the controller starts (doc 09 §4.2). If the shunt and the role stored in NVS disagree (doc 07 §2), or the shunt is unset, the board starts in a **safe hold**. If the controller can't be reached, the board runs the stored role with an "identity unchecked" alert; the heater is held off anyway without the controller (D47). In safe hold, the heater enable stays off, the outputs stay off and the LEDs work, and a "role mismatch" fault is raised. Since D47 every carrier carries the same parts, so the shunt is what makes a board a given role. The firmware also checks the **RANGE shunts** against it: at boot, after the heater has been off, each NTC must agree with the sensor head's SHT40 to within a few °C. A RANGE shunt left in the wrong position reads tens of degrees off, and raises the same mismatch fault and safe hold. The **ILIM shunt** (eFuse limit, doc 02 §2.2) can't be read by the firmware; commissioning checks it, and a missing one gives the lower, safe limit.
 
-**Service button (D46).** The dev board's BOOT button (GPIO 0), read after boot:
+**Service button (D46).** The carrier's BOOT tact switch (GPIO 0, D72), read after boot:
 - **Short press:** opens Wi-Fi provisioning for 10 minutes.
 - **Hold ≥ 10 s:** factory reset of NVS (Wi-Fi credentials, node ID, calibration), refused while the heater is on. After the reset, the role comes back from the shunt.
 
@@ -194,7 +198,7 @@ The ESP32 reads it from the controller once at boot, after the controller starts
 - A and B are digital only: the shifter doesn't pass an analog level.
 - **On-board button (D49):** a TS-1187A-B-A-B SMD tact switch (C318884, Basic, 1.5 mm actuator) from B's connector side to GND, on every carrier. It sits on the RX line on purpose: pressing it can't short the TX output. Its position on the board is fixed at layout so the C9 plunger lines up; the node housing (C5) has no plunger for it.
 
-It is reached with the node housing open. Holding it at power-up still enters download mode, as on any dev board.
+It is reached with the node housing open. Holding it at power-up still enters download mode, as on any ESP32 board.
 
 **Peripheral use: no bit-banged interfaces.** Every interface runs on an ESP32-S3 peripheral:
 
@@ -202,7 +206,7 @@ It is reached with the node housing open. Holding it at power-up still enters do
 |---|---|---|
 | CAN | TWAI | |
 | I²C | I²C 0 | Sensor headers, on-board XGZP, carrier I/O controller |
-| LAN | SPI2 on the IO MUX pins | GPIOs 10–13 |
+| LAN | SPI2 on the IO MUX pins | GPIOs 10–13, to the W5500 module socket (D72) |
 | LED chain 1 (bed strip, or the hub panel) | **Carrier I/O controller TIM3 PWM with DMA** (PA5, D70, D71) | The controller renders the stream from colour and pattern commands sent over I²C (doc 09 §2.1). The ESP32's RMT drove it with DMA before D70 |
 | MCU programming (carrier I/O controller, sensor-board MCUs) | **UART2** on GPIO 8/9 through the GPIO matrix, open-drain, 115200 8E1 | Only while programming; the I²C driver is detached for that time (doc 09 §4) |
 | Servo, heater PWM, fan A PWM | LEDC | Three frequencies, inside LEDC's four timers. B1 PWM is a timer on the carrier I/O controller (D68) |
@@ -214,7 +218,7 @@ It is reached with the node housing open. Holding it at power-up still enters do
 
 **RMT budget:** none since D70 (LED chain 1 is on the carrier I/O controller); all 4 TX channels are free for a second LED chain later.
 
-**LAN jack (D18; fitted on any role, D45):** the SPI Ethernet chip needs four GPIOs (SCK, MOSI, MISO, CS; polling mode, no interrupt). They are **GPIOs 10–13 on every carrier**, the S3's IO MUX pins for SPI2, so the SPI runs on the peripheral directly (up to 80 MHz) and not through the GPIO matrix (40 MHz, with extra delay on MISO) [E: confirm in the S3 technical reference manual]. CAN and the servo output use the matrix and moved to GPIOs 41, 42 and 21 to make room. There are no 0 Ω links, and the same map applies to all roles. The default SPI clock is 20 MHz; the Ethernet chip's own limit is higher, and the bring-up test (O15) checks 20 and 40 MHz.
+**LAN module socket (D18, D45, D72):** the W5500 module needs four GPIOs (SCK, MOSI, MISO, CS; polling mode, no interrupt). They are **GPIOs 10–13 on every carrier**, the S3's IO MUX pins for SPI2, so the SPI runs on the peripheral directly (up to 80 MHz) and not through the GPIO matrix (40 MHz, with extra delay on MISO) [E: confirm in the S3 technical reference manual]. CAN and the servo output use the matrix and moved to GPIOs 41, 42 and 21 to make room. There are no 0 Ω links, and the same map applies to all roles. The default SPI clock is 20 MHz; the W5500's own limit is higher, and bring-up checks 20 and 40 MHz with the module on the socket [E: a plug-in module adds lead length]. The module's interrupt isn't wired (the driver polls), and its own RC resets it.
 
 The KSD301 and charge-pump chain works in **hardware**. The carrier I/O controller only *reports* its state; the firmware can't override it.
 
@@ -224,11 +228,11 @@ Every Tier 2 printer (doc 12 §3.2) uses the same link; only the printer end dif
 
 | Item | Specification |
 |---|---|
-| Node end | The dev board's **native USB-C** port (labelled "USB"), not the UART port. |
+| Node end | The carrier's **USB-C** receptacle, wired to the module's native USB (D72). |
 | Lead | USB 2.0, **D+, D−, GND and shield only. VBUS is left unconnected and insulated at both ends**, so the printer never powers the node and the node never back-feeds the printer (ARG-08). |
 | Enumeration | The node appears as a USB CDC-ACM device, so the printer's kernel needs `cdc_acm`. The plugin opens `/dev/serial/by-id/usb-fleet_exhaust_node_<serial>-if00`, or finds the node by VID/PID when `serial:` is unset (doc 07 §3.1). |
-| Carrier off, USB powered (D36) | If a lead with VBUS is used anyway, the dev board's 5 V can't reach the carrier rails (the ideal diode, D37), and the carrier holds the ESP32 in reset until its own 5 V is up (doc 02 §2.1), so nothing on the carrier is back-powered. The no-VBUS lead stays the first layer |
-| VBUS-less enumeration | The ESP32-S3 USB device works with the board powered from its 5 V pin and no VBUS on the cable [U: confirm on the prototype]. |
+| Carrier off, USB powered | The carrier's USB-C has no VBUS connection (D72), so a lead with VBUS can't power or back-feed anything; the ESP32 runs only from the carrier's own supply. The no-VBUS lead stays the first layer |
+| VBUS-less enumeration | The ESP32-S3 USB device works with the board powered by the carrier and no VBUS on the cable [U: confirm on the prototype]. |
 | Printer end rules | Prefer an **external** USB port. Internally, plug into a header (solder pins into a footprint's holes if needed), never wires onto pads (P-5). An internal hub board is a fallback only. |
 | Ground | Shield connects at the printer end only. When the node heater runs from the printer's supply, part of the heater return shares this lead's ground (R11, §6). |
 
@@ -284,7 +288,7 @@ Checked at commissioning (doc 05 §9 test 29) and continuously by the hub: when 
 | Mains | IEC inlet (fused, switched) | LRS-100-24 L/N/PE (PE to the PSU case and the inlet earth only) |
 | 24 V logic | PSU +V/−V, lead with an XT60 | Carrier internal XT60 (INJECT INT fitted), CAT6 power via carrier |
 | Buzzer | Carrier B2 | Active 24 V buzzer |
-| Panel | LED1 → WS2812 ×2; acknowledge = the carrier's on-board tact switch (GPIO 6, AUX B) through the C9 ACK plunger, SERVICE plunger over the dev board's BOOT button (D49); sensor header 4 (switch channel 3) → optional OLED (D48) | Panel |
+| Panel | LED1 → WS2812 ×2; acknowledge = the carrier's on-board tact switch (GPIO 6, AUX B) through the C9 ACK plunger, SERVICE plunger over the carrier's BOOT button (D49); sensor header 4 (switch channel 3) → optional OLED (D48) | Panel |
 | Trunk ΔP | Sensor header 2 (switch channel 1) | Sensor board P (XGZP6897D), tubes to the trunk tap and room |
 | Trunk flow (D30) | Sensor header 3 (switch channel 2) | Sensor board P (D33), tubes to the venturi inlet and throat taps |
 | Low-flow anemometer (D32) | NTC 1 (GPIO 1), NTC 2 (GPIO 2), B1 (carrier I/O controller PA8, D68) | C18 probe: reference NTC at the venturi inlet, heated NTC + heater resistor in the throat |
