@@ -122,7 +122,7 @@ stateDiagram-v2
 
 Rules applied:
 - The carrier's **BOOT button (GPIO 0)** is read after boot as the node's **CLEAR button** (doc 05 §4.1); nothing else on the carrier connects to GPIO 0. Holding it through a reset only enters the bootloader, with every output off and the latches kept in NVS.
-- Strapping pins: **GPIO 0** is read only as the service button. **GPIO 3** (fan A enable) and **GPIO 45** (output B2) are outputs with pull-downs, so both are low at reset (D68): GPIO 45 low selects the 3.3 V flash supply the WROOM-1 modules use [V: ESP32-S3 datasheet strapping table], and GPIO 3 low selects pad JTAG on a board whose `STRAP_JTAG_SEL` eFuse is burned (doc 07 §11.8). Nothing may pull either pin high at reset. **GPIO 46 is used as an input only** (the `24V_HEAT` sense, D64): it is low whenever the high side is off, including at reset, and a normal boot (GPIO 0 high) ignores it, and it matters only when download mode is entered, where it must be low or floating, which it is because the high side is off in hardware [V: Espressif esptool boot-mode documentation]. Also avoid native USB (19, 20, the USB-C receptacle) and flash/PSRAM (26–34). **GPIOs 35–37** are free only on the quad-PSRAM N8R2 module (the octal-PSRAM R8 modules use them), and GPIO 37 is used (D74). **GPIOs 43 and 44** are UART0, brought out to the 1 × 3 console header (D72). **GPIO 38** is the LAN module's interrupt (D72) and **GPIO 48** the KSD301 loop sense (D74); a DevKitC's RGB LED used one of them. **GPIOs 39–42 are the JTAG pins** (D68) and carry nothing else.
+- Strapping pins: **GPIO 0** is read only as the service button. **GPIO 3** (fan A enable) and **GPIO 45** (output B2) are outputs with pull-downs, so both are low at reset (D68): GPIO 45 low selects the 3.3 V flash supply the WROOM-1 modules use [V: ESP32-S3 datasheet strapping table], and GPIO 3 low selects pad JTAG on a board whose `STRAP_JTAG_SEL` eFuse is burned (doc 07 §11.8). Nothing may pull either pin high at reset. **GPIO 46 is used as an input only** (the `24V_HEAT` sense, D64): it is low whenever the high side is off, including at reset, and a normal boot (GPIO 0 high) ignores it, and it matters only when download mode is entered, where it must be low or floating, which it is because the high side is off in hardware [V: Espressif esptool boot-mode documentation]. Also avoid native USB (19, 20, the USB-C receptacle) and flash/PSRAM (26–34). **GPIOs 35–37** are free only on the quad-PSRAM N8R2 module (the octal-PSRAM R8 modules use them), and all three are used (GPIO 37 by D74, GPIO 35 and 36 by D75). **GPIOs 43 and 44** are UART0, brought out to the 1 × 3 console header (D72). **GPIO 38** is the LAN module's interrupt (D72) and **GPIO 48** the KSD301 loop sense (D74); a DevKitC's RGB LED used one of them. **GPIOs 39–42 are the JTAG pins** (D68) and carry nothing else.
 - Analog inputs use **ADC1 only** (ADC2 is unusable while Wi-Fi is active).
 
 | GPIO | Node-heat | Node-lite | Hub | Notes |
@@ -132,9 +132,9 @@ Rules applied:
 | 2 | Heater-housing NTC (ADC) | – (fitted, spare) | **Anemometer heated NTC** (D32) | ADC1_CH1. RANGE 2 shunt as for GPIO 1 |
 | 3 | **Fan A high-side enable** (D68, was GPIO 18) | – | Fan A enable (if used) | 10 kΩ pull-down, low at reset (strapping pin, above). The board identity moved to the carrier I/O controller (D68, below) |
 | 4 | Heater current, LM2904 out (ADC, D50) | – | – | ADC1_CH3; sampled at a fixed rate by ADC1 continuous mode with DMA (below) |
-| 5 | AUX A: spare, or **UART1 TX** to the printer (D48) | Same | **Smoke dry-contact input** (edge interrupt; D49, was GPIO 6) | Through a 2N7002 level shifter to the AUX header (below), so digital only. The heater-rail voltage moved to the carrier I/O controller's ADC (D47) |
-| 6 | AUX B: spare, or **UART1 RX** from the printer (D48) | Same | **Acknowledge button** (edge interrupt, debounced; D49, was GPIO 5): the on-board tact switch, or a remote button on AUX B | Level shifter as GPIO 5; 5 V-tolerant at the connector. The on-board tact switch is on this line (D49). The external heater-input sense (D22) moved to the carrier I/O controller's ADC (D47) |
-| 7 | Heater low-side PWM | – | – | 10 kΩ pull-down |
+| 5 | **Heater-rail voltage** (ADC, D75) | Same | Same | ADC1_CH4. 100 kΩ / 9.1 kΩ divider, 100 nF at the pin. Back from the controller's PB0 (D75); AUX A moved to GPIO 36 |
+| 6 | AUX B: spare, or **UART1 RX** from the printer (D48) | Same | **Acknowledge button** (edge interrupt, debounced; D49, was GPIO 5): the on-board tact switch, or a remote button on AUX B | Level shifter as GPIO 36; 5 V-tolerant at the connector. The on-board tact switch is on this line (D49). The external heater-input sense (D22) moved to the carrier I/O controller's ADC (D47) |
+| 7 | **Tap-side heater voltage** (ADC, D64, D75) | Same | Same | ADC1_CH6. Divider as GPIO 5, on the internal XT60's side of the tap ideal diode. Back from the controller's PB1 (D75); the heater PWM moved to GPIO 35 |
 | 8 | I²C SDA | I²C SDA | I²C SDA | On-board XGZP, carrier I/O controller (I²C target), 8-channel I²C switch; behind it, one channel per external sensor header 1–8 (header 1 = sensor head; header 2 = node damper encoder, or hub trunk XGZP; header 3 = hub trunk-flow XGZP, D30/D33; header 4 = optional OLED on any role, on its own channel, D48; D45, D54, doc 09 §3). While the ESP32 programs an MCU, GPIO 8 carries UART2 RX instead (doc 09 §4.1) |
 | 9 | I²C SCL | I²C SCL | I²C SCL | UART2 TX while programming (doc 09 §4.1) |
 | 10 | **LAN CS** (D45) | LAN CS | LAN CS | SPI2 IO MUX pin (no GPIO matrix), to the 2 × 5 LAN module socket (D72). Only a board with a W5500 module plugged in uses it |
@@ -147,6 +147,8 @@ Rules applied:
 | 17 | Fan A tach in | – | **G4 tach/health** (per R1) | Pull-up + clamp |
 | 18 | **CAN RX** (D68, was GPIO 42) | CAN RX | CAN RX | TWAI. Fan A enable moved to GPIO 3 |
 | 21 | **Servo PWM** (50 Hz) | Servo PWM | – | Pull-down, held low at boot (was GPIO 12). LED chain 2 was dropped from the fixed map (D45) |
+| 35 | Heater low-side PWM (D75, was GPIO 7) | – | – | LEDC. 10 kΩ pull-down. N8R2 module only (rules above) |
+| 36 | AUX A: spare, or **UART1 TX** to the printer (D48, D75, was GPIO 5) | Same | **Smoke dry-contact input** (edge interrupt; D49) | Through a 2N7002 level shifter to the AUX header (below), so digital only. N8R2 module only |
 | 37 | **Tap ideal-diode disable** (D74, was the controller's PF1) | Same | Same | Output to the 2N7002 on the MX74700T's EN; the 4.7 kΩ gate pull-down keeps the diode on while the pin floats at reset. Driven only by the two-supply check (doc 02 §2.2). N8R2 module only (rules above) |
 | 38 | **LAN interrupt** (W5500 INTn, D72) | Same | Same | Input, 10 kΩ pull-up, active low, falling-edge interrupt; idle high with no module fitted. Was a DevKitC RGB LED pin |
 | 39 | **JTAG TCK** (MTCK, D68) | Same | Same | To the 1 × 6 JTAG header only. Output B1 moved to the carrier I/O controller (PA8) |
@@ -177,7 +179,7 @@ Rules applied:
 | HUB | 220 kΩ | ≈ 2.27 V | `hub` (1.6–2.8 V) |
 | No shunt | — | 3.3 V | **unset** (above 2.8 V) |
 
-The ESP32 reads it from the controller once at boot, after the controller starts (doc 09 §4.2). If the shunt and the role stored in NVS disagree (doc 07 §2), or the shunt is unset, the board starts in a **safe hold**. If the controller can't be reached, the board runs the stored role with an "identity unchecked" alert; the heater is held off anyway without the controller (D47). In safe hold, the heater enable stays off, the outputs stay off and the LEDs work, and a "role mismatch" fault is raised. Since D47 every carrier carries the same parts, so the shunt is what makes a board a given role. The firmware also checks the **RANGE shunts** against it: at boot, after the heater has been off, each NTC must agree with the sensor head's SHT40 to within a few °C. A RANGE shunt left in the wrong position reads tens of degrees off, and raises the same mismatch fault and safe hold. The **ILIM shunt** (eFuse limit, doc 02 §2.2) can't be read by the firmware; commissioning checks it, and a missing one gives the lower, safe limit.
+The ESP32 reads it from the controller once at boot, after the controller starts (doc 09 §4.2). If the shunt and the role stored in NVS disagree (doc 07 §2), or the shunt is unset, the board starts in a **safe hold**. If the controller can't be reached, the board runs the stored role with an "identity unchecked" alert, and the heater stays off until the identity has been read once since boot (D75). In safe hold, the heater enable stays off, the outputs stay off and the LEDs work, and a "role mismatch" fault is raised. Since D47 every carrier carries the same parts, so the shunt is what makes a board a given role. The firmware also checks the **RANGE shunts** against it: at boot, after the heater has been off, each NTC must agree with the sensor head's SHT40 to within a few °C. A RANGE shunt left in the wrong position reads tens of degrees off, and raises the same mismatch fault and safe hold. The **ILIM shunt** (eFuse limit, doc 02 §2.2) can't be read by the firmware; commissioning checks it, and a missing one gives the lower, safe limit.
 
 **Service button (D46).** The carrier's BOOT tact switch (GPIO 0, D72), read after boot:
 - **Short press:** opens Wi-Fi provisioning for 10 minutes.
@@ -189,7 +191,7 @@ The ESP32 reads it from the controller once at boot, after the controller starts
 |---|---|---|---|
 | 1 | 3.3 V (header group rail, ≈ 1 A limit, D57) | – | not connected |
 | 2 | GND | Smoke contact return | Printer GND |
-| 3 | A: GPIO 5 | Smoke dry contact | **TX**, node → printer RX |
+| 3 | A: GPIO 36 | Smoke dry contact | **TX**, node → printer RX |
 | 4 | B: GPIO 6 | Remote acknowledge button (optional; the on-board switch is in parallel) | **RX**, printer TX → node |
 | 5 | GND | Remote button return | – |
 
@@ -212,9 +214,9 @@ It is reached with the node housing open. Holding it at power-up still enters do
 | MCU programming (carrier I/O controller, sensor-board MCUs) | **UART2** on GPIO 8/9 through the GPIO matrix, open-drain, 115200 8E1 | Only while programming; the I²C driver is detached for that time (doc 09 §4) |
 | Servo, heater PWM, fan A PWM | LEDC | Three frequencies, inside LEDC's four timers. B1 PWM is a timer on the carrier I/O controller (D68) |
 | Heater-enable charge pump | **Plain GPIO, toggled by the safety task** | Deliberately not a peripheral. A hardware PWM keeps running if the safety task hangs, which would defeat layer L5 (doc 05 §3.1, doc 07 §2) |
-| Analog inputs (GPIOs 1, 2, 4 on node-heat; 1, 2 on the hub) | **ADC1 continuous mode with DMA** | Scans every ADC1 input at a fixed rate, so the heater-current samples (GPIO 4) are evenly spaced without the CPU timing each read. ESP-IDF doesn't mix one-shot and continuous mode on one ADC unit [E], so all ADC1 inputs move to continuous mode together |
-| Hub smoke dry contact (GPIO 5), hub acknowledge button (GPIO 6) (AUX) | **GPIO edge interrupts** | A press or an alarm is seen at once, not at the next poll. The button is debounced in software. Neither depends on I²C |
-| UART printer link on a node (GPIOs 5, 6, AUX; D48) | **UART1** | Only with `link: marlin_serial`, `link_port: uart` (doc 12 §3.2) |
+| Analog inputs (GPIOs 1, 2, 4, 5, 7 on node-heat; 1, 2, 5, 7 on the other roles) | **ADC1 continuous mode with DMA** | Scans every ADC1 input at a fixed rate, so the heater-current samples (GPIO 4) are evenly spaced without the CPU timing each read. ESP-IDF doesn't mix one-shot and continuous mode on one ADC unit [E], so all ADC1 inputs move to continuous mode together |
+| Hub smoke dry contact (GPIO 36), hub acknowledge button (GPIO 6) (AUX) | **GPIO edge interrupts** | A press or an alarm is seen at once, not at the next poll. The button is debounced in software. Neither depends on I²C |
+| UART printer link on a node (GPIOs 36, 6, AUX; D48) | **UART1** | Only with `link: marlin_serial`, `link_port: uart` (doc 12 §3.2) |
 | Fan tach | PCNT | |
 
 **RMT budget:** none since D70 (LED chain 1 is on the carrier I/O controller); all 4 TX channels are free for a second LED chain later.
@@ -296,4 +298,4 @@ Checked at commissioning (doc 05 §9 test 29) and continuously by the hub: when 
 | Filter ΔP | On-board XGZP barbs | Filter housing inlet and outlet taps |
 | Room sensor | Sensor header 1 (switch channel 0) | Sensor head |
 | Fan | Fan A (+ adapter per R1) | G4 control port |
-| Smoke | AUX A (GPIO 5) | Optional relay-output smoke detector (dry contact) |
+| Smoke | AUX A (GPIO 36) | Optional relay-output smoke detector (dry contact) |

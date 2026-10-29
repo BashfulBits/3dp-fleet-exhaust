@@ -20,7 +20,7 @@ Evidence key, as in the other docs: **[V]** verified from a datasheet, reference
 
 A sensor board with an MCU on it (D42: an ADC, I/O expander, light sensor or protocol bridge) is programmed through the header it is plugged into, with no pads and no separate programmer. Header sensors are polled; the headers have no interrupt line (D68). The reference build's sensor boards S, P and E have no MCU.
 
-**The carrier I/O controller is needed for heating, not for sensing.** If it is missing or not yet programmed, every header is powered (the gate pull-downs hold the FETs on) and the ESP32 still reads every sensor through the switch. Power cycling, output B1, LED chain 1 and the slow carrier I/O are lost, the board identity goes unchecked (the role stored in NVS is used, with an alert), and since the heater-input readings come from it, **the heater is held off** (D47).
+**The carrier I/O controller is needed for neither heating nor sensing** (D75). If it is missing or not yet programmed, every header is powered (the gate pull-downs hold the FETs on) and the ESP32 still reads every sensor through the switch. Power cycling, output B1, LED chain 1 and the slow carrier I/O are lost, and the board identity goes unchecked (the role stored in NVS is used, with an alert). The heater stays off only until the identity has been read once since boot; every heater input is on the ESP32 (D75).
 
 ## 2. Carrier I/O controller (PY32F030)
 
@@ -39,19 +39,17 @@ Three pin rules drive the plan:
 | Header P-FET gate 1–8 | PB2, PB3, PB4, PB5, PB6, PB7, PB8, PF0 | Gate pull-downs hold every header on while the pins float (§2.2) |
 | Interrupt out to the ESP32 (GPIO 47) | PA12 | Open-drain, active low. Flags any change on the controller's own inputs (§2.3) |
 | Board identity (D46, D68) | PA0 (ADC_IN0) | The role shunt divider (doc 04 §4), moved from ESP32 GPIO 3 by D68. Read once after Go; the ESP32 compares it with the stored role |
-| Output B1 PWM (D68) | PA8 (TIM1_CH1) | Moved from ESP32 GPIO 39. Duty set by the ESP32 over I²C; the B1 gate pull-down holds the output off while the pin floats (reset, bootloader, blank) |
+| Output B1 PWM (D68) | PA8 (TIM1_CH1) | Moved from ESP32 GPIO 39. Duty set by the ESP32 over I²C; the B1 gate pull-up runs the output at full duty while the pin floats (reset, bootloader, blank; D75) |
 | LED chain 1 (D70, D71) | PA5 (TIM3_CH2, AF13) | Moved from ESP32 GPIO 14 (D70). TIM3 PWM; TIM3's update request (TIM3_CH2 has no DMA mapping) drives DMA that writes CCR2 once per LED bit, from a 2-LED circular double buffer (byte memory to 32-bit peripheral, never byte to byte; driver after [MaJerle's STM32 WS281x driver](https://github.com/MaJerle/stm32-ws2811-ws2812-ws2812b-ws281x-tim-pwm-dma-timer), D71): 1.25 µs bits, 333 ns high for a 0 and 667 ns for a 1 (D71). Inverted polarity for the inverting 2N7002 shifter (doc 02 §2.2); a final 0 % duty holds the strip's data line low to latch. The ESP32 sends colours and patterns over I²C. While the controller is in reset, in its bootloader or blank, the strip receives nothing and holds its last colours or stays dark |
 | Door reed | PA15 | EXTI 15; input only (a bootloader RX candidate, so harmless) |
-| Heater-rail voltage | PB0 (ADC_IN8) | 12-bit; ≈ 8 mV per step on the rail divider [E] |
 | Injection current (eFuse IMON, D61) | PA7 (ADC_IN7) | 47 kΩ + 100 nF at the eFuse, ≈ 1.3 V per amp, ≈ 0.6 mA per step [E] |
 | Board status LED | PA11 | Moved from PA14 by D68, so SWCLK carries nothing else. It no longer lights while the bootloader runs |
-| Tap-side heater voltage (D64) | PB1 (ADC_IN9) | Divider on the internal XT60's side of the tap ideal diode, same values as the rail divider: shows whether the tap is live, and is the reading the 23.0 V throttle uses while it is |
-| Bus voltage (D64) | PA6 (ADC_IN6) | Divider on the RJ45 bus rail, top resistor ≥ 100 kΩ like the rail divider. For the anemometer power (doc 06 §4.4), bus telemetry and back-fed mode |
+| Bus voltage (D64) | PA6 (ADC_IN6) | Divider on the RJ45 bus rail, top resistor ≥ 100 kΩ. For the anemometer power (doc 06 §4.4), bus telemetry and back-fed mode |
 | SWD debug header (§4.5, D65) | PA13 (SWDIO), PA14 (SWCLK), PF2 (NRST) | 1 × 5 2.54 mm pin header: 3.3 V, SWDIO, SWCLK, NRST, GND. Since D68 these pins carry nothing else, so SWD stays enabled in normal use. PF2 stays a reset input |
 | Header group rail sense (D56) | PF3 | EXTI 3. Digital input through a divider: low when the header group's current-limit switch is in limit. Moved from PA13 by D68 |
-| Spare | PA1, PA4 (ADC_IN1, 4), PA9 (input only: a bootloader TX candidate), PA10 (input only: a bootloader RX candidate), PF1 | Freed by D68; PA1 again by D71; PA10 (KSD301 loop sense) and PF1 (tap ideal-diode disable) by D74, which moved both to the ESP32 (doc 04 §4) |
+| Spare | PA1, PA4, PB0, PB1 (ADC_IN1, 4, 8, 9), PA9 (input only: a bootloader TX candidate), PA10 (input only: a bootloader RX candidate), PF1 | Freed by D68; PA1 again by D71; PA10 (KSD301 loop sense) and PF1 (tap ideal-diode disable) by D74, and PB0, PB1 (heater-rail and tap-side voltages) by D75, which moved them to the ESP32 (doc 04 §4) |
 
-Five pins are spare (D68, D74), and PF2-NRST goes only to the debug header (D65). The 32-pin part's other pinouts (K1x, K3x, K4x) move pins around, so the PCB uses K2x only [E].
+Seven pins are spare (D68, D74, D75), and PF2-NRST goes only to the debug header (D65). The 32-pin part's other pinouts (K1x, K3x, K4x) move pins around, so the PCB uses K2x only [E].
 
 ### 2.2 Per-header power
 
@@ -92,7 +90,7 @@ The controller **does not** carry the sensor traffic. SDA and SCL run from the E
 - **Isolation during power cycling:** a deselected channel cuts SDA/SCL to a header that is switched off (§2.2).
 - **Displays get their own channel (D48).** An OLED never shares a channel with a sensor; the default is header 4 (channel 3) on every role. The firmware selects the display channel only while it writes a frame (≤ 2 Hz) and deselects it straight after, so a display that locks up is selected as little as possible.
 - **Stuck bus:** a sensor that holds SDA low only blocks its own channel. The ESP32 deselects it and switches its power off and on through the controller.
-- **Alternative:** the ESP32-S3's second I²C controller could split the headers into two groups. That costs two more GPIOs. GPIO 5/6 are the only spare pair, and they are kept for the AUX header and its UART printer link (D48). It would also still share a segment between headers. The TCA9548A is preferred.
+- **Alternative:** the ESP32-S3's second I²C controller could split the headers into two groups. That costs two more GPIOs. No ESP32 GPIOs are spare since D75, and the AUX header keeps GPIO 36/6 for its UART printer link (D48). It would also still share a segment between headers. The TCA9548A is preferred.
 - **Cost:** a TCA9548A-compatible switch is ≈ $0.4–0.8 (FCA9548T fitted, D51).
 
 ## 4. Programming every MCU through its ROM bootloader
@@ -116,7 +114,7 @@ The controller's image ships inside the ESP32's own firmware image, so an ESP32 
 
 **If Read is refused** (read protection active, which the factory doesn't set but a failed option-byte self-check would [V: RM §4.4]), the ESP32 sends Read-unprotect, which erases the flash, then writes the image as for a blank part.
 
-**Mid-run resets.** A controller that resets while the ESP32 runs comes back in its bootloader, stops answering I²C, and the ESP32 sees that within one poll. It then runs step 1 again. The heater is held off until the readings return. A sensor-board MCU that resets only blocks its own channel; the ESP32 re-runs step 2 for that header.
+**Mid-run resets.** A controller that resets while the ESP32 runs comes back in its bootloader, stops answering I²C, and the ESP32 sees that within one poll. It then runs step 1 again and raises a "carrier I/O controller silent" alert; heating carries on (D75), and B1 runs at full duty while the pin floats. A sensor-board MCU that resets only blocks its own channel; the ESP32 re-runs step 2 for that header.
 
 ### 4.3 Why the UART traffic is safe on the I²C bus [E]
 
@@ -143,7 +141,7 @@ The carrier has a **1 × 5 2.54 mm SWD header** (D65): 3.3 V, SWDIO (PA13), SWCL
 - **The debug pins carry nothing else** (D68). The status LED is on PA11 and the group rail sense on PF3, so a probe can attach to the normal build at any time and debugging never stops another function.
 - **NRST** allows connect-under-reset. Because BOOT0 is strapped high, every reset lands in the ROM bootloader (§4.1): the probe halts there, then loads and starts the image at 0x08000000, or lets the ESP32 send Go as usual [E].
 - **One build:** the application leaves PA13 and PA14 as SWD, so there is no separate debug build (D65's debug build and 500 ms window went with D68).
-- **ESP32 hold** (doc 07 §11.8): when the core stops at a breakpoint, the controller stops answering I²C, and the ESP32 would normally reset it and run the boot flow again (§4.2). The `IOC_HOLD` console command stops that until the next power cycle. While the controller is silent, the heater is held off as for any mid-run reset (§4.2), so a halt is always safe; heating resumes when the readings return.
+- **ESP32 hold** (doc 07 §11.8): when the core stops at a breakpoint, the controller stops answering I²C, and the ESP32 would normally reset it and run the boot flow again (§4.2). The `IOC_HOLD` console command stops that until the next power cycle. While the controller is silent, heating carries on as for any mid-run reset (§4.2, D75); every heater input and output is on the ESP32.
 
 ## 5. Sensor board changes (amends D42)
 
