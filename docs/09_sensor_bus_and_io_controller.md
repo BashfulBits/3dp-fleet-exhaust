@@ -40,7 +40,7 @@ Three pin rules drive the plan:
 | Interrupt out to the ESP32 (GPIO 47) | PA12 | Open-drain, active low. Flags any change on the controller's own inputs (§2.3) |
 | Board identity (D46, D68) | PA0 (ADC_IN0) | The role shunt divider (doc 04 §4), moved from ESP32 GPIO 3 by D68. Read once after Go; the ESP32 compares it with the stored role |
 | Output B1 PWM (D68) | PA8 (TIM1_CH1) | Moved from ESP32 GPIO 39. Duty set by the ESP32 over I²C; the B1 gate pull-down holds the output off while the pin floats (reset, bootloader, blank) |
-| LED chain 1 (D70) | PA1 (SPI1_MOSI, AF10) | Moved from ESP32 GPIO 14. SPI with DMA sends the WS2812 stream, 4 SPI bits per LED bit at 3 MHz (timing checked in D70), through the inverting 2N7002 shifter (doc 02 §2.2), so the firmware inverts the bit patterns. The ESP32 sends colours and patterns over I²C. While the controller is in reset, in its bootloader or blank, the strip receives nothing and holds its last colours or stays dark |
+| LED chain 1 (D70, D71) | PA5 (TIM3_CH2, AF13) | Moved from ESP32 GPIO 14 (D70). TIM3 PWM with DMA reloading the compare register once per LED bit: 1.25 µs bits, 333 ns high for a 0 and 667 ns for a 1 (D71). Inverted polarity for the inverting 2N7002 shifter (doc 02 §2.2); a final 0 % duty holds the strip's data line low to latch. The ESP32 sends colours and patterns over I²C. While the controller is in reset, in its bootloader or blank, the strip receives nothing and holds its last colours or stays dark |
 | Door reed | PA15 | EXTI 15; input only (a bootloader RX candidate, so harmless) |
 | KSD301 loop sense | PA10 | EXTI 10; input only |
 | Heater-rail voltage | PB0 (ADC_IN8) | 12-bit; ≈ 8 mV per step on the rail divider [E] |
@@ -51,7 +51,7 @@ Three pin rules drive the plan:
 | Tap ideal-diode disable (D64) | PF1 | Drives a 2N7002 that pulls the MX74700T's EN low, with a **4.7 kΩ gate pull-down** so the diode stays on while the pin floats: PF1 resets in analog mode (GPIOF MODER reset value 0xFFFFFCFF) [V: reference manual §9.4.1], and stays there in the bootloader, blank or crashed. Moved from PA13 by D65, so a debug session never touches the diode or the two-supply check |
 | SWD debug header (§4.5, D65) | PA13 (SWDIO), PA14 (SWCLK), PF2 (NRST) | 1 × 5 2.54 mm pin header: 3.3 V, SWDIO, SWCLK, NRST, GND. Since D68 these pins carry nothing else, so SWD stays enabled in normal use. PF2 stays a reset input |
 | Header group rail sense (D56) | PF3 | EXTI 3. Digital input through a divider: low when the header group's current-limit switch is in limit. Moved from PA13 by D68 |
-| Spare | PA4, PA5 (ADC_IN4, 5), PA9 (input only: a bootloader TX candidate) | Freed by D68; PA5 again by D70 |
+| Spare | PA1, PA4 (ADC_IN1, 4), PA9 (input only: a bootloader TX candidate) | Freed by D68; PA1 again by D71 |
 
 Three pins are spare (D68), and PF2-NRST goes only to the debug header (D65). The 32-pin part's other pinouts (K1x, K3x, K4x) move pins around, so the PCB uses K2x only [E].
 
