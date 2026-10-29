@@ -328,7 +328,7 @@ The other printers keep running. The **room smoke alarm** remains the primary li
 | Conductor sizing | 14 AWG heater leads ≤ 1.5 m (doc 04 §6); CAT6 ≤ 0.75 A per conductor (logic only; ≈ 1.5 A per segment, kept low so CCA or Cat5 patch cables are safe, D21); 1 oz copper with ≥ 4 mm stitched pours on both layers along the carrier heater path (D59). |
 | Inside the AD5X | Reuse: 24 V DC work at the supply terminals only. Upgrade: mains work in the printer base to the original standard (same terminals, earth bond restored, cover refitted). |
 | Hot parts | Heater element in a sheet-aluminium shroud; printed parts near heat in ASA; no PETG inside heated chambers (ARG-12). |
-| Connectors | Locking or friction-latched (RJ45, XT60, DIN-4, JST-XH); the barrel jacks are friction-only, so each is rated ≥ 1.5 × the current through it (HEATER barrel 15 A for ≤ ≈ 7.8 A, D66); THT for power. |
+| Connectors | Locking or friction-latched (RJ45, XT60, DIN-4, JST-XH); the JST-SH sensor plugs are friction-held, so each sensor cable is tied down near both ends (D69); the barrel jacks are friction-only, so each is rated ≥ 1.5 × the current through it (HEATER barrel 15 A for ≤ ≈ 7.8 A, D66); THT for power. |
 
 ## 8. Room safety
 

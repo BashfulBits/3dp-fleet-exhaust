@@ -10,7 +10,7 @@ Evidence key, as in the other docs: **[V]** verified from a datasheet, reference
 
 | Function | How |
 |---|---|
-| **Up to 8 external sensor headers** per carrier, one per switch channel | JST-XH 4: 3.3 V, GND, SDA, SCL (D68) |
+| **Up to 8 external sensor headers** per carrier, one per switch channel | JST-SH 4 in the Qwiic / STEMMA QT pinout: GND, 3.3 V, SDA, SCL (D68, D69) |
 | **Each header on its own I²C segment** | TCA9548A-compatible 8-channel switch (§3) |
 | **Per-header power switching** | One P-FET per header, on by default (§2.2) |
 | **Interrupt to the ESP32** | Every input the carrier I/O controller reads can flag the ESP32 on one line (§2.3). Header sensors are polled (D68) |
@@ -149,7 +149,7 @@ The carrier has a **1 × 5 2.54 mm SWD header** (D65): 3.3 V, SWDIO (PA13), SWCL
 
 ## 5. Sensor board changes (amends D42)
 
-- The connector is **JST-XH 4**: 3.3 V, GND, SDA, SCL (D68; D45 and D67 had a fifth INT pin).
+- The connector is a right-angle **JST-SH 4** in the Qwiic / STEMMA QT pinout: GND, 3.3 V, SDA, SCL (D69; JST-XH 4 in D68, and D45 and D67 had a fifth INT pin). A stock Qwiic cable joins it to a carrier header.
 - A board with an MCU reports events in a status register (§4.4). The ENS160's INTn on board S is left unconnected.
 - The pull-ups stay on the carrier, after the header FET (§2.2). The sensor board still has none.
 
@@ -161,10 +161,10 @@ The carrier has a **1 × 5 2.54 mm SWD header** (D65): 3.3 V, SWDIO (PA13), SWCL
 | TCA9548A-compatible switch (FCA9548T, D51) | 1 | $0.58 |
 | HL3401-class P-FET + gate pull-down | 8 | $0.34 |
 | Pull-ups (2 per header, D68), single-line ESD diodes (H5VL10B class) | — | $0.22 |
-| JST-XH 4 headers (D68) | 8 | $0.12 |
-| **Total** | | **≈ $1.69** |
+| JST-SH 4 right-angle headers (ZX-SH1.0-4PWT, D69) | 8 | $0.54 |
+| **Total** | | **≈ $2.11** |
 
-Every part above is fitted on every carrier, including headers 5–8 and their FETs (D47: one population, one assembly order). That is the same total as D45's two CH32V003s and seven headers: the second MCU, slot 7's FET, pull-ups and ESD go, and two external headers come in.
+Every part above is fitted on every carrier, including headers 5–8 and their FETs (D47: one population, one assembly order). Before D69's JST-SH headers (+ $0.42), that was the same total as D45's two CH32V003s and seven headers: the second MCU, slot 7's FET, pull-ups and ESD go, and two external headers come in.
 
 ## 7. Open points
 
@@ -178,7 +178,7 @@ Every part above is fitted on every carrier, including headers 5–8 and their F
 - **Fixed addresses don't matter.** Each header is its own switch channel (§3), so two boards with the same fixed address never share a segment. No address-translator MCU is needed.
 - **Current:** header 3.3 V comes from the carrier's sensor buck (`+3V3_SENS`, 2 A, D56) through the header group's ≈ 1 A current limit (§2.2). Keep the total for all headers to **≈ 0.5 A** (worst case with eight boards from the base set and the catalogue: ≈ 0.4 A average, ≈ 0.6 A peak, mostly SCD41, BMV080 and electrochemical boards [E]). The limit's tolerance (0.75–1.25 A) clears the peaks.
 - **Temperature:** a sensor in the chamber must be rated for chamber air (up to the printer's hard limit plus margin; ≈ 65 °C on the reference printers). Most CO₂, particulate and humidity parts are rated to ≈ 50 °C, so they belong on room-side or exhaust-side headers.
-- **Bought boards (DFRobot Gravity and similar):** Gravity I²C boards use a 4-pin PH2.0 plug. They connect with a crimped **JST-XH 4 → PH2.0-4P adapter cable** (3.3 V, GND, SDA, SCL). The PH2.0 pin order differs from the header's, so the cable follows the board's silkscreen [E: check each board]. No soldering. Fermion-style breakouts ship with loose pin headers that must be soldered into the through-holes; they take a crimped Dupont-to-XH lead.
+- **Bought boards (D69):** SparkFun **Qwiic** and Adafruit **STEMMA QT** boards plug straight in with their own JST-SH cables: same connector, same pinout, 3.3 V. Their on-board pull-ups sit in parallel with the carrier's on a segment of their own; if the combined value falls below ≈ 1 kΩ, cut the board's pull-up jumper [E]. Other families take a **ready-made adapter cable**, with no crimping or soldering: DFRobot **Gravity** (PH2.0-4P) and Seeed **Grove** (HY2.0-4P). Their pin order differs from Qwiic, so check the cable against the board's silkscreen [E: check each board]. Boards with 2.54 mm pins (the 0.96″ OLED, and Fermion-style breakouts once their loose pin headers are soldered into the through-holes) take a JST-SH to female Dupont cable.
 
 ### 8.2 Base set
 
