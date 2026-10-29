@@ -149,7 +149,7 @@ The carrier has a **1 × 5 2.54 mm SWD header** (D65): 3.3 V, SWDIO (PA13), SWCL
 ## 5. Sensor board changes (amends D42)
 
 - The connector is **JST-XH 5**: 3.3 V, GND, SDA, SCL, INT. The first four pins keep their order.
-- On a board with an MCU, the fifth pin is its INT output (§4.4). On a board without one, it's the sensor's own interrupt output (open-drain) or left unconnected.
+- On a board with an MCU, the fifth pin is its INT output (§4.4). On a board without one, it's the sensor's own interrupt output (open-drain) or left unconnected: on board S it is the ENS160's INTn, and on boards P and E it is unconnected (D67).
 - The pull-ups stay on the carrier, after the header FET (§2.2). The sensor board still has none.
 
 ## 6. Cost per carrier [E]
@@ -183,42 +183,42 @@ Every part above is fitted on every carrier, including headers 5–8 and their F
 
 The sensors the core design is built around. They are on the carrier or on the framework's own sensor boards (doc 02 §2.3), have drivers in the core firmware, and are the **only sensors that may feed a control loop or a safety check** (doc 07 §2.1).
 
-| Sensor | Measures | Where | Interface | Used for |
-|---|---|---|---|---|
-| **SHT40** | Temperature, RH | Board S | I²C 0x44 | Chamber air, RW-b (doc 05), ENS160 compensation |
-| **AHT20** (alternate on S, room side only) | Temperature, RH | Board S | I²C 0x38 | Hub room head. Normal range 10–50 °C; above that its humidity reading drifts [V: AHT20 datasheet], so never in the chamber |
-| **ENS160** | MOX gas, raw element resistances | Board S | I²C 0x52/0x53 | Purge end (D20), room VOC trend |
-| **XGZP6897D** (±500 Pa class; ±1 kPa on the hub) | Differential pressure | Board P, on-board | I²C 0x6D | Chamber ΔP, trunk vacuum, trunk flow, filter loading (D11, D33) |
-| **SDP31** (upgrade) | Differential pressure | Bought, same header | I²C 0x21 | Trunk flow if the venturi needs it (doc 03) |
-| **AS5600** | Magnetic angle | Board E | I²C 0x36 | Damper position (D30) |
-| NTC 100k ×2 | Temperature | On-board ADC | — | Chamber and housing temperature |
-| Dual-NTC anemometer | Air speed | On-board ADC | — | Venturi flow (D32) |
-| KSD301, door reed, smoke and CO alarm contacts | Switch states | Carrier I/O controller, AUX | — | Safety chain, door, room alarms |
+| Sensor | Measures | Where | Interface | INT | Used for |
+|---|---|---|---|---|---|
+| **SHT40** | Temperature, RH | Board S | I²C 0x44 | No pin; polled | Chamber air, RW-b (doc 05), ENS160 compensation |
+| **AHT20** (alternate on S, room side only) | Temperature, RH | Board S | I²C 0x38 | No pin; polled | Hub room head. Normal range 10–50 °C; above that its humidity reading drifts [V: AHT20 datasheet], so never in the chamber |
+| **ENS160** | MOX gas, raw element resistances | Board S | I²C 0x52/0x53 | **Yes:** INTn on new data (D67) | Purge end (D20), room VOC trend |
+| **XGZP6897D** (±500 Pa class; ±1 kPa on the hub) | Differential pressure | Board P, on-board | I²C 0x6D | No pin; polled (status register) | Chamber ΔP, trunk vacuum, trunk flow, filter loading (D11, D33) |
+| **SDP31** (upgrade) | Differential pressure | Bought, same header | I²C 0x21 | Polled; its IRQn pin isn't used [U: whether the part supports it] | Trunk flow if the venturi needs it (doc 03) |
+| **AS5600** | Magnetic angle | Board E | I²C 0x36 | No pin (OUT is analog/PWM); polled | Damper position (D30) |
+| NTC 100k ×2 | Temperature | On-board ADC | — | — | Chamber and housing temperature |
+| Dual-NTC anemometer | Air speed | On-board ADC | — | — | Venturi flow (D32) |
+| KSD301, door reed, smoke and CO alarm contacts | Switch states | Carrier I/O controller, AUX | — | Door on its own EXTI line (§2.1), not a header INT | Safety chain, door, room alarms |
 
 ### 8.3 Catalogue (bought boards, supported in software)
 
-Bought 3.3 V I²C boards with drivers in the firmware's sensor catalogue (doc 07 §2.1). Their readings go to **alerts, the daily digest, the dashboard and MQTT, never to a control loop or a safety check**. Promoting one to the base set takes a decision row. Prices are DFRobot list prices, 2026-10 [V: dfrobot.com]; anything marked [U] needs checking on the product's wiki first.
+Bought 3.3 V I²C boards with drivers in the firmware's sensor catalogue (doc 07 §2.1). Their readings go to **alerts, the daily digest, the dashboard and MQTT, never to a control loop or a safety check**. All are polled: the PH2.0-4P adapter cable (§8.1) leaves the header INT open. Where the chip has an interrupt, the INT column marks it; using it needs that pin wired to the header's fifth pin and the driver's `poll` set to use INT (doc 07 §2.1). Promoting one to the base set takes a decision row. Prices are DFRobot list prices, 2026-10 [V: dfrobot.com]; anything marked [U] needs checking on the product's wiki first.
 
-| Sensor (DFRobot SKU) | Measures | ≈ Price | Placement | Why it's here |
-|---|---|---|---|---|
-| ENS160 + BME280 (SEN0335) | TVOC, eCO₂, T/RH/P | $29.90 | Room | A ready-made room head on the base-set ENS160 driver |
-| BME688 / BME680 (SEN0617, SEN0629, SEN0248) | VOC, T/RH/P | $12.90–19.90 | Room | Alternative room head |
-| SHT31/35/40 breakouts, SHT31 probe (SEN0331, SEN0333, SEN0428, SEN0385) | T/RH | $7.50–19.90 | Room, duct, outdoors | Same driver family as the SHT40; the probe reaches into a duct |
-| AHT20 (SEN0528) | T/RH | $3.90 | Room | The cheapest T/RH |
-| STCC4 CO₂ (SEN0678) | CO₂, T/RH | $14.90 | Room | Ventilation context; operating range [U] |
-| SCD41 CO₂ (SEN0536) | CO₂, T/RH | $44.90 | Room (0–50 °C) | Same Sensirion driver family |
-| BMV080 (SEN0663) | PM1, PM2.5, PM10 | $29.90 | Room | Shows whether the exhaust keeps room particulates down; operating range [U] |
-| Gravity PM2.5 (SEN0460) | PM1, PM2.5, PM10 | $39.90 | Room | Alternative; 3.3 V operation [U] |
-| SFA40 (SEN0661) | Formaldehyde, 0–2000 ppb | $49.50 | Room, exhaust | Mostly relevant to resin printers |
-| Electrochemical CO (SEN0466) | CO, 0–1000 ppm | $66.90 | Chamber, exhaust | Early warning of smouldering. It doesn't replace the room CO alarm (doc 05 S-6). Rated range [U] |
-| MiCS-4514 (SEN0377) | CO, NO₂, NH₃ | $39.90 | Room | Low relevance; supported because it's I²C |
-| PAV3015 (SEN0639) | Air velocity, 0–15 m/s | $49.90 | Duct | A calibrated reference for commissioning the venturi and anemometer; supply [U] |
-| LWLP5000 (SEN0343) | Differential pressure, ±500 Pa | $39.90 | Duct | A cross-check for board P |
-| BMP585 / BMP581 / BMP388 / ICP-10111 (SEN0664–0667, SEN0251, SEN0516/0517) | Barometric pressure | $5.90–11.90 | Anywhere | Air-density correction for flow; room baseline. Two barometers are not a substitute for a differential sensor |
-| MLX90614 (SEN0206, SEN0263) | Non-contact surface temperature | $18.50–59.00 | Chamber | Watches a heater shroud or electronics bay for hot spots, in addition to the KSD301 |
-| INA219 wattmeter (SEN0291) | Current, voltage, power to 26 V | $6.90 | Carrier side | Fan or PTC current where the carrier doesn't measure it (fan health, R8) |
-| 6DOF IMU (SEN0692, SEN0693) | Vibration | $6.90–9.90 | Fan | Bearing-wear trend; experimental |
-| mmWave presence (SEN0610) | Room occupancy | $12.90 | Room | Quiet-purge or courtesy behaviour while someone is in the room |
+| Sensor (DFRobot SKU) | Measures | ≈ Price | Placement | INT | Why it's here |
+|---|---|---|---|---|---|
+| ENS160 + BME280 (SEN0335) | TVOC, eCO₂, T/RH/P | $29.90 | Room | No (adapter); the ENS160 has one | A ready-made room head on the base-set ENS160 driver |
+| BME688 / BME680 (SEN0617, SEN0629, SEN0248) | VOC, T/RH/P | $12.90–19.90 | Room | No (adapter) | Alternative room head |
+| SHT31/35/40 breakouts, SHT31 probe (SEN0331, SEN0333, SEN0428, SEN0385) | T/RH | $7.50–19.90 | Room, duct, outdoors | No (adapter); the SHT31/35 have one (ALERT) [E] | Same driver family as the SHT40; the probe reaches into a duct |
+| AHT20 (SEN0528) | T/RH | $3.90 | Room | No (adapter) | The cheapest T/RH |
+| STCC4 CO₂ (SEN0678) | CO₂, T/RH | $14.90 | Room | No (adapter) | Ventilation context; operating range [U] |
+| SCD41 CO₂ (SEN0536) | CO₂, T/RH | $44.90 | Room (0–50 °C) | No (adapter) | Same Sensirion driver family |
+| BMV080 (SEN0663) | PM1, PM2.5, PM10 | $29.90 | Room | No (adapter); the chip has one [E] | Shows whether the exhaust keeps room particulates down; operating range [U] |
+| Gravity PM2.5 (SEN0460) | PM1, PM2.5, PM10 | $39.90 | Room | No (adapter) | Alternative; 3.3 V operation [U] |
+| SFA40 (SEN0661) | Formaldehyde, 0–2000 ppb | $49.50 | Room, exhaust | No (adapter) | Mostly relevant to resin printers |
+| Electrochemical CO (SEN0466) | CO, 0–1000 ppm | $66.90 | Chamber, exhaust | No (adapter) | Early warning of smouldering. It doesn't replace the room CO alarm (doc 05 S-6). Rated range [U] |
+| MiCS-4514 (SEN0377) | CO, NO₂, NH₃ | $39.90 | Room | No (adapter) | Low relevance; supported because it's I²C |
+| PAV3015 (SEN0639) | Air velocity, 0–15 m/s | $49.90 | Duct | No (adapter) | A calibrated reference for commissioning the venturi and anemometer; supply [U] |
+| LWLP5000 (SEN0343) | Differential pressure, ±500 Pa | $39.90 | Duct | No (adapter) | A cross-check for board P |
+| BMP585 / BMP581 / BMP388 / ICP-10111 (SEN0664–0667, SEN0251, SEN0516/0517) | Barometric pressure | $5.90–11.90 | Anywhere | No (adapter); the BMP585/581/388 have one [E] | Air-density correction for flow; room baseline. Two barometers are not a substitute for a differential sensor |
+| MLX90614 (SEN0206, SEN0263) | Non-contact surface temperature | $18.50–59.00 | Chamber | No (adapter) | Watches a heater shroud or electronics bay for hot spots, in addition to the KSD301 |
+| INA219 wattmeter (SEN0291) | Current, voltage, power to 26 V | $6.90 | Carrier side | No (adapter) | Fan or PTC current where the carrier doesn't measure it (fan health, R8) |
+| 6DOF IMU (SEN0692, SEN0693) | Vibration | $6.90–9.90 | Fan | No (adapter); the chip has one [E] | Bearing-wear trend; experimental |
+| mmWave presence (SEN0610) | Room occupancy | $12.90 | Room | No (adapter); the chip has one [E] (presence OUT) | Quiet-purge or courtesy behaviour while someone is in the room |
 
 ### 8.4 Not supported on a header
 
