@@ -141,9 +141,9 @@ Rules applied:
 | 11 | **LAN MOSI** (D45) | LAN MOSI | LAN MOSI | SPI2 IO MUX pin |
 | 12 | **LAN SCK** (D45) | LAN SCK | LAN SCK | SPI2 IO MUX pin |
 | 13 | **LAN MISO** (D45) | LAN MISO | LAN MISO | SPI2 IO MUX pin. The door input is read through the carrier I/O controller (doc 02 §2.4) |
-| 14 | LED chain 1 (bed strip, LED 0 = status) | LED chain 1 | **Panel RGB** | RMT TX with DMA, inverted output, via a 2N7002 inverting shifter (D51) |
+| 14 | **Fan A PWM** (open-drain, D70) | – | **G4 fan control** (per R1) | LEDC. Floats while the ESP32 is in reset, so a 4-wire fan runs at full speed. LED chain 1 moved to the carrier I/O controller (PA1, D70) |
 | 15 | Heater enable charge-pump drive (square wave) | – | – | No wave → high-side off. **A plain GPIO toggled by the safety task, deliberately not a PWM peripheral** (doc 07 §2): a peripheral would keep the wave running if the safety task hung |
-| 16 | **CAN TX** (D68, was GPIO 41) | CAN TX | CAN TX | TWAI, routed through the GPIO matrix; pull-up on the transceiver's TXD so the bus stays recessive while the pin floats at reset. Fan A's PWM (and the hub's G4 fan control, per R1) moved to the carrier I/O controller (PA5, D68) |
+| 16 | **CAN TX** (D68, was GPIO 41) | CAN TX | CAN TX | TWAI, routed through the GPIO matrix; pull-up on the transceiver's TXD so the bus stays recessive while the pin floats at reset. Fan A's PWM moved to GPIO 14 (D70) |
 | 17 | Fan A tach in | – | **G4 tach/health** (per R1) | Pull-up + clamp |
 | 18 | **CAN RX** (D68, was GPIO 42) | CAN RX | CAN RX | TWAI. Fan A enable moved to GPIO 3 |
 | 21 | **Servo PWM** (50 Hz) | Servo PWM | – | Pull-down, held low at boot (was GPIO 12). LED chain 2 was dropped from the fixed map (D45) |
@@ -203,16 +203,16 @@ It is reached with the node housing open. Holding it at power-up still enters do
 | CAN | TWAI | |
 | I²C | I²C 0 | Sensor headers, on-board XGZP, carrier I/O controller |
 | LAN | SPI2 on the IO MUX pins | GPIOs 10–13 |
-| LED chain 1 (bed strip, or the hub panel) | **RMT TX channel with DMA** | A ~48-LED strip is ~1150 RMT symbols. That is more than one 48-symbol block, so it streams by DMA rather than refill interrupts, which Wi-Fi load could delay into visible glitches. The S3 supports DMA on one RMT TX channel |
+| LED chain 1 (bed strip, or the hub panel) | **Carrier I/O controller SPI1 with DMA** (PA1, D70) | The controller renders the stream from colour and pattern commands sent over I²C (doc 09 §2.1). The ESP32's RMT drove it with DMA before D70 |
 | MCU programming (carrier I/O controller, sensor-board MCUs) | **UART2** on GPIO 8/9 through the GPIO matrix, open-drain, 115200 8E1 | Only while programming; the I²C driver is detached for that time (doc 09 §4) |
-| Servo, heater PWM | LEDC | Two frequencies, inside LEDC's four timers. Fan A and B1 PWM are timers on the carrier I/O controller (D68) |
+| Servo, heater PWM, fan A PWM | LEDC | Three frequencies, inside LEDC's four timers. B1 PWM is a timer on the carrier I/O controller (D68) |
 | Heater-enable charge pump | **Plain GPIO, toggled by the safety task** | Deliberately not a peripheral. A hardware PWM keeps running if the safety task hangs, which would defeat layer L5 (doc 05 §3.1, doc 07 §2) |
 | Analog inputs (GPIOs 1, 2, 4 on node-heat; 1, 2 on the hub) | **ADC1 continuous mode with DMA** | Scans every ADC1 input at a fixed rate, so the heater-current samples (GPIO 4) are evenly spaced without the CPU timing each read. ESP-IDF doesn't mix one-shot and continuous mode on one ADC unit [E], so all ADC1 inputs move to continuous mode together |
 | Hub smoke dry contact (GPIO 5), hub acknowledge button (GPIO 6) (AUX) | **GPIO edge interrupts** | A press or an alarm is seen at once, not at the next poll. The button is debounced in software. Neither depends on I²C |
 | UART printer link on a node (GPIOs 5, 6, AUX; D48) | **UART1** | Only with `link: marlin_serial`, `link_port: uart` (doc 12 §3.2) |
 | Fan tach | PCNT | |
 
-**RMT budget:** 1 of the 4 TX channels, leaving room for a second LED chain later.
+**RMT budget:** none since D70 (LED chain 1 is on the carrier I/O controller); all 4 TX channels are free for a second LED chain later.
 
 **LAN jack (D18; fitted on any role, D45):** the SPI Ethernet chip needs four GPIOs (SCK, MOSI, MISO, CS; polling mode, no interrupt). They are **GPIOs 10–13 on every carrier**, the S3's IO MUX pins for SPI2, so the SPI runs on the peripheral directly (up to 80 MHz) and not through the GPIO matrix (40 MHz, with extra delay on MISO) [E: confirm in the S3 technical reference manual]. CAN and the servo output use the matrix and moved to GPIOs 41, 42 and 21 to make room. There are no 0 Ω links, and the same map applies to all roles. The default SPI clock is 20 MHz; the Ethernet chip's own limit is higher, and the bring-up test (O15) checks 20 and 40 MHz.
 

@@ -14,13 +14,13 @@ Evidence key, as in the other docs: **[V]** verified from a datasheet, reference
 | **Each header on its own I²C segment** | TCA9548A-compatible 8-channel switch (§3) |
 | **Per-header power switching** | One P-FET per header, on by default (§2.2) |
 | **Interrupt to the ESP32** | Every input the carrier I/O controller reads can flag the ESP32 on one line (§2.3). Header sensors are polled (D68) |
-| **Slow carrier I/O** | The same controller reads the door, the KSD301 loop sense, the board identity and four ADC channels (heater rail, tap side, bus, injection current), and drives the fan A and B1 PWM and the board status LED (§2.4, doc 02 §2.4) |
+| **Slow carrier I/O** | The same controller reads the door, the KSD301 loop sense, the board identity and four ADC channels (heater rail, tap side, bus, injection current), and drives the B1 PWM, LED chain 1 and the board status LED (§2.4, doc 02 §2.4) |
 | **In-system programming of every MCU** (blank, running or hung) | Each MCU's **ROM bootloader** on its own I²C pins, driven by the ESP32's UART through the GPIO matrix (§4). No programmer chip, no debug protocol and no extra ESP32 pin |
 | **A base set of sensors, plus bought boards** | The base set (own boards S, P, E and the on-board sensors) can feed control and safety. Bought 3.3 V I²C boards from the catalogue feed alerts and the dashboard only (§8, D55) |
 
 A sensor board with an MCU on it (D42: an ADC, I/O expander, light sensor or protocol bridge) is programmed through the header it is plugged into, with no pads and no separate programmer. Header sensors are polled; the headers have no interrupt line (D68). The reference build's sensor boards S, P and E have no MCU.
 
-**The carrier I/O controller is needed for heating, not for sensing.** If it is missing or not yet programmed, every header is powered (the gate pull-downs hold the FETs on) and the ESP32 still reads every sensor through the switch. Power cycling, output B1 and the slow carrier I/O are lost, fan A runs at full speed, the board identity goes unchecked (the role stored in NVS is used, with an alert), and since the heater-input readings come from it, **the heater is held off** (D47).
+**The carrier I/O controller is needed for heating, not for sensing.** If it is missing or not yet programmed, every header is powered (the gate pull-downs hold the FETs on) and the ESP32 still reads every sensor through the switch. Power cycling, output B1, LED chain 1 and the slow carrier I/O are lost, the board identity goes unchecked (the role stored in NVS is used, with an alert), and since the heater-input readings come from it, **the heater is held off** (D47).
 
 ## 2. Carrier I/O controller (PY32F030)
 
@@ -40,7 +40,7 @@ Three pin rules drive the plan:
 | Interrupt out to the ESP32 (GPIO 47) | PA12 | Open-drain, active low. Flags any change on the controller's own inputs (§2.3) |
 | Board identity (D46, D68) | PA0 (ADC_IN0) | The role shunt divider (doc 04 §4), moved from ESP32 GPIO 3 by D68. Read once after Go; the ESP32 compares it with the stored role |
 | Output B1 PWM (D68) | PA8 (TIM1_CH1) | Moved from ESP32 GPIO 39. Duty set by the ESP32 over I²C; the B1 gate pull-down holds the output off while the pin floats (reset, bootloader, blank) |
-| Fan A PWM (D68) | PA5 (TIM3_CH2), open-drain | Moved from ESP32 GPIO 16, on its own timer. Floats while the controller is in reset, in its bootloader or blank, so a 4-wire fan runs at full speed (S-3). Enable and tach stay on the ESP32 |
+| LED chain 1 (D70) | PA1 (SPI1_MOSI, AF10) | Moved from ESP32 GPIO 14. SPI with DMA sends the WS2812 stream, 4 SPI bits per LED bit at 3 MHz [E], through the inverting 2N7002 shifter (doc 02 §2.2), so the firmware inverts the bit patterns. The ESP32 sends colours and patterns over I²C. While the controller is in reset, in its bootloader or blank, the strip receives nothing and holds its last colours or stays dark |
 | Door reed | PA15 | EXTI 15; input only (a bootloader RX candidate, so harmless) |
 | KSD301 loop sense | PA10 | EXTI 10; input only |
 | Heater-rail voltage | PB0 (ADC_IN8) | 12-bit; ≈ 8 mV per step on the rail divider [E] |
@@ -51,7 +51,7 @@ Three pin rules drive the plan:
 | Tap ideal-diode disable (D64) | PF1 | Drives a 2N7002 that pulls the MX74700T's EN low, with a **4.7 kΩ gate pull-down** so the diode stays on while the pin floats: PF1 resets in analog mode (GPIOF MODER reset value 0xFFFFFCFF) [V: reference manual §9.4.1], and stays there in the bootloader, blank or crashed. Moved from PA13 by D65, so a debug session never touches the diode or the two-supply check |
 | SWD debug header (§4.5, D65) | PA13 (SWDIO), PA14 (SWCLK), PF2 (NRST) | 1 × 5 2.54 mm pin header: 3.3 V, SWDIO, SWCLK, NRST, GND. Since D68 these pins carry nothing else, so SWD stays enabled in normal use. PF2 stays a reset input |
 | Header group rail sense (D56) | PF3 | EXTI 3. Digital input through a divider: low when the header group's current-limit switch is in limit. Moved from PA13 by D68 |
-| Spare | PA1, PA4 (ADC_IN1, 4), PA9 (input only: a bootloader TX candidate) | Freed by D68 |
+| Spare | PA4, PA5 (ADC_IN4, 5), PA9 (input only: a bootloader TX candidate) | Freed by D68; PA5 again by D70 |
 
 Three pins are spare (D68), and PF2-NRST goes only to the debug header (D65). The 32-pin part's other pinouts (K1x, K3x, K4x) move pins around, so the PCB uses K2x only [E].
 
@@ -72,11 +72,11 @@ Every input the controller reads directly can flag the ESP32 (D68). The door, th
 
 The controller takes the slow, non-safety signals that would otherwise need ESP32 GPIOs, so every role has the same pin map and the same parts (D47), LAN included (doc 04 §4):
 
-- **Takes:** the door reed, the KSD301 loop sense, the **heater-rail voltage**, the **tap-side heater voltage**, the **bus voltage** and the **injection current** (ADC; the last from the eFuse's IMON pin, D61), the tap ideal-diode disable (D64), the board identity and the fan A and B1 PWM (D68), and the board status LED (doc 02 §2.4). LED chain 2 stays dropped from the fixed map.
+- **Takes:** the door reed, the KSD301 loop sense, the **heater-rail voltage**, the **tap-side heater voltage**, the **bus voltage** and the **injection current** (ADC; the last from the eFuse's IMON pin, D61), the tap ideal-diode disable (D64), the board identity and the B1 PWM (D68), LED chain 1 (D70), and the board status LED (doc 02 §2.4). LED chain 2 stays dropped from the fixed map.
 - **Frees:** GPIOs 13, 21, 41, 42 and 47 (D45). CAN TX/RX and the servo output (all GPIO-matrix peripherals) use 41, 42 and 21, which leaves GPIOs 10–13, the S3's IO MUX pins for SPI2, to the LAN SPI (doc 04 §4). GPIO 47 is the controller's interrupt line. D68 then moves CAN to GPIOs 16 and 18 so GPIOs 39–42 can be the ESP32's JTAG pins (doc 04 §4).
 - **ADC reference (D56):** the ADC runs from `+3V3_SENS`, which the sensor buck (LMR14030, D60) sets only to ≈ ±3 % (±2 % reference over temperature plus the 1 % divider). The firmware measures the PY32's internal reference channel and scales the rail readings by it, so the D53 rail throttle (23.0 V) stays within ≈ ±1 % [E].
 - **Interrupt:** a change on any of its inputs (door, KSD301 loop, group rail) reaches the ESP32 in a few milliseconds through §2.3.
-- **Failure behaviour:** nothing it carries feeds a safety layer (S-7). A missing, silent or not-yet-programmed controller blanks the door input (the AD5X falls back to Moonraker), the KSD sense and the status LED, lets fan A run at full speed, stops output B1 (the AD5X recirculation blower or the hub anemometer, which then alerts), leaves the board identity unchecked, and removes the heater-input readings, so the firmware **holds the heater off** (and turns it off if the controller stops answering mid-heat). That is the safe direction.
+- **Failure behaviour:** nothing it carries feeds a safety layer (S-7). A missing, silent or not-yet-programmed controller blanks the door input (the AD5X falls back to Moonraker), the KSD sense, the status LED and LED chain 1, stops output B1 (the AD5X recirculation blower or the hub anemometer, which then alerts), leaves the board identity unchecked, and removes the heater-input readings, so the firmware **holds the heater off** (and turns it off if the controller stops answering mid-heat). That is the safe direction.
 - **No power switching of its own:** it is the carrier's own firmware, with no cable. A reset command over I²C or its hardware watchdog restarts it, and every reset lands in the ROM bootloader (§4.1), so it never needs a power cycle to recover.
 - **It sits on the ESP32's main I²C bus,** not behind the switch. If it ever held SDA low, it would block the whole bus, which is why its firmware enables the watchdog at start-up, resets its I²C peripheral when the bus has seen no valid transaction for 1 s [E], and the ESP32 runs the usual nine-clock bus recovery before reporting a fault.
 

@@ -39,7 +39,7 @@ flowchart TB
 
 **Why ESP-IDF C++ rather than ESPHome:** the node and hub need a CAN protocol, a USB-serial protocol, a Moonraker WebSocket client, cascaded control loops, the G4 fan protocol (R1) and hardware-coupled safety logic. In ESPHome nearly all of that would be custom components. Home Assistant integration stays available through MQTT discovery (§9).
 
-**Why plain ESP-IDF rather than Arduino-ESP32 (D52):** the design already uses ESP-IDF drivers directly: RMT with DMA for the LED chain, a UART in open-drain mode on the I²C pins for the MCU bootloaders (doc 09 §4), continuous ADC with DMA, TWAI, ESP-NOW, the task and RTC watchdogs and NVS. Arduino would only add a layer on top. Vendor drivers come from the component manager: `espressif/ch390` (LAN), `esp_websocket_client` (Moonraker), `mqtt`, `esp_http_server`, `led_strip` and LittleFS.
+**Why plain ESP-IDF rather than Arduino-ESP32 (D52):** the design already uses ESP-IDF drivers directly: LEDC for the servo, fan and heater PWM, a UART in open-drain mode on the I²C pins for the MCU bootloaders (doc 09 §4), continuous ADC with DMA, TWAI, ESP-NOW, the task and RTC watchdogs and NVS. Arduino would only add a layer on top. Vendor drivers come from the component manager: `espressif/ch390` (LAN), `esp_websocket_client` (Moonraker), `mqtt`, `esp_http_server`, `led_strip` and LittleFS.
 
 ## 2. Firmware architecture (node and hub)
 
