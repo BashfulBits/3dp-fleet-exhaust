@@ -271,16 +271,16 @@ Every Tier 2 printer (doc 12 §3.2) uses the same link; only the printer end dif
 
 ## 6b. Power configurations (D35)
 
-Jumpers only choose what **feeds** the bus; every board's logic runs from the bus. Only the heater inputs (internal XT60, HEATER DIN, HEATER barrel; one at a time) feed the heater; the POWER IN barrel never does (D64). With FAN FEED on HEAT, the heater rail also feeds fan A and B1 (D78). The rule that matters: **a node must have some source that survives its own printer's cut**: the CAT6 bus from the hub, or a brick on an ordinary outlet.
+Jumpers only choose what **feeds** the bus; every board's logic runs from the bus. Only the heater inputs (internal XT60, HEATER DIN, HEATER barrel; one at a time) feed the heater; the POWER IN barrel never does (D64). Whenever the heater rail is live it also feeds fan A and B1; otherwise they run from the bus (D78). The rule that matters: **a node must have some source that survives its own printer's cut**: the CAT6 bus from the hub, or a brick on an ordinary outlet.
 
-| Setup | INJECT / FAN FEED | Outlet rules |
+| Setup | INJECT | Outlet rules |
 |---|---|---|
-| Hub | INT / HEAT (its PSU on the internal XT60, or a brick in a HEATER jack, D78) | Hub supply and the fan on ordinary outlets, **never on a printer's plug** |
-| Wired node-heat, printer supply | INT / HEAT | Logic survives the cut through the bus |
-| Wired node-heat, heater brick (HEATER DIN or HEATER barrel jack) | INT / HEAT | Heater brick **on that printer's plug** (doc 05 §9 test 23) |
-| Wired node-lite | none, or BAR with a brick / BUS | Any brick on an ordinary outlet |
-| Wireless-only node-heat (AD5X) | BAR (logic brick) + INT / HEAT | **Two supplies:** logic brick in POWER IN on an ordinary outlet, heater supply on INT. The logic brick is never on the printer's plug |
-| Wireless-only node-lite | BAR / BUS | Logic brick on an ordinary outlet |
+| Hub | INT (its PSU on the internal XT60, or a brick in a HEATER jack, D78) | Hub supply and the fan on ordinary outlets, **never on a printer's plug** |
+| Wired node-heat, printer supply | INT | Logic survives the cut through the bus |
+| Wired node-heat, heater brick (HEATER DIN or HEATER barrel jack) | INT | Heater brick **on that printer's plug** (doc 05 §9 test 23) |
+| Wired node-lite | none, or BAR with a brick | Any brick on an ordinary outlet |
+| Wireless-only node-heat (AD5X) | BAR (logic brick) + INT | **Two supplies:** logic brick in POWER IN on an ordinary outlet, heater supply on INT. The logic brick is never on the printer's plug |
+| Wireless-only node-lite | BAR | Logic brick on an ordinary outlet |
 
 A node that stays up when its heater supply drops out (on the bus or a barrel logic brick) sees the drop directly and doesn't reset with it (doc 05 §3.3).
 
