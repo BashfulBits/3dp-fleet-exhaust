@@ -137,6 +137,7 @@ flowchart LR
 - USB: USB-C receptacle, data only (D72).
 - LAN: 2 × 5 2.54 mm female socket for a W5500 module (D72).
 - Debug: SWD 1 × 5 (carrier I/O controller, D65), JTAG 1 × 6 (ESP32, D68) and UART0 1 × 3 (ESP32 console, D72), 2.54 mm pin headers.
+- Expansion port: 2 × 5 2.54 mm pin header on the carrier I/O controller's spare pins, SPI, UART and four analog inputs (D77, doc 09 §2.5).
 - Servo: standard 3-pin header.
 - No screw terminals anywhere (P-5).
 
@@ -173,11 +174,12 @@ The **PY32F030** that switches the sensor headers (doc 09 §2) also takes the sl
 | Board identity (role shunt divider, controller ADC; D68) | GPIO 3 | None; read once at boot. **No reading → the stored role is used, with an alert**, and the heater stays off until the identity has been read once since boot (D75) |
 | Output B1 PWM (controller timer; D68) | GPIO 39 | None: the AD5X recirculation blower or the hub anemometer heater (safe at full duty, doc 06 §4.4). **No controller → B1 at full duty** (gate pull-up, D75) |
 | LED chain 1 (controller timer PWM with DMA; D70, D71) | GPIO 14 | Indication only: the bed strip (LED 0 = status) or the hub's panel RGB. **No controller → the LEDs freeze or go dark**; the buzzer and pushes still alarm |
+| Expansion port (D77): SPI1, USART2, four analog inputs, two digital pins | — (new) | None. Slow by design (I²C uplink); nothing on it gates the heater (doc 09 §2.5) |
 | LED chain 2 | GPIO 21 | Dropped from the fixed map; a future overhead strip uses a sensor-header board with its own MCU and level shifter (doc 09 §4.4); the bed strip is on the carrier I/O controller since D70 (doc 09 §2.1) |
 
 D74 moved two signals back to the ESP32: the **KSD301 loop sense** (GPIO 48), so the safety task sees a tripped thermostat even while the controller is hung, reset or being reprogrammed, and the **tap ideal-diode disable** (GPIO 37), so the disable and the two-supply check's heater pulse are timed by one chip D75 then moved the heater-rail and tap-side voltages to ESP32 GPIO 5 and 7, so every heater input and output is on the ESP32.
 
-Nothing on this list feeds a safety layer (S-7), and nothing on it gates the heater (D75). A controller that is missing at boot holds the heater off only until the board identity has been read once; after that, a hung, resetting or held controller raises an alert and **heating carries on**. The fan, dampers, CAN and every sensor still work; B1 runs at full duty and LED chain 1 goes dark or freezes. The one failure that is still shared is an I²C block that holds SDA low while the controller's firmware runs, which takes the bus down for every I²C sensor until the watchdog or the ESP32's bus-recovery clocking frees it [U: whether the PY32F030's I²C has a hardware bus timeout]. The ESP32 can also reset the controller itself (D76): the interrupt line reaches the controller's reset pin through an RC filter (doc 09 §2.3).
+Nothing on this list feeds a safety layer (S-7), and nothing on it gates the heater (D75). A controller that is missing at boot holds the heater off only until the board identity has been read once; after that, a hung, resetting or held controller raises an alert and **heating carries on**. The fan, dampers, CAN and every sensor still work; B1 runs at full duty and LED chain 1 goes dark or freezes. The one failure that is still shared is an I²C block that holds SDA low while the controller's firmware runs, which takes the bus down for every I²C sensor until the watchdog or the ESP32's bus-recovery clocking frees it [U: whether the PY32F030's I²C has a hardware bus timeout]. The ESP32 can also reset the controller itself (D76): the interrupt line reaches the controller's reset pin through an RC filter (doc 09 §2.3). D77 puts the controller's seven spare pins on an expansion header for SPI, UART and analog sensors (doc 09 §2.5); it is not on any path the heater or a safety layer uses.
 
 ## 3. Chamber heater module (node-heat)
 

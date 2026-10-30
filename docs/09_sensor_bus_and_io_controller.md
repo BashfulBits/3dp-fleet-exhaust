@@ -30,26 +30,28 @@ A sensor board with an MCU on it (D42: an ADC, I/O expander, light sensor or pro
 
 Three pin rules drive the plan:
 - **I²C target on PA2/PA3.** PA2 is both I2C_SDA and USART1_TX, and PA3 both I2C_SCL and USART1_RX [V: datasheet pin table], and the ROM bootloader listens on that USART (§4.1). So the bootloader is reachable on the two I²C wires.
-- **Bootloader pins carry only inputs or SWD.** The bootloader also uses the USART on PA9/PA10 and PA14/PA15 [V: PY32F003 reference manual §3.6.2, same family], and may drive its TX candidates (PA9, PA14) while it runs [U]. Nothing on those pins may switch a header or signal the ESP32.
+- **Bootloader pins carry only inputs, SWD or idle-high chip selects.** The bootloader also uses the USART on PA9/PA10 and PA14/PA15 [V: PY32F003 reference manual §3.6.2, same family], and may drive its TX candidates (PA9, PA14) while it runs [U]. Nothing on those pins may switch a header or signal the ESP32. D77's chip selects on PA9 and PA10 sit high on 100 kΩ pull-ups and the bootloader's TX line idles high, so a deselected sensor stays deselected; nothing outside may drive PA10 as a serial line.
 - **One EXTI line per interrupt.** EXTI lines are shared by pin number across ports, so the inputs that flag the ESP32 each take a different number: door 15, group rail sense 3 (D68; the KSD301 loop sense on EXTI 10 moved to the ESP32 by D74).
 
 | Function | Pins | Notes |
 |---|---|---|
 | I²C target (upstream) / bootloader UART | PA2 (SDA / TX), PA3 (SCL / RX) | **330 Ω in series with PA2** (§4.3) |
-| Header P-FET gate 1–8 | PB2, PB3, PB4, PB5, PB6, PB7, PB8, PF0 | Gate pull-downs hold every header on while the pins float (§2.2) |
+| Header P-FET gate 1–8 | PB2, PB3, PB4, PB5, PB6, PB7, PB8, PF1 (PF0 until D77) | Gate pull-downs hold every header on while the pins float (§2.2) |
 | Interrupt out to the ESP32 (GPIO 47) | PA12 | Open-drain, active low, pulses of ≤ 20 µs only (§2.3, D76). Flags any change on the controller's own inputs. The same net resets the controller through an RC filter |
 | Board identity (D46, D68) | PA0 (ADC_IN0) | The role shunt divider (doc 04 §4), moved from ESP32 GPIO 3 by D68. Read once after Go; the ESP32 compares it with the stored role |
 | Output B1 PWM (D68) | PA8 (TIM1_CH1) | Moved from ESP32 GPIO 39. Duty set by the ESP32 over I²C; the B1 gate pull-up runs the output at full duty while the pin floats (reset, bootloader, blank; D75) |
 | LED chain 1 (D70, D71) | PA5 (TIM3_CH2, AF13) | Moved from ESP32 GPIO 14 (D70). TIM3 PWM; TIM3's update request (TIM3_CH2 has no DMA mapping) drives DMA that writes CCR2 once per LED bit, from a 2-LED circular double buffer (byte memory to 32-bit peripheral, never byte to byte; driver after [MaJerle's STM32 WS281x driver](https://github.com/MaJerle/stm32-ws2811-ws2812-ws2812b-ws281x-tim-pwm-dma-timer), D71): 1.25 µs bits, 333 ns high for a 0 and 667 ns for a 1 (D71). Inverted polarity for the inverting 2N7002 shifter (doc 02 §2.2); a final 0 % duty holds the strip's data line low to latch. The ESP32 sends colours and patterns over I²C. While the controller is in reset, in its bootloader or blank, the strip receives nothing and holds its last colours or stays dark |
 | Door reed | PA15 | EXTI 15; input only (a bootloader RX candidate, so harmless) |
-| Injection current (eFuse IMON, D61) | PA7 (ADC_IN7) | 47 kΩ + 100 nF at the eFuse, ≈ 1.3 V per amp, ≈ 0.6 mA per step [E] |
+| Injection current (eFuse IMON, D61) | PB1 (ADC_IN9; PA7 until D77) | 47 kΩ + 100 nF at the eFuse, ≈ 1.3 V per amp, ≈ 0.6 mA per step [E] |
 | Board status LED | PA11 | Moved from PA14 by D68, so SWCLK carries nothing else. It no longer lights while the bootloader runs |
-| Bus voltage (D64) | PA6 (ADC_IN6) | Divider on the RJ45 bus rail, top resistor ≥ 100 kΩ. For the anemometer power (doc 06 §4.4), bus telemetry and back-fed mode |
+| Bus voltage (D64) | PB0 (ADC_IN8; PA6 until D77) | Divider on the RJ45 bus rail, top resistor ≥ 100 kΩ. For the anemometer power (doc 06 §4.4), bus telemetry and back-fed mode |
 | SWD debug header (§4.5, D65) | PA13 (SWDIO), PA14 (SWCLK), PF2 (NRST) | 1 × 5 2.54 mm pin header: 3.3 V, SWDIO, SWCLK, NRST, GND. Since D68 these pins carry nothing else, so SWD stays enabled in normal use. PF2 stays a reset input. It also reaches the ESP32's GPIO 47 through the interrupt net's RC filter (§2.3, D76) |
 | Header group rail sense (D56) | PF3 | EXTI 3. Digital input through a divider: low when the header group's current-limit switch is in limit. Moved from PA13 by D68 |
-| Spare | PA1, PA4, PB0, PB1 (ADC_IN1, 4, 8, 9), PA9 (input only: a bootloader TX candidate), PA10 (input only: a bootloader RX candidate), PF1 | Freed by D68; PA1 again by D71; PA10 (KSD301 loop sense) and PF1 (tap ideal-diode disable) by D74, and PB0, PB1 (heater-rail and tap-side voltages) by D75, which moved them to the ESP32 (doc 04 §4) |
+| Expansion port: SPI1 (D77) | PA1 (SCK), PA6 (MISO), PA7 (MOSI), all AF0 | Also ADC_IN1, 6, 7 while SPI is off. Freed by D68, D71, D74, D75; PA6 and PA7 by moving the bus voltage and injection current to PB0 and PB1 (D77) |
+| Expansion port: USART2 (D77) | PA4 (TX, AF9), PF0 (RX, AF4) | PA4 is also ADC_IN4 and, with the UART off, the hardware chip select (AF0). PF0 is free since gate 8 moved to PF1 |
+| Expansion port: digital (D77) | PA9, PA10 | Chip selects or data-ready inputs, each with a 100 kΩ pull-up (bootloader pins, rule above) |
 
-Seven pins are spare (D68, D74, D75), and PF2-NRST goes to the debug header (D65) and, through an RC filter, to the interrupt net (D76). The 32-pin part's other pinouts (K1x, K3x, K4x) move pins around, so the PCB uses K2x only [E].
+All seven spare pins are the expansion port (D77, §2.5), and PF2-NRST goes to the debug header (D65) and, through an RC filter, to the interrupt net (D76). The 32-pin part's other pinouts (K1x, K3x, K4x) move pins around, so the PCB uses K2x only [E].
 
 ### 2.2 Per-header power
 
@@ -70,13 +72,36 @@ Every input the controller reads directly can flag the ESP32 (D68). The door and
 
 The controller takes the slow, non-safety signals that would otherwise need ESP32 GPIOs, so every role has the same pin map and the same parts (D47), LAN included (doc 04 §4):
 
-- **Takes:** the door reed, the **heater-rail voltage**, the **tap-side heater voltage**, the **bus voltage** and the **injection current** (ADC; the last from the eFuse's IMON pin, D61), the board identity and the B1 PWM (D68), LED chain 1 (D70), and the board status LED (doc 02 §2.4). LED chain 2 stays dropped from the fixed map.
+- **Takes:** the door reed, the **heater-rail voltage**, the **tap-side heater voltage**, the **bus voltage** and the **injection current** (ADC; the last from the eFuse's IMON pin, D61), the board identity and the B1 PWM (D68), LED chain 1 (D70), the board status LED (doc 02 §2.4), and the expansion port (D77, §2.5). LED chain 2 stays dropped from the fixed map.
 - **Frees:** GPIOs 13, 21, 41, 42 and 47 (D45). CAN TX/RX and the servo output (all GPIO-matrix peripherals) use 41, 42 and 21, which leaves GPIOs 10–13, the S3's IO MUX pins for SPI2, to the LAN SPI (doc 04 §4). GPIO 47 is the controller's interrupt line. D68 then moves CAN to GPIOs 16 and 18 so GPIOs 39–42 can be the ESP32's JTAG pins (doc 04 §4).
 - **ADC reference (D56):** the ADC runs from `+3V3`, which the 3.3 V buck (LMR14030, D60) sets only to ≈ ±3 % (±2 % reference over temperature plus the 1 % divider). The firmware measures the PY32's internal reference channel and scales the rail readings by it, so the D53 rail throttle (23.0 V) stays within ≈ ±1 % [E]. Since D72 the ESP32 runs from the same rail, so the controller reports the measured rail voltage to the ESP32, which scales its NTC readings by it (doc 02 §2.2).
 - **Interrupt:** a change on any of its inputs (door, group rail) reaches the ESP32 in a few milliseconds through §2.3.
 - **Failure behaviour:** nothing it carries feeds a safety layer (S-7), and after boot nothing it carries gates the heater (D75). A missing, silent or not-yet-programmed controller blanks the door input (the AD5X falls back to Moonraker), the status LED and LED chain 1, leaves output B1 at full duty (its gate pull-up; on the hub the anemometer then alerts), and leaves the board identity unchecked. The heater stays off only until the identity has been read once since boot; after that a silent controller raises an alert and heating carries on.
 - **No power switching of its own:** it is the carrier's own firmware, with no cable. A reset command over I²C, its hardware watchdog or the ESP32's hold on its reset line (§2.3, D76) restarts it, and every reset lands in the ROM bootloader (§4.1), so it never needs a power cycle to recover.
 - **It sits on the ESP32's main I²C bus,** not behind the switch. If it ever held SDA low, it would block the whole bus, which is why its firmware enables the watchdog at start-up, resets its I²C peripheral when the bus has seen no valid transaction for 1 s [E], and the ESP32 runs the usual nine-clock bus recovery before reporting a fault. A hang that leaves SCL stretched or SDA held, with the watchdog not yet firing, is cleared by the ESP32 resetting the controller through its reset line (§2.3, D76).
+
+### 2.5 Expansion port (D77)
+
+Seven carrier I/O controller pins go to a **2 × 5 2.54 mm pin header** for an odd sensor that speaks SPI or UART, or for analog voltages (doc 04 §4). The uplink is the I²C bus, so it is slow by design.
+
+| Header pin | Signal | Controller pin | Functions |
+|---|---|---|---|
+| 1 | 3.3 V | header group rail (D56, D57) | Shares the group current limit |
+| 2, 10 | GND | | |
+| 3 | P1 | PA1 | ADC_IN1, SPI1 SCK (AF0) |
+| 4 | P2 | PA4 | ADC_IN4, USART2 TX (AF9), SPI1 NSS (AF0) |
+| 5 | P3 | PA6 | ADC_IN6, SPI1 MISO (AF0) |
+| 6 | P4 | PA7 | ADC_IN7, SPI1 MOSI (AF0) |
+| 7 | P5 | PF0 | USART2 RX (AF4), GPIO |
+| 8 | D1 | PA9 | GPIO: chip select or data-ready, 100 kΩ pull-up |
+| 9 | D2 | PA10 | GPIO: chip select or data-ready, 100 kΩ pull-up |
+
+- **Modes:** every pin resets to analog (high-impedance). The ESP32 enables the SPI group (P1, P3, P4), the UART pair (P2, P5), or neither. SPI and the UART run together. A pin that its peripheral is not using is an ADC input (P1–P4) or a GPIO. No analog reading is taken during an SPI transfer.
+- **Electrical:** 1 kΩ in series and an H5VL10B ESD diode on each signal (doc 02 §2.2); no board pull-ups on P1–P4, so they stay clean as analog inputs. The ADC range is 0 to `+3V3` (a divider on the sensor side for anything higher), scaled by the internal reference reading like the other ADC channels (§2.4). All signals are 3.3 V logic.
+- **Bootloader pins:** D1 and D2 are the PA9/PA10 bootloader pair (§2.1). Use them as outputs with their pull-ups or as slow inputs; do not connect a serial transmitter to D2.
+- **Commands (I²C):** port configuration (pin groups, SPI mode and clock, UART baud and format); an ADC read with a set averaging count; one SPI transfer of up to 32 bytes each way with a chosen chip select, collected from a result buffer; UART transmit of up to 32 bytes per command and a 256-byte receive ring with an overflow flag. The controller raises an interrupt pulse (§2.3) on UART idle or when a pin crosses a threshold the ESP32 has set. Sustained UART rates above 115200 baud are not supported at 400 kHz I²C [E].
+- **Resources:** LED chain 1 uses one of the three DMA channels. UART receive can use a second; SPI transfers are short and can be polled. Which DMA requests SPI1 and USART2 can use is [U]. EXTI lines 0, 1, 4, 6, 7, 9 and 10 do not clash with the door (15) and group rail sense (3).
+- **If a sensor needs more:** a sensor board with its own MCU on any header (D42) covers longer cables, more channels or faster buses.
 
 ## 3. I²C bus load: one switch channel per header
 

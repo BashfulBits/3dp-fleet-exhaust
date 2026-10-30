@@ -203,6 +203,8 @@ The ESP32 reads it from the controller once at boot, after the controller starts
 
 It is reached with the node housing open. Holding it at power-up still enters download mode, as on any ESP32 board.
 
+**Expansion port (D77).** A 2 × 5 2.54 mm pin header on the carrier I/O controller's spare pins, for an odd SPI or UART sensor or analog voltages. Pin 1 is 3.3 V from the header group rail, pins 2 and 10 are GND, and pins 3–9 are P1 = PA1, P2 = PA4, P3 = PA6, P4 = PA7, P5 = PF0, D1 = PA9 and D2 = PA10 (functions, modes and commands in doc 09 §2.5). SPI uses P1 (SCK), P3 (MISO) and P4 (MOSI); the UART uses P2 (TX) and P5 (RX); P1–P4 read as analog inputs whenever their peripheral is off. Each signal has 1 kΩ in series and an ESD diode. The ESP32 reaches it over I²C, so it is for slow sensors only.
+
 **Peripheral use: no bit-banged interfaces.** Every interface runs on an ESP32-S3 peripheral:
 
 | Interface | Peripheral | Notes |
