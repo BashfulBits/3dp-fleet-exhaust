@@ -97,7 +97,7 @@ JLCPCB builds 5 of each board per order, so a fleet of up to 4 printers plus the
 | HEATER barrel jack, right-angle mid-mount 5.5 × 2.5 mm, 15 A (G-Switch DC-S007B-D025-15A, C7464909; was the 5 A XKB DC-005-5A-2.5 until D66) | 1 | $0.80 | $0.80 | HEATER barrel on the outside face (D64), full-power barrel brick (D66). The HEATER DIN jack has a footprint on every board but is an accessory (below) |
 | JST-XH 2.54 mm THT header, 2/3/4/5-pin (XH-5A class, e.g. C2318) | 9 | $0.015 | $0.14 | Fan A, LED 1, NTC ×2, KSD301 loop, door, B1, B2, AUX (5-pin, D48; replaces the two spare-input headers). The sensor headers are JST-SH since D69 (next row) |
 | JST-SH 1.0 mm 4-pin SMD header, right angle (Megastar ZX-SH1.0-4PWT, C7430446) | 8 | $0.068 | $0.54 | Sensor headers 1–8 in the Qwiic / STEMMA QT pinout (D69; JST-XH 4 before) |
-| 2.54 mm pin header + shunt (shunt C100114) | 9 | ≈ $0.02 | $0.18 | TERM, servo, board-identity 2 × 3 (D46), ILIM, RANGE 1, RANGE 2 (D47); spare shunts |
+| 2.54 mm pin header + shunt (shunt C100114) | 8 | ≈ $0.02 | $0.16 | TERM, servo, board-identity 2 × 3 (D46), RANGE 1, RANGE 2 (D47; ILIM went in D81); spare shunts |
 | 2.54 mm pin header, 1 × 5, no shunt | 1 | ≈ $0.02 | $0.02 | SWD debug header for the carrier I/O controller (D65, doc 09 §4.5) |
 | 2.54 mm pin header, 1 × 6, no shunt | 1 | ≈ $0.02 | $0.02 | ESP32 JTAG header on GPIOs 39–42 (D68, doc 07 §11.8) |
 | 2 × 5 2.54 mm female socket | 1 | ≈ $0.05 | $0.05 | LAN module socket on GPIOs 10–13 (D72; replaces the two 1 × 22 dev-board sockets, $0.45) |
