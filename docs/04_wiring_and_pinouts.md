@@ -132,7 +132,7 @@ Rules applied:
 | 2 | Heater-housing NTC (ADC) | – (fitted, spare) | **Anemometer heated NTC** (D32) | ADC1_CH1. RANGE 2 shunt as for GPIO 1 |
 | 3 | **Fan A high-side enable** (D68, was GPIO 18) | – | Fan A enable (if used) | 10 kΩ pull-down, low at reset (strapping pin, above). The board identity moved to the carrier I/O controller (D68, below) |
 | 4 | Heater current, LM2904 out (ADC, D50) | – | – | ADC1_CH3; sampled at a fixed rate by ADC1 continuous mode with DMA (below) |
-| 5 | **Heater-rail voltage** (ADC, D75) | Same | Same | ADC1_CH4. 100 kΩ / 9.1 kΩ divider, 100 nF at the pin. Back from the controller's PB0 (D75); AUX A moved to GPIO 36 |
+| 5 | **Heater-rail voltage** (ADC, D75) | Same | Same; **hub supply** (D78) | ADC1_CH4. 100 kΩ / 9.1 kΩ divider, 100 nF at the pin. Back from the controller's PB0 (D75); AUX A moved to GPIO 36 |
 | 6 | AUX B: spare, or **UART1 RX** from the printer (D48) | Same | **Acknowledge button** (edge interrupt, debounced; D49, was GPIO 5): the on-board tact switch, or a remote button on AUX B | Level shifter as GPIO 36; 5 V-tolerant at the connector. The on-board tact switch is on this line (D49). The external heater-input sense (D22) moved to the carrier I/O controller's ADC (D47) |
 | 7 | **Tap-side heater voltage** (ADC, D64, D75) | Same | Same | ADC1_CH6. Divider as GPIO 5, on the internal XT60's side of the tap ideal diode. Back from the controller's PB1 (D75); the heater PWM moved to GPIO 35 |
 | 8 | I²C SDA | I²C SDA | I²C SDA | On-board XGZP, carrier I/O controller (I²C target), 8-channel I²C switch; behind it, one channel per external sensor header 1–8 (header 1 = sensor head; header 2 = node damper encoder, or hub trunk XGZP; header 3 = hub trunk-flow XGZP, D30/D33; header 4 = optional OLED on any role, on its own channel, D48; D45, D54, doc 09 §3). While the ESP32 programs an MCU, GPIO 8 carries UART2 RX instead (doc 09 §4.1) |
@@ -271,16 +271,16 @@ Every Tier 2 printer (doc 12 §3.2) uses the same link; only the printer end dif
 
 ## 6b. Power configurations (D35)
 
-Jumpers only choose what **feeds** the bus; every board's logic runs from the bus. Only the heater inputs (internal XT60, HEATER DIN, HEATER barrel; one at a time) feed the heater; the POWER IN barrel never does (D64). The rule that matters: **a node must have some source that survives its own printer's cut**: the CAT6 bus from the hub, or a brick on an ordinary outlet.
+Jumpers only choose what **feeds** the bus; every board's logic runs from the bus. Only the heater inputs (internal XT60, HEATER DIN, HEATER barrel; one at a time) feed the heater; the POWER IN barrel never does (D64). With FAN FEED on HEAT, the heater rail also feeds fan A and B1 (D78). The rule that matters: **a node must have some source that survives its own printer's cut**: the CAT6 bus from the hub, or a brick on an ordinary outlet.
 
-| Setup | INJECT | Outlet rules |
+| Setup | INJECT / FAN FEED | Outlet rules |
 |---|---|---|
-| Hub | INT (its PSU) | Hub PSU and the fan on ordinary outlets, **never on a printer's plug** |
-| Wired node-heat, printer supply | INT | Logic survives the cut through the bus |
-| Wired node-heat, heater brick (HEATER DIN or HEATER barrel jack) | INT | Heater brick **on that printer's plug** (doc 05 §9 test 23) |
-| Wired node-lite | none, or BAR with a brick | Any brick on an ordinary outlet |
-| Wireless-only node-heat (AD5X) | BAR (logic brick) + INT | **Two supplies:** logic brick in POWER IN on an ordinary outlet, heater supply on INT. The logic brick is never on the printer's plug |
-| Wireless-only node-lite | BAR | Logic brick on an ordinary outlet |
+| Hub | INT / HEAT (its PSU on the internal XT60, or a brick in a HEATER jack, D78) | Hub supply and the fan on ordinary outlets, **never on a printer's plug** |
+| Wired node-heat, printer supply | INT / HEAT | Logic survives the cut through the bus |
+| Wired node-heat, heater brick (HEATER DIN or HEATER barrel jack) | INT / HEAT | Heater brick **on that printer's plug** (doc 05 §9 test 23) |
+| Wired node-lite | none, or BAR with a brick / BUS | Any brick on an ordinary outlet |
+| Wireless-only node-heat (AD5X) | BAR (logic brick) + INT / HEAT | **Two supplies:** logic brick in POWER IN on an ordinary outlet, heater supply on INT. The logic brick is never on the printer's plug |
+| Wireless-only node-lite | BAR / BUS | Logic brick on an ordinary outlet |
 
 A node that stays up when its heater supply drops out (on the bus or a barrel logic brick) sees the drop directly and doesn't reset with it (doc 05 §3.3).
 
