@@ -271,7 +271,7 @@ Every Tier 2 printer (doc 12 §3.2) uses the same link; only the printer end dif
 | Sizing rule (D35) | Size for the worst moment: **every printer off (a power cut, or all cut in a fire) with the busiest node at its alarm peak** (servo moving, LEDs flashing). Hub PSU ≥ idle load of the whole chain + that peak + the peak of nodes on their own bricks only if they share the hub's outlet. Any single CAT6 segment ≤ ~1.5 A (two +24 V conductors, D17; deliberately not raised, D21). Three nodes: ~2 W idle each plus ~10 W for one alarm peak [E], well inside both. Checked by commissioning test 16 (doc 05 §9). |
 | Bus voltage (D64) [E] | Since D80 the INT injection path drops ≈ 0.12–0.17 V at 1 A and ≈ 0.25 V at 1.5 A (ideal diode ≈ 0.02–0.03 V, guard, eFuse and its blocking FET; ≈ 0.7 V and ≈ 0.95 V with the Schottky before), and BAR ≈ 0.4 V more through its SS56. So the bus sits at ≈ 23.5–24.1 V at the hub (LRS-100-24, 24 V ±1 %), ≈ 23.75–23.9 V at a node injecting from its own 24.0 V supply on INT, and ≥ ≈ 22.7 V at a far node fed by the hub alone at an alarm peak (≥ ≈ 22.2 V on a ±3 % brick, ≥ ≈ 21.75 V on ±5 %), after ≈ 0.8 V of cable and per-node IN/OUT losses (≈ 1.1 V before D80's OUT switch FETs). INT sources lose the same drop, so sharing among them follows the supplies' own voltages; BAR sources sit ≈ 0.4 V lower and take over later. Every board measures its own bus voltage (doc 02 §2.2) and reports it with its injected current. The bucks run down to 4 V and the eFuse and buck turn-on points sit at ≤ ≈ 18 V, so only the bus-fed fans notice (B2, and fan A and B1 on the bus leg, D78): they run ≈ 1–9 % slower than at 24 V, which the characterise run measures as installed (doc 05 §3.2). |
 | Hub supply lost (D35) | The hub's injection eFuse blocks reverse current, so its dead supply is never back-fed. The nodes whose printers are on carry the whole chain and the hub through the OUT switches (§3a); the hub enters back-fed mode (doc 07 §11.7). Load then: ~0.35 A idle, up to ~0.85 A in an alarm [E], against ~1.5 A per injecting node (D81). A board-powered exhaust fan (FAN V on 24V, D85) stops with the hub supply: the fan tap is on the supply's side of the eFuse, and back-fed power reaches only the bus. A fan on its own mains, or one of ≤ 0.75 A on BUS, keeps running. |
-| Fan tap (D85) | A second branch after the INJECT diodes and the input guard, ahead of the eFuse, through its own 2 A polyfuse, to the FAN V jumper. It carries only the board's own exhaust fan, so that current never counts against the eFuse limit or the CAT6 segment limit. |
+| Fan tap (D85, D87) | A second branch after the INJECT diodes and the input guard, ahead of the bus eFuse, through its own tap eFuse limited to ≈ 2.3 A, to the FAN V jumper. It carries only the board's own exhaust fan, so that current never counts against the eFuse limit or the CAT6 segment limit. |
 
 ## 6b. Power configurations (D35)
 
@@ -285,7 +285,7 @@ Jumpers only choose what **feeds** the bus; every board's logic runs from the bu
 | Wired node-lite | none, or BAR with a brick | Any brick on an ordinary outlet |
 | Wireless-only node-heat (AD5X) | BAR (logic brick) + INT | **Two supplies:** logic brick in POWER IN on an ordinary outlet, heater supply on INT. The logic brick is never on the printer's plug |
 | Wireless-only node-lite | BAR | Logic brick on an ordinary outlet |
-| Combined-heat or combined-lite (D84, D85) | **BAR only**: a ≥ 24 V, 2 A brick in POWER IN (≥ 2.5 A for a 24 V exhaust fan above ≈ 1 A) | Brick on an ordinary outlet, **never on the printer's plug**. INT stays out, so the exhaust fan never loads the printer's supply and keeps running through its cut. The heater still runs from the heater rail |
+| Combined-heat or combined-lite (D84, D85, D87) | **BAR only**: a ≥ 24 V, 2 A brick in POWER IN (≥ 3.5 A with an exhaust fan on FAN V 24V) | Brick on an ordinary outlet, **never on the printer's plug**. INT stays out, so the exhaust fan never loads the printer's supply and keeps running through its cut. The heater still runs from the heater rail |
 
 A node that stays up when its heater supply drops out (on the bus or a barrel logic brick) sees the drop directly and doesn't reset with it (doc 05 §3.3).
 
@@ -322,7 +322,7 @@ A one-printer system can run its hub and its node on one carrier: the role shunt
 | Filter ΔP | Sensor board P on a free sensor header (≤ 1 m Qwiic cable, or tubes run back to the board) | Same | Hub (on-board XGZP) |
 | Duct vacuum, low-flow anemometer | Not fitted (the chamber ΔP takes their place) | Same | – |
 | Venturi trunk flow, room head, OLED | Optional, each on a free sensor header | Same | Hub |
-| Logic power | **≥ 24 V, 2 A barrel brick on POWER IN, INJECT BAR only** (D85; ≥ 2.5 A for a 24 V exhaust fan above ≈ 1 A), **on an outlet that is not the printer's smart plug** (§6b), so the board and a board-powered exhaust fan outlive a mains cut | Same | – |
+| Logic power | **≥ 24 V, 2 A barrel brick on POWER IN, INJECT BAR only** (D85; ≥ 3.5 A with an exhaust fan on FAN V 24V, D87), **on an outlet that is not the printer's smart plug** (§6b), so the board and a board-powered exhaust fan outlive a mains cut | Same | – |
 | RJ45 IN/OUT, TERM | Unused; OUT stays dark (§3a) | Same | – |
 
 - **Printer link:** combined roles need a printer on the USB link, because AUX carries the smoke contact and the button. A printer on the UART link (`marlin_serial`, doc 12) keeps the two-board layout.
@@ -333,7 +333,7 @@ A one-printer system can run its hub and its node on one carrier: the role shunt
 | Pin | Signal | 2- or 3-wire 24 V fan, switched | 4-wire PWM fan |
 |---|---|---|---|
 | 1 | GND | – | Fan GND |
-| 2 | **FAN V** (D85, D86, doc 02 §2.2): BUS (24 V through B2's 0.75 A fuse) or 24V (the fan tap, ≤ ≈ 1.5 A) | Fan + | Fan +, with FAN V set to the fan's voltage; not connected for a fan on its own supply |
+| 2 | **FAN V** (D85, D86, doc 02 §2.2): BUS (24 V through B2's 0.75 A fuse) or 24V (the fan tap, ≤ ≈ 2 A, D87) | Fan + | Fan +, with FAN V set to the fan's voltage; not connected for a fan on its own supply |
 | 3 | Tach | Tach (valid only while B2 is fully on) | Tach |
 | 4 | B2: the N-FET's drain | Fan − (low-side switched) | PWM input: the N-FET pulls it low as an open-drain output, so the firmware inverts the duty; ≈ 25 kHz on LEDC |
 
