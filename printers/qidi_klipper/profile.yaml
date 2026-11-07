@@ -1,0 +1,10 @@
+# Printer profile (schema: doc 12 §4). Stub: values marked [U] are placeholders.
+schema: 1
+id: qidi_klipper
+name: Qidi enclosed Klipper printers
+status: stub
+link: moonraker
+role: node-lite
+chamber:
+  cap_c: 45              # [U per model]
+  native_heater: false   # [U per model]

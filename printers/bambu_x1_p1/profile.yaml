@@ -1,0 +1,13 @@
+# Printer profile (schema: doc 12 §4). Stub: values marked [U] are placeholders.
+schema: 1
+id: bambu_x1_p1
+name: Bambu Lab X1 / P1 series
+status: stub
+link: power_only
+role: node-lite
+chamber:
+  cap_c: 45              # [U] no node heater on this printer
+  native_heater: false
+power:                   # Tier 0 thresholds, measured at commissioning
+  idle_w: TBD
+  printing_w: TBD

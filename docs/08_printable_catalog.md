@@ -14,7 +14,7 @@
 | Seals and gaskets | **TPU 95A** | |
 | Light pipe | Clear PETG | |
 
-All hot parts print on the **C5 Pro** (enclosed), using its internal filtration plus this system's exhaust once it's installed.
+Print hot parts on an enclosed printer, ideally one with its own filtration, and on this system's exhaust once it's installed.
 
 **CAD deliverables for custom parts:** parametric source (CadQuery) + **STEP** (imports into Fusion) + STL, in `hardware/cad/<part>/`. Remixes keep the original licence and attribution.
 
@@ -22,11 +22,11 @@ All hot parts print on the **C5 Pro** (enclosed), using its internal filtration 
 
 ```mermaid
 flowchart TB
-  subgraph ad5x["AD5X ×2"]
-    C1["C1 port module<br>+ C8 grommet"] --> E3a["E3 damper<br>+ C5 node housing"]
+  subgraph kit["Kit-enclosed printer, node-heat"]
+    C1["Pack port module<br>+ C8 grommet"] --> E3a["E3 damper<br>+ C5 node housing"]
   end
-  subgraph c5pro["C5 Pro"]
-    C7["C7 shroud<br>(from E8)"] --> E3b["E3 damper<br>+ C5 node housing"]
+  subgraph own["Printer with its own exhaust fan"]
+    C7["Pack shroud over<br>its exhaust"] --> E3b["E3 damper<br>+ C5 node housing"]
   end
   E3a -->|"branch"| C14["ModulAir 2:1 Ys ×2<br>(D34)"]
   E3b -->|"branch"| C14
@@ -36,19 +36,19 @@ flowchart TB
   FAN --> HOOD["Wall hood<br>(gravity flap)"]
 ```
 
-Where the printed parts sit on an AD5X (side view, rear on the right):
+Where the printed parts sit on a kit-enclosed node-heat printer (an example; each pack shows its own layout):
 
 ```mermaid
 flowchart TB
-  subgraph ad["AD5X with the E1 enclosure kit"]
+  subgraph ad["Printer in its enclosure kit"]
     direction TB
-    E2["E2 IFS pass-through<br>(panel facing the IFS)"] ~~~ C4["C4 sensor-head cover<br>+ chamber KSD301, high"]
-    C4 ~~~ C6["C6 door reed mounts"]
-    C6 ~~~ E7["E7 recirculation duct<br>+ 5015 blower"]
+    E2["Pass-through plate<br>(pack part)"] ~~~ C4["C4 sensor-head cover<br>+ chamber KSD301, high"]
+    C4 ~~~ C6["Door reed mounts<br>(pack part)"]
+    C6 ~~~ E7["Recirculation duct,<br>if the pack needs one"]
     E7 ~~~ C3["C3 heater mount,<br>low rear"]
     C3 ~~~ C2["C2 makeup inlet,<br>low front or side"]
   end
-  C1["C1 port module + C8<br>grommet, rear, high"] --> E3["E3 damper + C16 encoder,<br>C5 node housing + C21 shutter"]
+  C1["Pack port adapter + C8<br>grommet, high"] --> E3["E3 damper + C16 encoder,<br>C5 node housing + C21 shutter"]
   ad --> C1
   E3 --> BR["Branch duct to the Ys"]
 ```
@@ -86,8 +86,8 @@ flowchart LR
   end
 ```
 
-- **Also in each AD5X:** E1 kit parts (ASA), E2 IFS pass-through plate, E7 recirculation duct, C2 makeup inlet, C3 heater mount, C4 sensor-head cover, C6 door reed mounts.
-- **Also on the C5:** C4 sensor-head cover.
+- **Also in each node-heat printer:** C2 makeup inlet, C3 heater mount, C4 sensor-head cover, plus its pack's parts (enclosure-kit parts, pass-throughs, recirculation, door reed mounts).
+- **Also on each node-lite printer:** C4 sensor-head cover, plus its pack's parts.
 - **On every damper:** C16 encoder mount (D30).
 - **On the wall:** E5 duct clips with cable channel, C9 hub enclosure with C10 light pipe.
 
@@ -105,8 +105,6 @@ flowchart LR
 |---|---|
 | Window sash plate (#151240) | The outlet is a through-wall vent hood (doc 06) |
 | Drybox optical motion block | Drybox sensors deferred |
-| C5 Pro USB hub bracket | Not needed: the C5 link uses its external USB port (D24). Verify and use it only if the J34 fallback is needed |
-| C5 rear 4-hole flange | The C5's port is a perforated side port; replaced by C7 |
 | ESP32 DIN shield enclosures (#1556383, #258431) | The hub enclosure holds the carrier (and, with an internal supply, the supply and inlet); replaced by C9 |
 
 ## 3a. Printer-pack parts
@@ -115,14 +113,14 @@ Parts that belong to one printer are defined in its printer pack (doc 12 §2). I
 
 | # | Part | Pack |
 |---|---|---|
-| E1 | AD5X enclosure kit printed parts | [AD5X §6](../printers/flashforge_ad5x/README.md#6-printed-parts) |
-| E2 | IFS/Bowden pass-through plate | [AD5X §6](../printers/flashforge_ad5x/README.md#6-printed-parts) |
-| E4 | AD5X exhaust flange (base for C1) | [AD5X §6](../printers/flashforge_ad5x/README.md#6-printed-parts) |
-| E7 | AD5X recirculation duct + 5015 blower | [AD5X §6](../printers/flashforge_ad5x/README.md#6-printed-parts) |
-| C1 | AD5X exhaust port module (port adapter) | [AD5X §6](../printers/flashforge_ad5x/README.md#6-printed-parts) |
-| C6 | Door reed + magnet mounts | [AD5X §6](../printers/flashforge_ad5x/README.md#6-printed-parts) |
-| E8 | C5 Pro exhaust-port adaptor (base for C7) | [C5 Pro §6](../printers/flashforge_c5pro/README.md#6-printed-parts) |
-| C7 | C5 Pro side-port shroud (port adapter) | [C5 Pro §6](../printers/flashforge_c5pro/README.md#6-printed-parts) |
+| E1 | AD5X enclosure kit printed parts | [AD5X §8](../printers/flashforge_ad5x/README.md#8-printed-parts) |
+| E2 | IFS/Bowden pass-through plate | [AD5X §8](../printers/flashforge_ad5x/README.md#8-printed-parts) |
+| E4 | AD5X exhaust flange (base for C1) | [AD5X §8](../printers/flashforge_ad5x/README.md#8-printed-parts) |
+| E7 | AD5X recirculation duct + 5015 blower | [AD5X §8](../printers/flashforge_ad5x/README.md#8-printed-parts) |
+| C1 | AD5X exhaust port module (port adapter) | [AD5X §8](../printers/flashforge_ad5x/README.md#8-printed-parts) |
+| C6 | Door reed + magnet mounts | [AD5X §8](../printers/flashforge_ad5x/README.md#8-printed-parts) |
+| E8 | C5 Pro exhaust-port adaptor (base for C7) | [C5 Pro §8](../printers/flashforge_c5pro/README.md#8-printed-parts) |
+| C7 | C5 Pro side-port shroud (port adapter) | [C5 Pro §8](../printers/flashforge_c5pro/README.md#8-printed-parts) |
 
 ## 3b. Damper reference designs (D29; final choice at Phase 2 design)
 
@@ -146,14 +144,14 @@ The duct system builds on **[ModulAir](https://makerworld.com/en/collections/734
 | 2:1 Y | MA-L-Y-2L ([MakerWorld #2523640](https://makerworld.com/models/2523640)) | **Branch junction:** two in a chain for three printers (replaces the 4″ wyes and C14). 3:1 and larger don't fit a 256 mm plate |
 | Gasket | MA-L-SEAL | On every joint (TPU) |
 | 100 mm hose adapters | [MakerWorld #2376673](https://makerworld.com/models/2376673) (clockwise and counter-clockwise, match the duct spiral) | Ends of every flex-duct run |
-| Inline fan / rigid pipe adapter | MA-L-PIPE-102 | Hub spool to the G4 fan |
-| Bambu X1/P1 adapter | MA-L-BL-X1-P1 ([MakerWorld #2523279](https://makerworld.com/models/2523279)) | Reference for printer packs; a Bambu pack can use it as its port adapter |
+| Inline fan / rigid pipe adapter | MA-L-PIPE-102 | Hub spool to an inline fan, or to a wall-sleeve fan's adapter |
+| Printer-specific adapters | ModulAir's own printer adapters | A pack may use one as its port adapter (doc 12 §9) |
 
 **Extensions to design for this project** (ModulAir-L compatible, published as remixes under ModulAir's licence if it allows, otherwise as our own compatible interface):
 
 | Extension | Replaces or extends | Notes |
 |---|---|---|
-| Port adapters with an L bayonet | C1 (AD5X), C7 (C5 Pro) | The printer-pack interface (doc 12 §5) |
+| Port adapters with an L bayonet | One per printer pack (§3a) | The printer-pack interface (doc 12 §5) |
 | E3 damper with L bayonet ends | E3 | Remix; the C5 node housing and AS5600 mount (C16) stay on the damper body |
 | Filter housing ports | C11 | L bayonets on inlet and outlet; the bayonet lid stays. The **trunk ΔP tap (C12)** sits on the inlet side, upstream of the cartridge, so the trunk loop never sees filter loading (doc 06 §4) |
 | **Hub instrument spool** | C17, C18 | A straight run of L-bayonet sections between the filter and the fan: **calibration slot** (a plain spacer the length of a reference venturi), **venturi** with the anemometer and reference-NTC ports (C17, C18), then the fan adapter. Sensor boards (variant P, doc 02 §2.3) clip onto their sections |
@@ -169,9 +167,9 @@ The duct system builds on **[ModulAir](https://makerworld.com/en/collections/734
 | C2 | **Makeup inlet with a spring-and-magnet flap** (D90) | ASA, steel pin hinge | Low on the front or side panel; slotted grille with **≥ ≈ 80 cm² open area** (the 4″ duct's area, D89) behind **one 120 × 120 mm top-hinged flap**. A preloaded torsion spring on the hinge pin closes it (reclose ≈ 5 Pa); a small NdFeB disc in the frame ≈ 15 mm from the hinge and a steel washer in the flap hold it to ≈ 12 Pa. **No adjustment:** the spring's preload is a fixed slot and the catch gap a printed pocket floor. Overlap lip (≈ 3 mm), no compressed seal. Checked by M11 and each purge's crack test (doc 06 §10, §5) |
 | C3 | **Heater module mount + intake filter cap** | ASA; sheet-aluminium shroud (DXF template) | Holds the integrated-fan PTC module (or the bare PTC + 5015 per E6) low at the rear, blowing along the floor away from the bed. ≥ 10 mm air gap between the aluminium shroud and any plastic. KSD301 + TCO clamp points on the shroud (doc 05 §3.2). The filter cap takes a cut carbon/HEPA pad on the intake side |
 | C4 | **Sensor-head cover** | ASA | Vented, snap-on, M2 mount; places the sensor head at the exhaust port out of the heater jet, a short cable run from the node housing. **Also holds the chamber-air KSD301** in free air beside the head (D12) |
-| C5 | **Node housing** | ASA | **Attaches to the E3 damper body** at the exhaust port, on both the AD5X and the C5 (D19), with a thermal break (air gap or standoffs) from the duct wall. Carrier with its ESP32 module (D72). **Outside face:** 2 × RJ45, POWER IN barrel, and the **HEATER DIN** and **HEATER barrel** openings side by side under the C21 shutter (D64). **Printer face, toward the C8 grommet:** JST row, servo, USB-C, and two **strain reliefs** for the tap lead and the heater lead, whose XT60s plug in inside the housing with the cover off (D64). **Port names embossed beside each opening** (IN, OUT, LOGIC 24 V (POWER IN), HEATER 24 V over the shutter pair, TAP and HEATER OUT by the strain reliefs, USB, and "FLEET BUS – NOT ETHERNET" by the RJ45s; R10); **2.5–3 mm windows in the wall** in front of the carrier's side-view LEDs (the port-live LED beside the OUT jack, D62; the link LED beside the IN jack and the CAN activity LED, D63), so they show with no light pipe (a short clear or white printed pipe is optional). **Suggested order on the outside face, left to right: IN link LED, IN jack, CAN activity LED, OUT jack, OUT port-live LED** (the activity LED between the two jacks, a solid link LED on each outer side; doc 02 §2.2); optional C20 bezels; every opening takes a C15 blanking plug when unused; a captive printed **CLEAR plunger** over the carrier's BOOT switch (D72), recessed so it can't be pressed by accident and labelled CLEAR (doc 05 §4.1); ΔP barb routed through; vents; ESP32 antenna end facing away from the printer frame (R6) |
+| C5 | **Node housing** | ASA | **Attaches to the E3 damper body** at the exhaust port, on every printer (D19), with a thermal break (air gap or standoffs) from the duct wall. Carrier with its ESP32 module (D72). **Outside face:** 2 × RJ45, POWER IN barrel, and the **HEATER DIN** and **HEATER barrel** openings side by side under the C21 shutter (D64). **Printer face, toward the C8 grommet:** JST row, servo, USB-C, and two **strain reliefs** for the tap lead and the heater lead, whose XT60s plug in inside the housing with the cover off (D64). **Port names embossed beside each opening** (IN, OUT, LOGIC 24 V (POWER IN), HEATER 24 V over the shutter pair, TAP and HEATER OUT by the strain reliefs, USB, and "FLEET BUS – NOT ETHERNET" by the RJ45s; R10); **2.5–3 mm windows in the wall** in front of the carrier's side-view LEDs (the port-live LED beside the OUT jack, D62; the link LED beside the IN jack and the CAN activity LED, D63), so they show with no light pipe (a short clear or white printed pipe is optional). **Suggested order on the outside face, left to right: IN link LED, IN jack, CAN activity LED, OUT jack, OUT port-live LED** (the activity LED between the two jacks, a solid link LED on each outer side; doc 02 §2.2); optional C20 bezels; every opening takes a C15 blanking plug when unused; a captive printed **CLEAR plunger** over the carrier's BOOT switch (D72), recessed so it can't be pressed by accident and labelled CLEAR (doc 05 §4.1); ΔP barb routed through; vents; ESP32 antenna end facing away from the printer frame (R6) |
 | C8 | **Cable grommet** | TPU | Split grommet in the C1 port module for the heater feed from the printer's supply tap, the heater lead, sensor cable, NTC leads, USB lead and ΔP tube; seals |
-| C9 | **Hub enclosure** | PETG | Wall-mount; holds the carrier; the reference supply is a brick outside it (D92). With an internal PSU it also holds the LRS-100-24 (or a reused stock AD5X supply; vented per its spacing) and an IEC inlet module. Front panel: light pipe (C10), captive **ACK plunger** over the carrier's on-board acknowledge switch (D49), a recessed **SERVICE plunger** over the carrier's BOOT switch (D72) (Wi-Fi provisioning and NVS reset, D46), labelled and recessed like the node's CLEAR plunger, buzzer grille, OLED window. The carrier mounts behind the front panel so both plungers land on their switches. Cutouts for the fleet RJ45 with a window for its port-live LED (D62) and the CAN activity LED (D63), the W5500 module's RJ45 (D18, D72), the POWER IN barrel opening (blanked unless the hub brick is on POWER IN, D22, D93), a **HEATER barrel** opening for the hub brick (D92; none under D64), fan control lead, ΔP tubes, with **embossed port names** (R10). With an internal PSU, a mains section physically separated from low-voltage, with a cover |
+| C9 | **Hub enclosure** | PETG | Wall-mount; holds the carrier; a brick supply sits outside it (D92). With an internal PSU it also holds the LRS-100-24 (or a printer's stock supply freed by an upgrade; vented per its spacing) and an IEC inlet module. Front panel: light pipe (C10), captive **ACK plunger** over the carrier's on-board acknowledge switch (D49), a recessed **SERVICE plunger** over the carrier's BOOT switch (D72) (Wi-Fi provisioning and NVS reset, D46), labelled and recessed like the node's CLEAR plunger, buzzer grille, OLED window. The carrier mounts behind the front panel so both plungers land on their switches. Cutouts for the fleet RJ45 with a window for its port-live LED (D62) and the CAN activity LED (D63), the W5500 module's RJ45 (D18, D72), the POWER IN barrel opening (blanked unless the hub brick is on POWER IN, D22, D93), a **HEATER barrel** opening for the hub brick (D92; none under D64), fan control lead, ΔP tubes, with **embossed port names** (R10). With an internal PSU, a mains section physically separated from low-voltage, with a cover |
 | C10 | **Panel light pipe** | Clear PETG | Diffuses 1–2 WS2812s into a visible status lens |
 | C11 | **Filter housing** | PETG (body), TPU (gasket) | Cylindrical, sized to the chosen combo cartridge (Levoit Core 300 class); ModulAir L bayonet inlet and outlet (D34); bayonet lid with TPU gasket, tool-free; **two barbed ΔP taps** (upstream and downstream of the cartridge); wall brackets |
 | C12 | **Trunk ΔP sensor mount** | PETG | Clamps the sensor board P (XGZP6897D) to the trunk; short tube to a tap upstream of the filter; room-reference port |

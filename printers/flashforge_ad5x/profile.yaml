@@ -2,6 +2,7 @@
 schema: 1
 id: flashforge_ad5x
 name: Flashforge AD5X (enclosure kit, zmod)
+status: designed
 link: usb_serial
 link_backup: moonraker
 role: node-heat
@@ -11,10 +12,14 @@ chamber:
 heater:
   allowed: true
   max_w: 150
+enclosure:
+  makeup_flap: true      # C2 spring-and-magnet flap; purge starts with the crack test
 door:
   source: node_reed
+# material:
+#   slot_source: zmod_ifs  # only with zmod #699's get_status() patch (O5); field name [U]
 outputs:
-  b1: recirculation blower (E7, O3)
+  b1: recirculation blower (E7, AD5X-5)
 power:                   # cross-check only on this printer (doc 07 §6.5)
   idle_w: TBD
   printing_w: TBD

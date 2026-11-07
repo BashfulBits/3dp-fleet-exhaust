@@ -10,7 +10,7 @@
 |---|---|---|
 | S-1 | **Nothing in this system shuts down Klipper or cancels a print.** Faults degrade chamber heat or exhaust and raise alerts. The only exceptions are a **corroborated fire** or a **verified heater runaway** (both two-signal), where that printer's mains is cut. | P-2, Q37 |
 | S-2 | **Each safety layer works without the layers above it.** Hardware without firmware, the node without the hub, all of it without Home Assistant. The mains-cut layer is the one exception: it needs Wi-Fi to reach the plug (and the HA server with the `ha` backend, D14), so it sits on top of hardware layers that need nothing. | P-3 |
-| S-3 | **Unpowered or crashed means a safe state:** heater off, damper holding its last position, fan running (subject to R1). | F3 |
+| S-3 | **Unpowered or crashed means a safe state:** heater off, damper holding its last position, fan running (subject to the fan's own behaviour, R1). | F3 |
 | S-4 | **Drastic actions need two independent signals.** Single signals only alert. | P-4, Q32 |
 | S-5 | **Containment logic follows fume-hood practice:** an opening (door) gets *more* extraction, not less. | F1 |
 | S-6 | **A standard, independent smoke alarm in the room is mandatory.** This system supplements it and doesn't replace it. | — |
@@ -25,8 +25,8 @@
 | Node itself (logic) | Powered from the hub bus (or, on a wireless-only node, a 24 V brick that isn't on the printer's plug), so it survives the printer being switched off. |
 | Heater power | Comes from the printer's own supply (D12): printer off, or its Shelly cut, means no heater power. |
 | Hub firmware | Hardware watchdog (ESP32 task WDT + RTC WDT) resets it. Nodes detect the missing hub heartbeat within 3 s. |
-| Exhaust fan (G4) | **Must keep running** when the hub goes silent. This is a gate on R1: if the G4 can't be made to do this, switch to the fallback fan. A board-powered 4-wire PWM fan on B2 (D85) keeps running while the firmware is silent, but stops if the hub's own supply fails (§4). |
-| Hub supply failure (D35) | **The hub keeps running on printer power.** Every node whose printer is on feeds the bus (D13), and the hub's OUT switch passes that power back to the hub (doc 04 §3a). The hub sees its own supply input drop (D52), sends a **High "hub supply lost, running on printer power"** push and enters back-fed mode (doc 07 §11.7). It goes down only when the last printer feeding the bus is switched off or cut; then the nodes still fed from elsewhere keep their local loops (heater off after 30 s), dampers hold, and the fan (on its own mains) keeps running per R1. A printer that is still on but whose node went down with the bus (e.g. the C5's node-lite) sees its USB link drop, and its **klippy extra sends `_NOTIFY`** through zmod notify (printer Wi-Fi), so you're still told. When the hub supply returns, the hub boots, finds the powered segment and reconnects by itself. If no printer is on, the hub and every node without its own brick are off, so every heater stage is off (no enable). |
+| Exhaust fan | **Must keep running** when the hub goes silent (F3). This is a gate on the fan choice (R1): a fan that can't do it isn't a supported exhaust fan (doc 02 §6). A board-powered 4-wire PWM fan on B2 (D85) keeps running while the firmware is silent, but stops if the hub's own supply fails (§4). |
+| Hub supply failure (D35) | **The hub keeps running on printer power.** Every node whose printer is on feeds the bus (D13), and the hub's OUT switch passes that power back to the hub (doc 04 §3a). The hub sees its own supply input drop (D52), sends a **High "hub supply lost, running on printer power"** push and enters back-fed mode (doc 07 §11.7). It goes down only when the last printer feeding the bus is switched off or cut; then the nodes still fed from elsewhere keep their local loops (heater off after 30 s), dampers hold, and the fan (on its own mains) keeps running per R1. A printer that is still on but whose node went down with the bus (e.g. a node-lite on a printer that stays powered) sees its USB link drop, and its **klippy extra sends `_NOTIFY`** through the printer's own notifier over its Wi-Fi, so you're still told. When the hub supply returns, the hub boots, finds the powered segment and reconnects by itself. If no printer is on, the hub and every node without its own brick are off, so every heater stage is off (no enable). |
 
 ## 3. Chamber-heater protection (node-heat)
 
@@ -34,8 +34,8 @@
 
 | Layer | Mechanism | Trip | Independent of |
 |---|---|---|---|
-| L1 | Node PID on chamber-air NTC | Setpoint ≤ `chamber.cap_c` (AD5X: 60 °C) | — |
-| L2 | **Firmware limits:** chamber > cap + 5 °C (AD5X: 65 °C); housing NTC > (measured normal max + 10 °C); NTC vs SHT40 disagree by > 5 °C; NTC open or short | Heater off, alert | L1 tuning |
+| L1 | Node PID on chamber-air NTC | Setpoint ≤ `chamber.cap_c` (≤ 60 °C with a node heater) | — |
+| L2 | **Firmware limits:** chamber > cap + 5 °C (≤ 65 °C); housing NTC > (measured normal max + 10 °C); NTC vs SHT40 disagree by > 5 °C; NTC open or short | Heater off, alert | L1 tuning |
 | L3 | **Gain watchdog** (`verify_heater` equivalent): heater ≥ 50 % for `check_gain_time` 600–900 s with < 1 °C rise, or a drop > 5 °C below target while heating (hysteresis) | Heater off, alert | Sensor plausibility |
 | L4 | **Current-sense checks:** current > 0.3 A while commanded off with one switch still working (welded FET) → the other switch off, heater **locked out** until reset, alert. **High-side output sense (GPIO 46, D64):** with the charge pump stopped (the high side off in hardware), a high reading for > 50 ms [E] means a high-side FET stuck on, which current sensing can't see while the low side is off → the low side off, heater **locked out** until reset, alert. The node checks it at boot and whenever the heater has been off for a second; it also reads low for the first 100 ms after each charge-pump start, so a normal turn-on isn't flagged. Current flowing with **both** switches commanded off → **runaway report** to the hub (§3.4). Current < 30 % of expected while on → open element, tripped TCO, or (C8) fan stall. Currents are measured from a zero taken at boot with both switches off; a zero outside its window locks the heater out (D50, doc 04 §4) | Heater off or runaway report, alert | Temperature sensors |
 | L5 | **Hardware enable chain:** charge-pump (needs a toggling GPIO) in series with the **KSD301 loop** (heater-housing KSD301 + **chamber-air KSD301 ≈ 70 °C**) drives the high-side switch | MCU hang, housing over-temperature, or chamber air over-temperature | **All firmware** |
@@ -47,7 +47,7 @@ Heater power path and the hardware enable chain (layer tags from the table):
 
 ```mermaid
 flowchart TB
-  PLUG["Smart plug (L8)"] -.->|"mains cut"| PSU["AD5X 24 V supply"]
+  PLUG["Smart plug (L8)"] -.->|"mains cut"| PSU["Printer 24 V supply"]
   PSU --> F["ATO 10 A fuses<br>tap + node (L7)"]
   F --> HS["High-side P-FET<br>(enable)"]
   HS --> TCO["TCO, one-shot<br>(L6)"]
@@ -125,7 +125,7 @@ A runaway means heat the node can't stop, which needs a double fault (both switc
 | # | Trigger | Signals |
 |---|---|---|
 | RW-a | Node reports **current > 0.3 A for ≥ 10 s with both switches commanded off**, and housing or chamber temperature rising | Heater current + NTC trend |
-| RW-b | Hub sees **chamber > cap + 10 °C (AD5X: 70 °C) on both the NTC and the SHT40** for ≥ 60 s. Node-heat only: a printer that heats its own chamber relies on its own firmware for that heater | Two separate temperature sensors |
+| RW-b | Hub sees **chamber > cap + 10 °C (≤ 70 °C) on both the NTC and the SHT40** for ≥ 60 s. Node-heat only: a printer that heats its own chamber relies on its own firmware for that heater | Two separate temperature sensors |
 
 **Response:** the damper is commanded to purge to shed heat, then that printer's plug is cut at once without waiting for the damper (by the node directly with the `shelly_node` backend, otherwise by the hub) (printer and heater power go together), and an emergency push is sent. The damper goes first because a node that wrongly runs from that printer's plug would die at the cut (D35, §2). If any fire signal (§5) joins in, the fire response takes over and closes the damper. The print is lost either way, so there's no grace period. If the node is too dead to report, the TCO in the load path is the last layer and needs no electronics.
 
@@ -145,10 +145,10 @@ flowchart TD
 ```
 
 - **RW-a:** heater current > 0.3 A for ≥ 10 s with both switches off, and temperature rising.
-- **RW-b:** chamber > 70 °C (AD5X; cap + 10 °C) on both the NTC and the SHT40 for ≥ 60 s.
+- **RW-b:** chamber > cap + 10 °C (≤ 70 °C) on both the NTC and the SHT40 for ≥ 60 s.
 - With `shelly_node`, RW-b reaches the node as the hub's `MAINS_CUT` (0x140+n); the node cuts and confirms.
 
-**RW-a response decided (D40, closes O8):** the immediate cut above. A pause-and-stall alternative (pause the print with the bed hot, stop the heater fan so the PTC self-limits until the TCO opens, and escalate to the cut) was considered and not adopted. It depended on zmod's `PAUSE` holding the bed, on the TCO reliably tripping in a fan stall, and on leaving a proven double-faulted heater powered while you're away. The print is a small loss next to that.
+**RW-a response decided (D40, closes O8):** the immediate cut above. A pause-and-stall alternative (pause the print with the bed hot, stop the heater fan so the PTC self-limits until the TCO opens, and escalate to the cut) was considered and not adopted. It depended on the host's `PAUSE` holding the bed, on the TCO reliably tripping in a fan stall, and on leaving a proven double-faulted heater powered while you're away. The print is a small loss next to that.
 
 ### 3.5 Mains-cut backends (D14)
 
@@ -188,9 +188,9 @@ The hub reads the plug back after every cut command and treats "still on after 5
 | **Hub supply lost** (D35) | Hub: current flowing back into it through its OUT switch | Back-fed mode (doc 07 §11.7): LED cap, one servo at a time, siren and push before any cut. A board-powered exhaust fan (on the fan tap, D85) stops with the supply, and the push says so; a fan on its own mains keeps running | Continues | **High** |
 | **Node lost when its plug is switched off** (D35) | Hub: a node drops offline within 10 s of its printer's plug reading off (Shelly read-back) | Alert "node powered from the printer's plug": its purge and fire response would fail at a cut | Continues | **High** |
 | CAN degraded (error-passive, repeated bus-off) | Error counters (doc 07 §6.2) | Auto-recovery; traffic on ESP-NOW; faulty segment named | Continues | Digest |
-| **Printer USB link lost** (AD5X, or C5 per D24) | Klippy extra; node | Extra reconnects. Node keeps going on Moonraker state if Wi-Fi is up; with no confirmation of an active print from either path for 30 s → heater off, damper bleed | Continues; an active `M191` wait ends on its timeout (doc 07 §4) | Normal (link restored) / High (both paths lost) |
+| **Printer USB link lost** (Tier 2 links) | Klippy extra; node | Extra reconnects. Node keeps going on Moonraker state if Wi-Fi is up; with no confirmation of an active print from either path for 30 s → heater off, damper bleed | Continues; an active `M191` wait ends on its timeout (doc 07 §4) | Normal (link restored) / High (both paths lost) |
 | Wi-Fi lost | Everything | No safety impact. CAN and USB carry on; alerts queue until it's back; panel LED shows amber | Continues | Panel only, then push when restored |
-| Hub crash / reboot | Nodes (CAN heartbeat) | Nodes turn heaters off after 30 s without the hub (no mains-cut backstop) and resume when it's back; dampers hold their last angle or keep their chamber loops running (open item O14, doc 01 §7); the fan keeps running (R1) | Continues | High via printer `_NOTIFY` if > 60 s |
+| Hub crash / reboot | Nodes (CAN heartbeat) | Nodes turn heaters off after 30 s without the hub (no mains-cut backstop) and resume when it's back; dampers hold their last angle or keep their chamber loops running (open item O14, doc 01 §7); the fan keeps running (F3, R1) | Continues | High via printer `_NOTIFY` if > 60 s |
 | **Exhaust lost** (fan fault: trunk ΔP not reached with fan commanded) | Hub | Alert. Dampers stay open (passive venting via the backdraft flap path). After the print, nodes hold dampers closed and the message says "vent manually" | **Finishes** | **High** |
 | Filter loading high | Hub filter ΔP vs fan-speed curve | — | — | Daily digest + panel amber |
 | Filter blocked (severe) | Hub | — | Continues | **High** + panel red/buzzer if unacknowledged 15 min |
@@ -198,11 +198,11 @@ The hub reads the plug back after every cut command and treats "still on after 5
 | Damper not closed when it should be (idle, fire, heat hold) | Node encoder (D30) | Retry close; on a fire the hub treats that branch as open | Continues | High on a fire, normal otherwise |
 | Damper encoder lost or implausible (no magnet, I²C error) | Node | Falls back to ΔP-only stuck detection and the commanded angle; purge air changes from time only | Continues | Digest |
 | Makeup flap out of window (D90): crack-test opening point < ≈ 6 Pa or > ≈ 30 Pa, or the hold angle at −3 Pa not back at baseline after a purge | Node chamber ΔP and encoder | Heated-print setpoint −2 Pa if the opening point is low | Continues | Digest ("check makeup flap") |
-| Chamber leakier than its baseline (D32): bleed flow up > 50 % or angle at −3 Pa drifting open | Node encoder trend; hub anemometer when the printer runs alone; heater step test | — | Continues | Digest ("check door seal / IFS window gap") |
+| Chamber leakier than its baseline (D32): bleed flow up > 50 % or angle at −3 Pa drifting open | Node encoder trend; hub anemometer when the printer runs alone; heater step test | — | Continues | Digest ("check door seal and pass-throughs") |
 | Low-flow anemometer fault (open or shorted NTC, no temperature rise with heat on, element over 80 °C) | Hub | Heater off; low-flow readings marked invalid; venturi only | Continues | Digest |
 | Chamber positive pressure sustained (> 0 Pa for 60 s while printing) | Node | Open damper toward purge; check trunk | Continues | High |
-| **Door open** | Node reed (AD5X) / C5 door buttons, sent over the USB link (Moonraker as backup) | **Damper to purge**; heater holds its setpoint; LED amber | Continues | High if open > 60 s during a heated print; otherwise none |
-| Klipper shutdown / error / print cancelled | Node via USB or Moonraker | Heater off, normal purge | (already stopped) | Normal (zmod notify already reports print errors) |
+| **Door open** | Node reed, or the printer's door objects over its link (`door.source`), with the network link as backup | **Damper to purge**; heater holds its setpoint; LED amber | Continues | High if open > 60 s during a heated print; otherwise none |
+| Klipper shutdown / error / print cancelled | Node via USB or Moonraker | Heater off, normal purge | (already stopped) | Normal (the printer's own notifications usually report print errors already) |
 | Printer powered off mid-print | Node: USB and Moonraker both lost, then heartbeat logic | Heater off after 30 s; purge with defaults | — | High |
 | Room VOC elevated (leak trend) | Hub room sensor | Log on dashboard | — | Daily digest |
 | **Thermal-model anomaly** (chamber off its predicted curve, doc 07 §11.5) | Node | None (alert only, names likely causes) | Continues | Normal; High if heating and > 5 °C under prediction for 10 min |
@@ -305,7 +305,7 @@ Jobs that don't ask for heat are never held. `PAUSE` is an ordinary Klipper comm
 | F-d | Smoke detector dry contact (optional, hub input; applies to the whole room) | Contact closed |
 | F-e | Printer power draw anomaly (plug metering: Shelly `apower` or the HA power sensor; unavailable on plugs without metering) | > 1.5× the printer's rated draw for 10 s |
 
-**Sources on a printer that heats its own chamber** (node-lite with `chamber.native_heater: true`, e.g. the C5 Pro; D39). The node has no chamber NTC or heater there, so:
+**Sources on a printer that heats its own chamber** (node-lite with `chamber.native_heater: true`; D39). The node has no chamber NTC or heater there, so:
 - **F-a** uses the printer's own chamber sensor over the printer link (USB, or Moonraker), and "heater" means the printer's chamber-heater duty from the same link. With the link down, F-a falls back to the sensor head's SHT40 and the 6 °C/min any-time threshold only.
 - **F-b** compares the sensor head at the exhaust port with the printer's chamber sensor; it needs the link.
 - **F-c, F-d and F-e** are unchanged.
@@ -357,10 +357,10 @@ flowchart TD
 
 | Item | Rule |
 |---|---|
-| Mains | In the hub enclosure only with an internal PSU (the reference hub runs on a brick, D92), and inside the AD5X base only if its supply is upgraded (below). Hub with an internal PSU: IEC inlet with fuse and switch, PE to the PSU case and inlet earth, strain relief, PSU terminal cover. **No mains on the carrier PCB.** |
-| 24 V protection | Polyfuse, TVS and ≈ 34 V over-voltage guard on the IN jack (D56); TVS and 60 V-rated detect-before-power parts on the OUT jack, and a ≈ 34 V over-voltage cut on the heater rail through the hardware enable chain and a shared resettable fuse on the fan A / B1 / B2 feed (D57); no USB power path into the carrier (D72; the D36 reset hold before); reverse-blocking, current-limited eFuse on every bus injection point (D13); 10 A ATO within 15 cm of each AD5X supply's heater tap and on each node's heater rail; one heater supply at a time behind a shutter, with a tap ideal diode and a two-supply check (D64) and a Schottky per INJECT jumper (D22); reverse-polarity P-FET; SMBJ33A TVS. |
+| Mains | In the hub enclosure only with an internal PSU (a hub on a brick has none, D92), and inside a printer's base only if its supply is upgraded (below). Hub with an internal PSU: IEC inlet with fuse and switch, PE to the PSU case and inlet earth, strain relief, PSU terminal cover. **No mains on the carrier PCB.** |
+| 24 V protection | Polyfuse, TVS and ≈ 34 V over-voltage guard on the IN jack (D56); TVS and 60 V-rated detect-before-power parts on the OUT jack, and a ≈ 34 V over-voltage cut on the heater rail through the hardware enable chain and a shared resettable fuse on the fan A / B1 / B2 feed (D57); no USB power path into the carrier (D72; the D36 reset hold before); reverse-blocking, current-limited eFuse on every bus injection point (D13); 10 A ATO within 15 cm of each printer supply's heater tap and on each node's heater rail; one heater supply at a time behind a shutter, with a tap ideal diode and a two-supply check (D64) and a Schottky per INJECT jumper (D22); reverse-polarity P-FET; SMBJ33A TVS. |
 | Conductor sizing | 14 AWG heater leads ≤ 1.5 m (doc 04 §6); CAT6 ≤ 0.75 A per conductor (logic only; ≈ 1.5 A per segment, kept low so CCA or Cat5 patch cables are safe, D21); 1 oz copper with ≥ 4 mm stitched pours on both layers along the carrier heater path (D59). |
-| Inside the AD5X | Reuse: 24 V DC work at the supply terminals only. Upgrade: mains work in the printer base to the original standard (same terminals, earth bond restored, cover refitted). |
+| Inside a printer | Reuse: 24 V DC work at the supply terminals only. Upgrade: mains work in the printer base to the original standard (same terminals, earth bond restored, cover refitted). |
 | Hot parts | Heater element in a sheet-aluminium shroud; printed parts near heat in ASA; no PETG inside heated chambers (ARG-12). |
 | Connectors | Locking or friction-latched (RJ45, XT60, DIN-4, JST-XH); the JST-SH sensor plugs are friction-held, so each sensor cable is tied down near both ends (D69); the barrel jacks are friction-only, so each is rated ≥ 1.5 × the current through it (HEATER barrel 15 A for ≤ ≈ 7.8 A, D66); THT for power. |
 
@@ -381,13 +381,13 @@ flowchart TD
 4. Command the heater off with a jumper simulating a welded low-side FET: the node turns the high side off and locks the heater out (L4). Then, with the heater off, tie the `24V_HEAT` node to the rail through a resistor to simulate a welded high side: the node locks the heater out within about a second and alerts, and the sense reads low again once the tie is removed and the node is cleared. Then reboot with a bench supply injecting 3 A through the shunt (beyond the ±1.4 A the offset can explain) (heater unplugged): the boot zero is refused and the heater stays locked out (D50). With nothing injected, the zeroed reading is within ±0.1 A.
 5. Runaway (test mode): inject "current with both switches off" plus a rising temperature: that printer's plug is cut within ~10 s, by the node with `shelly_node`, otherwise by the hub (RW-a). Repeat with two chamber sensors over 70 °C (RW-b).
 6. Unplug CAN to a heating node: the hub alerts within 10 s; the node turns its heater off at 30 s.
-7. Kill the hub (pull its ESP32): heaters off at 30 s, the **fan keeps running** (R1 gate), and the printer `_NOTIFY` fires.
+7. Kill the hub (pull its ESP32): heaters off at 30 s, the **fan keeps running** (F3), and the printer `_NOTIFY` fires.
 8. **Supply load test** (every node-heat, D64): first trim the rail reading: measure the heater rail with a meter and enter it on the dashboard, which stores the offset (D75). Then, with `heater_power` set and no print, heat the bed to its usual target, then run the heater at `heater_power` for 10 min while the printer runs a fast motion test. If the supply drops out, confirm the node sets the learned cap and alerts, then repeat until a run completes. On a shared supply, the printer's 24 V rail stays above 23 V and the mainboard doesn't reset (R12). Record `heater_power` and any learned cap in the pack README.
 9. **USB ground share:** measure the current in the USB lead's ground with the heater at 100 % (clamp meter or shunt). ≤ 0.3 A, else fit the USB isolator (R11).
-10. Unplug each printer's USB lead (AD5X and C5) mid-print: the print continues, the extra reconnects on replug, and alerts behave as in §4.
+10. Unplug each printer's USB lead (Tier 2 links) mid-print: the print continues, the extra reconnects on replug, and alerts behave as in §4.
 11. Block the heater fan: stall detected within 30 s (R8).
 12. Open the door during a heated print: damper to purge, alert at 60 s.
-13. Fire corroboration: inject two signals (test mode) and confirm the full response order, including the Shelly cut. Inject one signal and confirm it only alerts. On a printer that heats its own chamber (C5), repeat with the printer link unplugged: F-a falls back to the SHT40 (D39).
+13. Fire corroboration: inject two signals (test mode) and confirm the full response order, including the Shelly cut. Inject one signal and confirm it only alerts. On a printer that heats its own chamber, repeat with the printer link unplugged: F-a falls back to the SHT40 (D39).
 14. Gain watchdog: disconnect the element (heater commanded with no rise) and confirm the L3 trip.
 15. Unplug a mains-cut plug from Wi-Fi (and, with the `ha` backend, stop HA): the hub raises the "plug unreachable" alert within ~1 min. Issue a test cut on each plug and confirm the read-back. With `shelly_node`: switch the router off and confirm the node still cuts its plug (RW-a test mode); then pull the node's ESP32 and time how long the plug takes to rejoin its fallback network and accept a hub cut.
 16. **Bus power sharing (D13):** with all LEDs at full brightness and servos moving, read each node's bus voltage and injected current on the dashboard (D64; spot-check one node with a meter). No source exceeds its limit, and no supply is back-fed. Switch a printer off: its node stays up from the hub. **Then switch every printer's plug off and repeat the full-load step with one node in an alarm pattern (D35):** the hub supply alone holds every node's bus above 21 V, the OUT window floor (doc 04 §3a; ≥ ≈ 21.75 V expected on a ±5 % hub supply, D80), and no segment exceeds ~1.5 A. Short the bus at the far node through a 1 Ω load: every eFuse limits.
@@ -404,7 +404,7 @@ flowchart TD
 27. **Damper encoder (D30):** with the fan off, hold each damper blade while the servo is commanded to move: the node raises "damper stuck" within 10 s and stops the servo pulses: the servo goes limp and the node's 5 V current drops back. If a digital servo keeps holding without pulses, note it; that servo model isn't suitable. Loosen the horn screw so the horn slips: the node raises it too. Unplug the encoder: the node falls back to ΔP-only detection and posts a digest item.
 28. **Anemometer (D32):** with the fan off, block the probe airflow and command full heater duty in test mode: the firmware holds the element at ≤ 80 °C and ΔT ≤ 30 K. Unplug the heated NTC: the heater turns off and a digest item is posted.
 29. **Plug-off survival (D35), per node:** with the hub and every other printer on, switch that printer's plug off from the Shelly app. The node stays online and moves its damper to a commanded angle (encoder confirms). Repeat for a wireless-only node. Then move that node's logic brick to the printer's plug (test only) and switch it off: the hub raises "node powered from the printer's plug" within 10 s.
-30. **Hub supply loss (D35):** with one AD5X on and idle, unplug the hub supply's mains. The hub stays up, the "hub supply lost" push arrives, and the dashboard shows back-fed mode. Trigger a fire test (test mode) on another printer: siren and push come before its cut. Then switch the feeding AD5X off: the hub goes down, its klippy extra reports the link drop, and on restoring hub mains the hub boots and reconnects with no action. Meter the hub supply's output meanwhile: it is never back-fed.
+30. **Hub supply loss (D35):** with one node-heat printer on and idle, unplug the hub supply's mains. The hub stays up, the "hub supply lost" push arrives, and the dashboard shows back-fed mode. Trigger a fire test (test mode) on another printer: siren and push come before its cut. Then switch the feeding printer off: the hub goes down, its klippy extra reports the link drop, and on restoring hub mains the hub boots and reconnects with no action. Meter the hub supply's output meanwhile: it is never back-fed.
 31. **USB back-power (D72), per board on the bench:** with the carrier unpowered, plug an ordinary USB-C cable (with VBUS) from a laptop into the carrier's USB-C. Nothing starts (no USB device appears) and `+5V_PWR` and `+3V3` read < 0.3 V, since the receptacle's VBUS pin isn't connected. Power the carrier: the ESP32 enumerates on the same cable. (Before D72 this test checked the D36 reset hold and the D37 ideal diode of a plug-in dev board.)
 32. **Controller hang (D75), per node-heat:** while heating, hold the carrier I/O controller in reset (NRST to GND on its SWD header) for 2 min. The "carrier I/O controller silent" alert arrives, the heater keeps regulating, B1 runs at full duty and the I²C sensors keep reading. Release it: the ESP32 reprograms or restarts it and the alert clears.
 33. **Controller reset line (D76), per board:** with the heater off, run `IOC_RESET`: the controller restarts, the ESP32 runs the boot flow again and the alert clears within a few seconds. Toggle the door input about 1000 times in a minute: the controller must not reset. Halt the controller at an SWD breakpoint with `IOC_HOLD` clear: the ESP32 resets it once (not more than once per 10 min) and the alert is logged.

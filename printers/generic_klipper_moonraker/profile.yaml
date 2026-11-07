@@ -1,0 +1,11 @@
+# Printer profile (schema: doc 12 §4). Stub: values marked [U] are placeholders.
+schema: 1
+id: generic_klipper_moonraker
+name: Generic Klipper + Moonraker
+status: stub
+link: usb_serial
+link_backup: moonraker
+role: node-lite
+chamber:
+  cap_c: 45              # [U] set from the weakest material in the chamber
+  native_heater: false

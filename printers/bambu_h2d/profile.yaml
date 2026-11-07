@@ -1,0 +1,13 @@
+# Printer profile (schema: doc 12 §4). Stub: values marked [U] are placeholders.
+schema: 1
+id: bambu_h2d
+name: Bambu Lab H2D
+status: stub
+link: power_only
+role: node-lite
+chamber:
+  cap_c: 60              # [U] vendor rating
+  native_heater: true
+power:                   # Tier 0 thresholds, measured at commissioning
+  idle_w: TBD
+  printing_w: TBD

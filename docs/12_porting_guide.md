@@ -1,12 +1,12 @@
-# 12 - Porting Guide: Adding Other Printers
+# 12 - Printer Packs: Adding a Printer
 
-> Design baseline, 2026-10-26 (D25). How to add a printer that isn't a Flashforge, or doesn't run zmod, using the same hardware. Phase 1 defines the structure and the contracts; Phase 2 builds the core and the two Flashforge packs. Links for other printer families get built by whoever needs them.
+> Design baseline, 2026-11-07 (D25). How the system meets one printer model: what a printer pack is, the contracts it fills in, how to write one, and the list of packs (§9). Phase 1 defines the structure and the contracts. Phase 2 builds the core and the first two designed packs; links for other printer families get built by whoever needs them.
 
 ---
 
 ## 1. Core and printer packs
 
-The system splits into a **core** that every printer shares and a **printer pack** per printer model. Adding a printer means adding a pack; the core doesn't change.
+The system splits into a **core** that every printer shares and a **printer pack** per printer model. Adding a printer means adding a pack; the core doesn't change. The core docs (01–11, 13) never name a printer model. Everything about one model that any owner of it could reuse lives in its pack.
 
 | Core (same for every printer) | Printer pack (one per model) |
 |---|---|
@@ -16,17 +16,31 @@ The system splits into a **core** that every printer shares and a **printer pack
 | Node and hub firmware, including every link type (§3) | `profile.yaml` (§4): limits, link type, printer object names |
 | Safety layers and commissioning tests (doc 05) | Wiring to the printer: USB connection point, heater supply tap if used |
 | Klipper extra and the USB-serial protocol (doc 07) | Install variant for that printer's firmware, slicer snippets |
-| Smart-plug backends (doc 07 §10) | Porting checklist results (§7) |
+| Smart-plug backends (doc 07 §10) | Decisions, open items and commissioning results for that model (§2.2) |
+
+```mermaid
+flowchart LR
+  subgraph core["Core (docs 01–11)"]
+    direction TB
+    FW["Node and hub<br>firmware"] ~~~ HW["Carrier, damper,<br>node housing"]
+    HW ~~~ SC["Safety layers,<br>tests"]
+  end
+  subgraph pack["Printer pack"]
+    direction TB
+    PR["profile.yaml"] ~~~ PA["Port adapter,<br>parts"]
+    PA ~~~ RD["README: facts,<br>decisions, results"]
+  end
+  pack -->|"fills in the<br>contracts §3–§6"| core
+```
 
 ## 2. Pack layout
 
 ```text
 printers/
   _template/              # copy this to start a new printer
-  flashforge_ad5x/
-  flashforge_c5pro/
+  <vendor>_<model>/
     profile.yaml          # what the node needs to know (§4)
-    README.md             # install, wiring, parts, checklist results
+    README.md             # the pack design (§2.1), decisions, open items, results
     cad/                  # port adapter + other parts (CadQuery, STEP, STL)
     host/                 # install variant or host-side notes
     slicer/               # G-code snippets
@@ -34,8 +48,34 @@ printers/
 
 **Rules:**
 - A pack never edits core files. If a pack needs something the core can't express, that's a change to the core contract (§3, §4), made once for everyone.
-- Parts keep catalogue IDs (doc 08) so cross-references stay stable; the pack holds the part's full definition and doc 08 lists it with a link.
+- Parts keep catalogue IDs (doc 08) so cross-references stay stable; the pack holds the part's full definition and doc 08 §3a lists it with a link.
 - Non-commercial or otherwise restricted models are linked, never copied into the pack (§8).
+- A pack records **facts about the model**, never about one owner's installation (room, hosts, plugs, orders). Those stay in the builder's own records.
+
+### 2.1 Pack README sections
+
+Every pack README has the same sections, so packs can be compared side by side. A **stub** fills in §1, §2 and §11 and marks everything else `[U]`.
+
+| § | Section | Contents |
+|---|---|---|
+| 1 | Summary | Status (§9), role, link tier and backup, chamber cap, heater supply, door source, port adapter, profile link |
+| 2 | Printer facts | What the core needs to know about the model, each tagged [V], [E] or [U]: enclosure (built in or kit, panel material), exhaust opening, own chamber heater and its rating, firmware and its API, USB ports, supply rating, multi-material unit |
+| 3 | Role and integration | How the node meets this printer, with a cell diagram: printer, port adapter, damper and node, heater, links |
+| 4 | Enclosure modifications | Port adapter, pass-throughs, seals, insulation, makeup inlet, door switch, node mounting |
+| 5 | Heater supply | Node-heat only: the sizing check (doc 02 §3.1) or the brick used. Otherwise "None" |
+| 6 | Printer link | The connection point, ports reviewed, enumeration, route, fallbacks |
+| 7 | Host integration | What the profile's `klipper:` keys produce, or the equivalent for other firmware |
+| 8 | Printed parts | Existing models to verify and custom parts, with catalogue IDs |
+| 9 | Install variant | Which variant (§3.3), paths, notifier |
+| 10 | Pack decisions | Model-specific decisions (§2.2) |
+| 11 | Open items | Model-specific risks and open items (§2.2) |
+| 12 | Commissioning results | Measured `power.idle_w` / `power.printing_w`, and the tests from §6 item 7 with dates and results |
+
+### 2.2 Pack decisions and open items
+
+- **Decisions** that apply to one model only go in the pack's §10, numbered within the pack (`<pack>-1`, `<pack>-2`, …), each citing the core decision it applies (for example "applies D26"). A decision that would apply to any printer is a core `D` row in `design_decisions.md` instead.
+- **Risks and open items** for one model go in the pack's §11 with the core register's columns (doc 01 §7). An item first raised in the core register keeps its ID (`O1`, `R7`, …) when it moves to a pack, so older references still resolve. New pack items are numbered within the pack.
+- An item closed by a measurement on one unit is recorded as a fact in §2 with [V] and the date, so the next owner of the model doesn't repeat it.
 
 ## 3. Printer-link contract
 
@@ -57,9 +97,11 @@ printers/
 |---|---|---|---|---|
 | **0 – Standalone** | `power_only` | Print active and finished from the smart plug's power reading (doc 07 §6.5); printer powered | **Any** printer on a metering plug | Phase 2 (core) |
 | **1 – Network API** | `moonraker` | Everything in §3.1 except a blocking wait; node readings also show in Mainsail/Fluidd through Moonraker `[sensor]` (doc 07 §6.3) | Any Klipper printer with Moonraker | Phase 2 (core; also the backup link on Tier 2) |
-| | `octoprint`, `prusalink`, `bambu_mqtt` | Print state, job name; material where the API has it | OctoPrint hosts, Prusa printers, Bambu LAN mode | **Not built.** Add when a pack needs it |
+| | `octoprint`, `prusalink`, `bambu_mqtt` | Print state, job name; material where the API has it | OctoPrint hosts, and vendor network APIs | **Not built.** Add when a pack needs it |
 | **2 – Host plugin over USB** | `usb_serial` | Everything in §3.1, router-independent, with `M191` blocking | Klipper printers (any distribution), via the klippy extra | Phase 2 (core) |
 | **2b – Direct serial** (D48) | `marlin_serial` | Print state and progress (`M27`, SD or USB-stick printing), hotend and bed temperatures and targets (`M105`, `M155` auto-report), job name where the firmware reports it, mirrored alerts (`M117`). No door state, no blocking wait | Marlin printers with no host and no network | **Not built.** Add when a pack needs it |
+
+**USB on Tier 2.** The printer end is whichever USB host port the printer offers: an external port (preferred: nothing goes inside the printer) or an internal header (pins into the footprint, never wires on pads). The lead never carries VBUS (doc 04 §5). The printer's kernel must have `cdc_acm`; without it, the printer drops to `moonraker` with no other change. Each pack reviews its ports in its §6.
 
 **Tier 2b ports and rules (D48):**
 - **`link_port: uart`:** the carrier's AUX header (doc 04 §4: A = TX, B = RX, GND) to the board's TFT or serial header. The AUX lines are 5 V-tolerant. Current 32-bit boards are 3.3 V and work both ways. The pack must confirm that port is enabled in that printer's firmware [U per printer].
@@ -70,12 +112,32 @@ Every node also uses power metering as a cross-check whatever its tier: a printe
 
 **Node heater permission:** a node heater runs only on Tier 1, 2 or 2b, with print state confirmed by the link (the 30 s rule in doc 05 §4). Tier 0 can bleed, purge and alert, but it can't heat: power alone can't tell a print from a preheat or a stuck bed heater.
 
+```mermaid
+%%{init: {'flowchart': {'nodeSpacing': 15, 'padding': 6}}}%%
+flowchart TD
+  K{"Klipper?"} -->|"yes"| U{"USB host<br>+ cdc_acm?"}
+  U -->|"yes"| T2["Tier 2:<br>usb_serial"]
+  U -->|"no"| T1["Tier 1:<br>moonraker"]
+  K -->|"no"| A{"Network API,<br>print state?"}
+  A -->|"yes"| T1b["Tier 1:<br>that API"]
+  A -->|"no"| M{"Marlin<br>serial?"}
+  M -->|"yes"| T2b["Tier 2b:<br>marlin_serial"]
+  M -->|"no"| T0["Tier 0:<br>power_only"]
+```
+
 ### 3.3 Firmware and host side
 
 - **Firmware:** one `PrinterLink` interface in `fleet_common`, with one implementation per link type. The node picks it from its profile. New link types are added to the core, so every pack can use them.
-- **Klipper host plugin:** the klippy extra (`fleet_node.py`) uses only Klipper's own APIs and `pyserial`, so it runs on any Klipper. It's packaged once, with install variants:
-  - **zmod** (Flashforge): as doc 07 §3.1.
-  - **Stock Klipper with Moonraker** (Voron, RatOS, Sovol, Creality with helper scripts, …): `install.sh` symlinks the extra into `klippy/extras`, and a Moonraker `update_manager` entry keeps it updated.
+- **Klipper host plugin:** the klippy extra (`fleet_node.py`) uses only Klipper's own APIs and `pyserial`, so it runs on any Klipper. It's packaged once, with install variants. Each pack names its variant and paths in its §9.
+
+| Variant | For | Install | Update | User config | Notifier |
+|---|---|---|---|---|---|
+| **Firmware mod** (for example zmod, which runs over a vendor's stock firmware; §9 shows which packs use it) | Printers whose vendor Klipper is locked down, where a mod adds root, Moonraker and a plugin system | Into the mod's plugin directory, enabled with the mod's command (zmod: `mod_data/plugins/fleet_exhaust/`, then `ENABLE_PLUGIN name=fleet_exhaust`) | Moonraker `[update_manager]` in the mod's Moonraker include (zmod: `mod_data/user.moonraker.conf`) | The mod's user config (zmod: `mod_data/user.cfg`) | The mod's notify plugin (zmod: Apprise URLs in `mod_data/notify.txt`, then `UPDATE_NOTIFY`) |
+| **Stock Klipper with Moonraker** | Mainline or vendor Klipper with root and Moonraker, including vendor forks opened up by community helper scripts | `install.sh` symlinks the extra into `klippy/extras`; `fleet_exhaust.cfg` included from `printer.cfg` | Moonraker `[update_manager fleet_exhaust]` | `user.cfg` beside `printer.cfg` | Moonraker `[notifier]` (Apprise) |
+| **None** | Tier 0, 1 (non-Klipper) and 2b printers | Nothing on the printer | — | Dashboard only | The hub only |
+
+The extras path differs between a vendor's Klipper and a mod's own Klipper build; the pack records it, and the installer checks it (R5).
+
 - **Protocol specs:** the USB-serial protocol (doc 07 §6.1) and the CAN messages (doc 07 §6.2) are published as versioned specs in `docs/protocol/` (Phase 2), so a host plugin for another firmware can be written from the spec alone.
 
 ## 4. Printer profile (`profile.yaml`)
@@ -85,22 +147,25 @@ The node gets its printer-specific behaviour from the profile, not from code. Th
 | Key | Type | Meaning |
 |---|---|---|
 | `id`, `name` | string | Pack folder name and display name |
+| `status` | enum | `stub`, `designed` or `commissioned` (§9). Default `designed`. A node refuses a `stub` profile for heating |
 | `link` | enum | Printer link (not the hub link of doc 07 §6.4): `usb_serial`, `moonraker`, `octoprint`, `prusalink`, `bambu_mqtt`, `marlin_serial`, `power_only` |
 | `link_port` | enum | `marlin_serial` only: `uart` (AUX header) or `usb_host` (§3.2) |
 | `link_backup` | enum | Usually `moonraker` on Klipper printers, else `power_only` |
 | `role` | enum | `node-heat` or `node-lite` |
-| `chamber.cap_c` | number | Operating cap for the chamber, set by the enclosure's weakest material (AD5X: 60; C5: 65, its own rating) |
-| `chamber.native_heater` | bool | The printer heats its own chamber (C5: true). The node then never fits or runs a heater |
+| `chamber.cap_c` | number | Operating cap for the chamber, set by the enclosure's weakest material, or the vendor's rating for a printer that heats its own chamber |
+| `chamber.native_heater` | bool | The printer heats its own chamber. The node then never fits or runs a heater |
 | `heater.allowed` | bool | Node heater permitted (needs `role: node-heat`, Tier ≥ 1) |
 | `heater.max_w` | number | Upper bound for the heater element; the node's own `heater_power` and learned supply cap may be lower (doc 05 §3.3, D64) |
+| `enclosure.makeup_flap` | bool | A spring-and-magnet makeup flap is fitted, so purge starts with the crack test (doc 06 §5.2, D90). Default false |
 | `door.source` | enum | `node_reed`, `link` (named objects), `none` |
-| `door.objects` | list | Printer object names for `link` (C5: `topDoor`, `frontDoor`) |
+| `door.objects` | list | Printer object names for `link`, for example a printer's `gcode_button` names for its doors |
+| `material.slot_source` | string | Where the loaded slot's material can be read on a printer with a multi-material unit (a status object and field), for default-policy level 4 (doc 07 §5). Default unset |
 | `klipper.chamber_sensor` | enum | `fleet_node` (the extra provides `[temperature_sensor chamber]`) or `native` |
 | `klipper.m141_m191` | enum | `plugin` or `native` |
-| `klipper.modes` | map | Macros to call per fleet mode (C5: heated → `AIR_CIRCULATION_INTERNAL`, cooling and purge → `AIR_CIRCULATION_EXTERNAL`, done → `AIR_CIRCULATION_STOP`) |
+| `klipper.modes` | map | Macros to call per fleet mode (`heated`, `cooling`, `purge`, `done`), for a printer whose own fans or circulation modes must follow the fleet mode |
 | `power.idle_w`, `power.printing_w` | number | Tier 0 thresholds (doc 07 §6.5), measured at commissioning |
 | `purge` | map | Optional per-printer overrides of the material defaults (doc 06 §6) |
-| `outputs.b1`, `outputs.b2` | string | What the low-side outputs drive (AD5X: B1 = recirculation blower) |
+| `outputs.b1`, `outputs.b2` | string | What the low-side outputs drive (for example a recirculation blower on B1) |
 
 The schema is versioned (`schema: 1`). Unknown keys are rejected, so a typo can't silently fall back to a default.
 
@@ -124,13 +189,19 @@ flowchart TB
 
 | Feature | Standard |
 |---|---|
-| Duct interface | **ModulAir Large (4″ / 100 mm) QuickLock bayonet with its gasket** (D34, doc 08 §3c), so a port adapter mates with the damper and any ModulAir part. ModulAir already has adapters for some printers (e.g. Bambu X1/P1), which a pack can use directly. Published as a STEP "interface stub" in `hardware/cad/interface/` once the licence allows (O13); otherwise our own compatible stub |
+| Duct interface | **ModulAir Large (4″ / 100 mm) QuickLock bayonet with its gasket** (D34, doc 08 §3c), so a port adapter mates with the damper and any ModulAir part. ModulAir already has adapters for some printers, which a pack can use directly. Published as a STEP "interface stub" in `hardware/cad/interface/` once the licence allows (O13); otherwise our own compatible stub |
 | Node housing | C5, mounted on the E3 damper body with its thermal break. Same part on every printer |
 | Cable pass-through | A grommet in the port adapter (C8 profile) for the USB lead, sensor-head cable, NTC leads, ΔP tube and, on node-heat, the heater leads |
 | Sensor head | C4 cover mounted inside the chamber at the exhaust port, out of any heater jet |
 | Material | Doc 08 §1 rules apply to the adapter by its location |
 
-C1 (AD5X) and C7 (C5 Pro) are the first two port adapters.
+**Three kinds of port adapter** cover the printers met so far:
+
+| Kind | When | Notes |
+|---|---|---|
+| **Kit part replacement** | The enclosure is a kit with printed or replaceable parts | The adapter replaces a kit part high on the enclosure, so no panel is cut (D2, D19) |
+| **Shroud over the printer's own exhaust fan** | The printer has a built-in exhaust fan or filter outlet | The shroud seals over the outlet without blocking it; the printer's fan then adds to the branch flow, so its pack maps the fan to the fleet modes (`klipper.modes`) |
+| **Panel flange** | A rigid enclosure with no usable opening | A flange through a cut panel, high on the rear; the last resort |
 
 ## 6. Safety contract
 
@@ -138,9 +209,9 @@ A pack **must** meet all of these. A profile can only make limits stricter; noth
 
 1. A **mains-cut smart plug** on the printer, on a supported backend (doc 07 §10).
 2. Node heaters only on a **node-heat** carrier with the full hardware chain: two switches, charge pump, both KSD301s, TCO, fuse (doc 05 §3.1).
-3. `chamber.cap_c` set from the weakest material in the chamber (≤ HDT − 30 °C for printed parts). With a **node heater**, never above 60 °C; the firmware hard limit is then cap + 5 °C and the chamber-air KSD301 is rated about cap + 10 °C (doc 05 §3.1). A printer that heats its own chamber uses the manufacturer's rating instead (C5: 65 °C).
+3. `chamber.cap_c` set from the weakest material in the chamber (≤ HDT − 30 °C for printed parts). With a **node heater**, never above 60 °C; the firmware hard limit is then cap + 5 °C and the chamber-air KSD301 is rated about cap + 10 °C (doc 05 §3.1). A printer that heats its own chamber uses the manufacturer's rating instead.
 4. Any external heater supply on the **printer's own smart plug** (doc 05 §3.3).
-5. Heater only on Tier 1 or Tier 2 links (§3.2).
+5. Heater only on Tier 1 or Tier 2 links (§3.2), and never on a `stub` profile.
 6. A heater supply that suits the heater: the sizing rule for a shared supply (doc 02 §3.1), and the node's `heater_power` set at commissioning; the learned supply cap covers a misjudged supply (doc 05 §3.3, D64).
 7. The commissioning tests that apply (doc 05 §9: always 6, 7, 10, 12, 13, 15–22, 25, 27, 29 and 31, with tests written for heating run without the heater (28 and 30 are hub tests, run once per installation); with a node heater also 1–5, 9, 11, 14, 24 and 26, plus 8, and 23 if it uses an external brick), with results recorded in the pack README.
 8. The host plugin, if any, never shuts down or errors the printer's firmware (doc 07 §3.2). Its only print control is the `PAUSE` of the print hold (doc 05 §4.1).
@@ -148,18 +219,19 @@ A pack **must** meet all of these. A profile can only make limits stricter; noth
 
 ## 7. Porting checklist
 
-1. Copy `printers/_template/` to `printers/<vendor>_<model>/`.
-2. Pick the link tier (§3.2) and role. Check whether the printer heats its own chamber.
-3. Find the exhaust opening and design the port adapter to the standard interface (§5). Look for existing models first (doc 08 policy).
-4. Decide the heater supply if there's a node heater (doc 02 §3.1) and record the sizing check.
-5. Fill in `profile.yaml`; measure `power.idle_w` and `power.printing_w` with the plug.
-6. Tier 2: confirm the printer exposes USB-serial (`cdc_acm`), find a USB connection point that needs no wires on pads, and install the extra with the right variant. Tier 2b: pick `uart` or `usb_host`, confirm the port answers `M115` at the firmware's baud rate, and record the board's logic level.
-7. Run the safety-contract tests (§6 item 7) and record the results in the pack README.
-8. Add the pack's parts to doc 08's pack index and its lines to your BOM.
+1. Copy `printers/_template/` to `printers/<vendor>_<model>/`. Set `status: stub` until the pack is designed.
+2. Record the printer facts (§2.1 section 2), each with its evidence tag.
+3. Pick the link tier (§3.2) and role. Check whether the printer heats its own chamber.
+4. Find the exhaust opening and choose the kind of port adapter (§5). Look for existing models first (doc 08 policy).
+5. Decide the heater supply if there's a node heater (doc 02 §3.1) and record the sizing check.
+6. Fill in `profile.yaml`; measure `power.idle_w` and `power.printing_w` with the plug.
+7. Tier 2: confirm the printer exposes USB-serial (`cdc_acm`), find a USB connection point that needs no wires on pads, and install the extra with the right variant. Tier 2b: pick `uart` or `usb_host`, confirm the port answers `M115` at the firmware's baud rate, and record the board's logic level.
+8. Run the safety-contract tests (§6 item 7) and record the results in the pack README; set `status: commissioned`.
+9. Add the pack's parts to doc 08's pack index, the pack to §9, and its lines to your BOM.
 
 ```mermaid
 flowchart TD
-  A["Copy printers/_template"] --> B["Pick the link tier and role;<br>does it heat its own chamber?"]
+  A["Copy printers/_template;<br>status: stub"] --> B["Printer facts;<br>tier and role"]
   B --> C["Port adapter to the<br>standard interface (§5)"]
   C --> D{"Node heater?"}
   D -->|"yes"| E["Heater supply and<br>sizing check"]
@@ -169,9 +241,9 @@ flowchart TD
   G -->|"2: USB host plugin"| H["cdc_acm, a no-solder<br>USB point, the extra"]
   G -->|"2b: direct serial"| I["uart or usb_host,<br>M115, logic level"]
   G -->|"0 or 1"| J
-  H --> J["Safety-contract tests,<br>results in the pack README"]
+  H --> J["Safety-contract tests;<br>status: commissioned"]
   I --> J
-  J --> K["Doc 08 pack index,<br>BOM lines"]
+  J --> K["Doc 08 index, §9 list,<br>BOM lines"]
 ```
 
 ## 8. Licensing and contributions
@@ -181,8 +253,29 @@ flowchart TD
 | Firmware, klippy extra, scripts | **MIT** (the repo's current `LICENSE`) | Permissive and GPL-compatible, so the extra can load into Klipper (GPLv3) |
 | Carrier PCB and other hardware designs | **CERN-OHL-P-2.0** | The permissive hardware licence, matching MIT |
 | Docs, printed-part CAD | **CC BY 4.0** | Reuse with attribution |
-| Remixes of others' models | The original's licence | Remixes inherit it. CC BY-NC models (E7, E8 sources) are linked, never copied into the repo |
+| Remixes of others' models | The original's licence | Remixes inherit it. CC BY-NC models are linked, never copied into the repo |
 
 **Labelling and tooling (D27).** A `LICENSES/` folder holds each licence text; `REUSE.toml` labels the docs and printer packs in bulk, and every source file carries an SPDX licence header naming MIT, CERN-OHL-P-2.0 or CC-BY-4.0 (the CERN-OHL-P-2.0 text is added with the first hardware files, since `reuse lint` flags licence texts that no file uses) following the REUSE spec, so `reuse lint` in CI proves every file is labelled. For the PCB, KiBot in CI generates gerbers, the JLCPCB BOM and placement files, PDF schematics and an Interactive HTML BOM on each tag, and every part carries an `LCSC` field. Releases are tagged `vX.Y.Z` in both repos (doc 07 §3.1).
 
 FLOOK32 (GPLv3, D23) and Nevermore Controller (AGPL-3.0, D27) contributed ideas only; none of their code may be copied into these MIT repos. [`CONTRIBUTING.md`](../CONTRIBUTING.md) points new contributors at the template, this checklist and the safety contract.
+
+## 9. Pack list
+
+**Status:** *designed* = the pack design is complete and waits for commissioning; *stub* = facts and likely integration only, every unknown marked [U], not usable for heating until designed; *commissioned* = the safety-contract tests passed on at least one unit. Stubs are starting points for anyone who owns the printer; corrections and measurements are welcome.
+
+| Pack | Status | Role | Link (backup) | Port adapter | Notes |
+|---|---|---|---|---|---|
+| [Flashforge AD5X](../printers/flashforge_ad5x/README.md) | designed | node-heat | `usb_serial` (`moonraker`) | Kit part replacement | Official enclosure kit, firmware mod; the reference node-heat design |
+| [Flashforge Creator 5 Pro](../printers/flashforge_c5pro/README.md) | designed | node-lite | `usb_serial` (`moonraker`) | Shroud over its exhaust fan | Own chamber heater; the reference node-lite design |
+| [Generic Klipper + Moonraker](../printers/generic_klipper_moonraker/README.md) | stub | either | `usb_serial` (`moonraker`) | Any | Any enclosed printer on mainline-style Klipper; the starting point for most new packs |
+| [Flashforge Adventurer 5M / 5M Pro](../printers/flashforge_ad5m/README.md) | stub | node-heat [U] | `usb_serial` (`moonraker`) [U] | Kit or panel [U] | Close relative of the AD5X pack |
+| [Bambu Lab X1 / P1 series](../printers/bambu_x1_p1/README.md) | stub | node-lite | `power_only` (`bambu_mqtt` not built) | Shroud over its rear exhaust | Closed firmware; Tier 0 until a network link exists |
+| [Bambu Lab H2D](../printers/bambu_h2d/README.md) | stub | node-lite | `power_only` (`bambu_mqtt` not built) | Shroud [U] | Own chamber heating [U: rating] |
+| [Prusa Core One / MK4 in an enclosure](../printers/prusa_core_one_mk4/README.md) | stub | node-lite [U] | `power_only` (`prusalink` not built) | Shroud or panel [U] | Buddy firmware; network API exists |
+| [Creality K1 series](../printers/creality_k1/README.md) | stub | node-heat [U] | `moonraker` after rooting [U] | Shroud over its exhaust [U] | Klipper-based vendor firmware |
+| [Creality K2 Plus](../printers/creality_k2_plus/README.md) | stub | node-lite | `moonraker` [U] | Shroud [U] | Own chamber heater [U: rating] |
+| [Qidi enclosed Klipper printers](../printers/qidi_klipper/README.md) | stub | node-lite or node-heat by model | `usb_serial` (`moonraker`) [U] | Shroud over its exhaust [U] | Stock Klipper + Moonraker; some models heat their own chamber |
+| [Elegoo Centauri Carbon](../printers/elegoo_centauri_carbon/README.md) | stub | node-lite [U] | `power_only` | Shroud or panel [U] | Vendor firmware and network protocol [U] |
+| [Sovol SV08 with an enclosure](../printers/sovol_sv08/README.md) | stub | node-heat [U] | `usb_serial` (`moonraker`) | Panel flange or kit part [U] | Mainline-style Klipper + Moonraker |
+
+Other enclosed printers can start from the generic Klipper + Moonraker stub, or from the Tier 0 path (§3.2) for closed firmware.

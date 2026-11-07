@@ -10,17 +10,17 @@
 flowchart TB
   PSU["24 V 5 A brick<br>(ordinary outlet)"] -->|"HEATER barrel (INT)"| HC["Hub carrier<br>injection eFuse"]
   HC -->|"B2 fan port"| FAN["Exhaust fan<br>(own mains, or<br>fan tap)"]
-  HC ===|"CAT6 #1"| N1["Node 1<br>(AD5X #1)"]
-  N1 ===|"CAT6 #2"| N2["Node 2<br>(AD5X #2)"]
-  N2 ===|"CAT6 #3"| N3["Node 3<br>(C5, lite)"]
+  HC ===|"CAT6 #1"| N1["Node 1<br>(node-heat)"]
+  N1 ===|"CAT6 #2"| N2["Node 2<br>(node-heat)"]
+  N2 ===|"CAT6 #3"| N3["Node 3<br>(node-lite)"]
   BR["24 V brick<br>(optional)"] -.->|"POWER IN"| N3
 ```
 
-Each AD5X also feeds its own node's heater input:
+Each node-heat printer also feeds its own node's heater input:
 
 ```mermaid
 flowchart TB
-  SP["Mains → smart plug"] --> AD["AD5X internal<br>24 V supply (O1)"]
+  SP["Mains → smart plug"] --> AD["Printer internal<br>24 V supply"]
   AD --> FU["ATO 10 A fuse<br>≤ 15 cm from terminals"]
   FU -->|"14 AWG ≤ 1.5 m"| N["Node heater supply<br>(internal XT60)"]
   SP -.-> BRK["24 V brick<br>(alternative, D22)"]
@@ -31,10 +31,10 @@ flowchart TB
 RJ45 IN/OUT on every carrier; a TERM jumper on every carrier, fitted at the two ends of the chain (§3). Every carrier can inject 24 V onto the bus through its eFuse, from whichever inputs its INJECT jumpers select (§6a).
 
 - **The hub supply powers node logic only**, over CAT6.
-- **Each AD5X's heater runs from that printer's own 24 V supply** (D12, doc 02 §3.1). The printer's Shelly plug removes both.
-- **The exhaust fan is on the hub's B2 fan port** (D85, §7a). The reference G4 runs on its own mains power and the hub only drives its control port (R1). A board-powered fan takes 24 V from the hub's fan tap (doc 02 §2.2, D92) and stops if the hub supply fails.
+- **Each node heater runs from its printer's own 24 V supply or a brick on that printer's plug** (D12, doc 02 §3.1). The printer's smart plug removes both.
+- **The exhaust fan is on the hub's B2 fan port** (D85, §7a). A fan on its own mains takes only the control signals. A board-powered fan takes 24 V from the hub's fan tap (doc 02 §2.2, D92) and stops if the hub supply fails.
 
-**Node-heat field wiring** (AD5X): what plugs into the carrier in its housing on the damper. Pins are in §4 and doc 02 §2.2.
+**Node-heat field wiring**: what plugs into the carrier in its housing on the damper. Pins are in §4 and doc 02 §2.2.
 
 ```mermaid
 flowchart LR
@@ -71,12 +71,12 @@ flowchart LR
 | **Local injection** (optional) | 24 V brick or PoE splitter → any node's POWER IN barrel, INJECT BAR fitted | Brick lead | +24 V, GND | 5.5 × 2.1 mm barrel (D66) | as needed |
 | **Wireless-only node** (optional, no CAT6) | 24 V brick on an ordinary outlet (not the printer's plug) → node POWER IN, INJECT BAR fitted (§6b) | Brick lead | +24 V, GND | 5.5 × 2.1 mm barrel (D66) | as needed |
 | **Bus** | Hub → node 1 → node 2 → node 3 | CAT6 patch, **distinct colour, labelled "24 V – NOT ETHERNET"** (R10) | 4 pairs (§3) | RJ45 | ~3 m, 1.5 m, 1.5 m |
-| **Heater feed** | AD5X supply terminals → inline ATO 10 A (≤ 15 cm from the terminals) → strain relief → node-heat internal XT60 (inside the housing, D64) | 14 AWG 2-conductor | 24V_HEAT, GND | Supply terminal / XT60 | ≤ 1.5 m |
+| **Heater feed** | Printer supply terminals → inline ATO 10 A (≤ 15 cm from the terminals) → strain relief → node-heat internal XT60 (inside the housing, D64) | 14 AWG 2-conductor | 24V_HEAT, GND | Supply terminal / XT60 | ≤ 1.5 m |
 | **External heater feed** (optional, D22) | 24 V DIN-4 brick, **plugged in on the printer's own smart plug** → node-heat **HEATER DIN** jack, in place of the printer tap (D52, D64) | Brick lead | +24 V, GND (2 pins each) | 4-pin DIN | brick lead |
 | **Barrel heater feed** (optional, D22, D64, D66) | 24 V barrel brick, ≥ 160 W and ≤ 10 A for full power (a 120 W brick at `heater_power` ≤ 95 W), **on the printer's own smart plug** → node-heat **HEATER barrel** jack (15 A), in place of the printer tap | Brick lead | +24 V, GND | 5.5 × 2.5 mm barrel | brick lead |
 | **Heater element** | Node XT60 out (inside the housing, through a strain relief, D64) → PTC (via TCO) | Element leads + TCO in series on the + lead | 2 | XT60 | ≤0.5 m |
 | **Heater fan** (separate leads, C8) or 5015 blower (fallback) | Node fan A → fan | 22–24 AWG | 24 V, GND, (tach), (PWM) | JST-XH 4 | ≤0.5 m |
-| **Recirculation-duct blower** (AD5X, O3) | Node B1 → 5015 blower | 22–24 AWG | 24 V, switched GND (PWM and tach leads unused) | JST-XH 2 | ≤1 m |
+| **Recirculation-duct blower** (where the pack fits one) | Node B1 → 5015 blower | 22–24 AWG | 24 V, switched GND (PWM and tach leads unused) | JST-XH 2 | ≤1 m |
 | **Fan on B2** (D84) | Carrier B2 fan port → a spare fan, or the exhaust fan on a combined board (§7a) | 22–24 AWG | GND, 24 V, tach, B2 (switched GND or open-drain PWM) | JST-XH 4 | as needed |
 | **KSD301 loop** | Node → heater-housing KSD301 → chamber-air KSD301 (in series) → node | 22–24 AWG, high-temp silicone | 2 | JST-XH 2 | ≤1 m |
 | **NTCs** | Node → chamber air NTC, heater housing NTC | NTC leads | 2 each | JST-XH 2 | ≤0.5 m |
@@ -86,8 +86,8 @@ flowchart LR
 | **Damper encoder** (D30) | Node sensor header 2 (switch channel 1) → sensor board E (AS5600) on the damper's shaft end | Qwiic cable | GND, 3.3 V, SDA, SCL | JST-SH 4, Qwiic pinout (D69) | ≤0.5 m |
 | **Door** | Node → reed switch | 2-core | 2 | JST-XH 2 | ≤1 m |
 | **Bed LED strip** | Node LED1 → WS2812 strip | 3-core 22 AWG | 5 V, DATA, GND | JST-XH 3 | ≤1 m |
-| **AD5X USB link** | Node dev-board native USB-C → AD5X bottom internal USB header (pack) | USB 2.0, **VBUS not connected** (§5) | D+, D−, GND, shield | USB-C plug / 4-pin housing | ~0.5–1 m |
-| **C5 USB link** (D24) | Node dev-board native USB-C → C5 external USB port (fallback: J34 via a hub board, §5) | USB 2.0, **VBUS not connected** (§5) | D+, D−, GND, shield | USB-C plug / USB-A plug | ≤ 1.5 m |
+| **USB link, internal header** | Carrier USB-C → a printer's internal USB header (the pack names it) | USB 2.0, **VBUS not connected** (§5) | D+, D−, GND, shield | USB-C plug / 4-pin housing | ~0.5–1 m |
+| **USB link, external port** (D24) | Carrier USB-C → a printer's external USB-A port | USB 2.0, **VBUS not connected** (§5) | D+, D−, GND, shield | USB-C plug / USB-A plug | ≤ 1.5 m |
 | **Trunk ΔP** | Hub sensor header 2 (switch channel 1) → sensor board P (XGZP6897D) at trunk | Qwiic cable, 500 mm stock (a generic 1 m cable if needed) | GND, 3.3 V, SDA, SCL | JST-SH 4, Qwiic pinout (D69) | ≤1 m |
 | **Filter ΔP** | Hub on-board XGZP → filter housing taps | Silicone tube | — | barbs | ≤1 m |
 | **Trunk flow** (D30) | Hub sensor header 3 (switch channel 2) → sensor board P (XGZP6897D) at the venturi (D33) | Qwiic cable, 500 mm stock (a generic 1 m cable if needed); silicone 2 × 4 mm from the venturi taps | GND, 3.3 V, SDA, SCL | JST-SH 4, Qwiic pinout (D69) | ≤1 m |
@@ -273,26 +273,23 @@ Every Tier 2 printer (doc 12 §3.2) uses the same link; only the printer end dif
 | Printer end rules | Prefer an **external** USB port. Internally, plug into a header (solder pins into a footprint's holes if needed), never wires onto pads (P-5). An internal hub board is a fallback only. |
 | Ground | Shield connects at the printer end only. When the node heater runs from the printer's supply, part of the heater return shares this lead's ground (R11, §6). |
 
-| Printer | Printer end |
-|---|---|
-| AD5X | Bottom internal USB header ([pack §4](../printers/flashforge_ad5x/README.md#4-usb-link)) |
-| C5 Pro | External USB port, J34 fallback ([pack §4](../printers/flashforge_c5pro/README.md#4-usb-link)) |
+Each printer pack names its printer end and any fallback (doc 12 §3.2).
 
 ## 6. Grounding rules
 
 1. **The hub supply's −V stays floating** (not bonded to earth; a desktop brick's output is, and an internal supply's is left unbonded), so the fleet logic ground has no path to mains earth of its own.
-2. **Heater current stays in its printer cell.** It leaves the AD5X supply on the 14 AWG lead and returns on it. **No heater current flows in the CAT6** any more.
+2. **Heater current stays in its printer cell.** It leaves the printer's supply (or the heater brick) on the 14 AWG lead and returns on it. **No heater current flows in the CAT6** any more.
 3. **USB-link ground share (R11):** each node's ground reaches its printer twice, via the heater return lead and via the USB GND, so part of the heater return can flow in the USB lead. With a 14 AWG return ≤ 1.5 m the share is ≲ 0.3 A [E], within a USB lead's rating, with a ground offset of ~50 mV. Measure it at commissioning; if it's higher or the link misbehaves, fit a USB isolator (ADuM3160-class) on the link.
-4. **Between printers:** if the stock AD5X supplies bond −V to earth, the two printers' grounds also meet through mains earth and through the CAT6 chain. Only a small share of heater current can take that long path [E]. The offset stays far inside CAN's common-mode range (−2 to +7 V). The USB isolator fallback breaks this path too.
+4. **Between printers:** if the printers' supplies bond −V to earth, the two printers' grounds also meet through mains earth and through the CAT6 chain. Only a small share of heater current can take that long path [E]. The offset stays far inside CAN's common-mode range (−2 to +7 V). The USB isolator fallback breaks this path too.
 5. Each carrier joins logic GND and power GND at **one star point** near the input connectors. The heater current-sense shunt sits on the power side of that point.
-6. Shields: CAT6 is unshielded (UTP). The USB lead's shield connects at the AD5X end only.
+6. Shields: CAT6 is unshielded (UTP). The USB lead's shield connects at the printer end only.
 7. **Injected current** (§6a) returns over the CAT6 GND conductors (pins 7/8; pair 3 is the presence loop since D52) to the loads it feeds. Each source is limited by its eFuse, which keeps every conductor inside the ~0.75 A allowance.
 
 ## 6a. Bus power injection (D13)
 
 | Item | Rule |
 |---|---|
-| Sources | Selected per board by the **INJECT jumpers** (INT, BAR), each through its own diode (INT has two, one on each side of the tap ideal diode, D64; since D80 the heater-rail one is an ideal diode, since D91 BAR's too, and the internal XT60's an SS56 Schottky), then the input guard, into the eFuse. Hub: INT for a brick in the HEATER barrel or a supply on the internal XT60, or BAR for a brick on POWER IN (D92, D93). Node-heat: INT (the AD5X supply tap or an upgraded internal supply), or a DIN-4 or barrel heater brick in the HEATER DIN or HEATER barrel jack (D52, D64). Any node: BAR with a 24 V brick or PoE splitter. |
+| Sources | Selected per board by the **INJECT jumpers** (INT, BAR), each through its own diode (INT has two, one on each side of the tap ideal diode, D64; since D80 the heater-rail one is an ideal diode, since D91 BAR's too, and the internal XT60's an SS56 Schottky), then the input guard, into the eFuse. Hub: INT for a brick in the HEATER barrel or a supply on the internal XT60, or BAR for a brick on POWER IN (D92, D93). Node-heat: INT (the printer supply tap or an upgraded internal supply), or a DIN-4 or barrel heater brick in the HEATER DIN or HEATER barrel jack (D52, D64). Any node: BAR with a 24 V brick or PoE splitter. |
 | Protection | Each source enters the bus through an eFuse with reverse-current blocking, so no supply is back-fed by another, and a short is current-limited at the source. |
 | Load sharing | Diode-OR by voltage. Every source runs at its factory 24 V (no trim, D79), so at each point the highest one carries its stretch of the chain, up to its eFuse limit, and cable drop under load shifts load toward local sources. No sharing controller is needed. |
 | Printer supply protection | If a printer's rail sags (bed + heater load), it falls below the bus voltage and its injection stops by itself, so the bus never takes power from a printer that needs it (R12). The ~1.5 A limit caps the most it can ever add to the printer supply at ~36 W (D81). |
@@ -312,7 +309,7 @@ Jumpers only choose what **feeds** the bus; every board's logic runs from the bu
 | Wired node-heat, printer supply | INT | Logic survives the cut through the bus |
 | Wired node-heat, heater brick (HEATER DIN or HEATER barrel jack) | INT | Heater brick **on that printer's plug** (doc 05 §9 test 23) |
 | Wired node-lite | none, or BAR with a brick | Any brick on an ordinary outlet |
-| Wireless-only node-heat (AD5X) | BAR (logic brick) + INT | **Two supplies:** logic brick in POWER IN on an ordinary outlet, heater supply on INT. The logic brick is never on the printer's plug |
+| Wireless-only node-heat | BAR (logic brick) + INT | **Two supplies:** logic brick in POWER IN on an ordinary outlet, heater supply on INT. The logic brick is never on the printer's plug |
 | Wireless-only node-lite | BAR | Logic brick on an ordinary outlet |
 | Combined-heat or combined-lite (D84, D85, D91) | **BAR only**: a ≥ 24 V, 2 A brick in POWER IN (≥ 4 A with a board-powered exhaust fan) | Brick on an ordinary outlet, **never on the printer's plug**. INT stays out, so the exhaust fan never loads the printer's supply and keeps running through its cut. The heater still runs from the heater rail |
 
@@ -350,10 +347,10 @@ Checked at commissioning (doc 05 §9 test 29) and continuously by the hub: when 
 | Low-flow anemometer (D32) | NTC 1 (GPIO 1), NTC 2 (GPIO 2), B1 (carrier I/O controller PA8, D68) | C18 probe: reference NTC at the venturi inlet, heated NTC + heater resistor in the throat |
 | Filter ΔP | On-board XGZP barbs | Filter housing inlet and outlet taps |
 | Room sensor | Sensor header 1 (switch channel 0) | Sensor head |
-| Fan | B2 fan port (D85, §7a) | Exhaust fan: the G4's control port through an adapter per R1, or a supported fan (doc 02 §6) |
+| Fan | B2 fan port (D85, §7a) | Exhaust fan: a supported fan (doc 02 §6) |
 | Smoke | AUX A (GPIO 36) | Optional relay-output smoke detector (dry contact) |
 
-**Hub field wiring** (reference build):
+**Hub field wiring** (a hub on a brick in the HEATER barrel):
 
 ```mermaid
 flowchart LR
@@ -404,7 +401,7 @@ flowchart LR
 ```
 
 - **Printer link:** combined roles need a printer on the USB link, because AUX carries the smoke contact and the button. A printer on the UART link (`marlin_serial`, doc 12) keeps the two-board layout.
-- **Exhaust fan:** it must be a 4-wire PWM fan, or a fan with the same open-collector PWM input, so that it runs at full speed while the board is silent (F3, doc 02 §6). A plain on/off fan on B2 stops with the board and is not allowed as the exhaust, on a combined board or on the hub. A fan with a proprietary port (the reference G4, R1) needs the adapter that R1 decides on. Supported fans are in doc 02 §6 (D85).
+- **Exhaust fan:** it must be a 4-wire PWM fan, or a fan with the same open-collector PWM input, so that it runs at full speed while the board is silent (F3, doc 02 §6). A plain on/off fan on B2 stops with the board and is not allowed as the exhaust, on a combined board or on the hub. A fan with a proprietary control port needs an adapter, proven on the bench, first (doc 02 §6). Supported fans are in doc 02 §6 (D85).
 
 **B2 fan port (D84, D85).** JST-XH 4 on every carrier, in fan order. It is the exhaust fan port on the hub too (D85):
 
@@ -416,6 +413,6 @@ flowchart LR
 | 4 | B2: the N-FET's drain | Fan − (low-side switched) | PWM input: the N-FET pulls it low as an open-drain output, so the firmware inverts the duty; ≈ 25 kHz on LEDC |
 
 - **Tach:** pin 3 runs through a **1N4148WS** (C2128, basic; cathode at the connector) to the expansion port's **D1** net (PA9, 100 kΩ pull-up, 1 kΩ series and ESD, doc 09 §2.5). The fan's open collector pulls D1 to ≈ 0.4 V through the diode; a fan ground floating at 24 V while B2 is off only reverse-biases it. The carrier I/O controller counts edges on EXTI 9 and reports RPM over I²C. PA9 is a bootloader transmit pin, so tach edges after a controller reset can't be taken for a sync byte (doc 09 §2.1). A builder who uses D1 on the expansion port can't also use the B2 tach.
-- **Pin 2 (D92):** the fan tap's 24 V, live whenever the board injects; no jumper (FAN V, D85, D86, went in D92). A 12 V fan needs an inline 24 → 12 V adapter (doc 02 §6). A fan or adapter on its own supply (G4, EC inline) leaves pin 2 unconnected.
+- **Pin 2 (D92):** the fan tap's 24 V, live whenever the board injects; no jumper (FAN V, D85, D86, went in D92). A 12 V fan needs an inline 24 → 12 V adapter (doc 02 §6). A fan or adapter on its own supply (an EC inline fan, a proprietary-port fan) leaves pin 2 unconnected.
 - **At reset:** GPIO 45's pull-down holds the FET off, so pin 4 floats and a 4-wire fan's own pull-up runs it at full speed (Intel 4-wire behaviour [E], as for fan A).
 

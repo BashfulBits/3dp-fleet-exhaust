@@ -2,7 +2,8 @@
 schema: 1
 id: flashforge_c5pro
 name: Flashforge Creator 5 Pro (zmod)
-link: usb_serial         # moonraker if O10 finds no cdc_acm
+status: designed
+link: usb_serial         # moonraker if O10 finds no cdc_acm (C5-1)
 link_backup: moonraker
 role: node-lite
 chamber:

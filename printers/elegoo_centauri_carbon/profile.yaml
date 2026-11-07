@@ -1,0 +1,13 @@
+# Printer profile (schema: doc 12 §4). Stub: values marked [U] are placeholders.
+schema: 1
+id: elegoo_centauri_carbon
+name: Elegoo Centauri Carbon
+status: stub
+link: power_only
+role: node-lite
+chamber:
+  cap_c: 45              # [U] from the enclosure's weakest material
+  native_heater: false
+power:                   # Tier 0 thresholds, measured at commissioning
+  idle_w: TBD
+  printing_w: TBD

@@ -1,8 +1,8 @@
 # 03 - Bill of Materials
 
-> System-level BOM for the **reference build** (2 × AD5X + 1 × C5 Pro), built bottom-up for the approved design (Full tier with the D8 sensor choices and the cost-reduction pass in [design_decisions.md](design_decisions.md#cost-reduction-pass-c1c9)). §1.2 shows how it scales to other fleets. Prices are typical US street / AliExpress / JLCPCB prices in late 2026, **[E] ±20 %**. The board-level JLCPCB BOM (part numbers and LCSC codes) is a Phase 2 deliverable.
+> System-level BOM for an **example fleet**: three printers, two of them node-heat (each with a recirculation blower and a door reed from its pack) and one node-lite on an external-port USB link, plus the hub. Built bottom-up for the approved design (Full tier with the D8 sensor choices and the cost-reduction pass in [design_decisions.md](design_decisions.md#cost-reduction-pass-c1c9)). §1.1 gives the cost per role, §1.2 how it scales to other fleets. Prices are typical US street / AliExpress / JLCPCB prices in late 2026, **[E] ±20 %**. The board-level JLCPCB BOM (part numbers and LCSC codes) is a Phase 2 deliverable.
 >
-> **Not in the total** (the reference build already had them; add them if you don't): VIVOSUN AeroZesh G4 fan, the AD5X enclosure kits, a room smoke alarm (mandatory, doc 05), and an optional CO alarm.
+> **Not in the total** (add them if you don't have them): the exhaust fan (doc 02 §6; ≈ $25–60 for a board-powered 120 mm PWM fan with its printed adapter, ≈ $80–150 for an EC inline fan), the printers' enclosures or enclosure kits, a room smoke alarm (mandatory, doc 05), and an optional CO alarm.
 
 ---
 
@@ -11,18 +11,17 @@
 | Group | Est. cost |
 |---|---|
 | A. Electronics (boards, ESP32 modules, sensors) | $262 |
-| B. Chamber heating and recirculation (2 × AD5X) | $63 |
+| B. Chamber heating and recirculation (2 node-heat) | $63 |
 | C. Dampers and user interface | $33 |
 | D. Power distribution and cabling | $119 |
 | E. Pneumatics and filtration | $86 |
 | F. Enclosure modifications | $41 |
 | G. Safety and smart home | $65 |
-| **Total (cash)**, AD5X supplies reused | **≈ $669** |
-| Contingency if O1 shows the AD5X supplies need upgrading: 2 replacement supplies (~$80). The hub stays on its brick (D92); a freed stock unit could replace the brick on the internal XT60 with an IEC inlet (≈ −$38, but mains work in the hub enclosure) | **+≈ $80 → ≈ $749** |
-| Alternative to upgrading: external DIN-4 heater brick per AD5X (Mean Well GST160A24-R7B, D22) + HEATER DIN jack, hand-soldered (≈ $1.15, D64) + 2-outlet adapter on its smart plug | ≈ $56 each, **+≈ $112 → ≈ $768** (no mains work in the printers) |
-| Barrel alternative: 24 V barrel brick per AD5X (5.5 × 2.5 mm, ≥ 160 W for full power, D66) in the HEATER barrel jack + 2-outlet adapter; or Mean Well GST120A24-P1M at `heater_power` ≤ 95 W (D22, D64) | ≈ $40 each for the 120 W brick [U: a listed ≥ 160 W barrel brick] |
+| **Total (cash)**, node-heat printers' own supplies reused | **≈ $669** |
+| If a node-heat printer's supply fails the sizing rule (doc 02 §3.1): an upgraded internal 24 V supply | ≈ $40 each |
+| …or instead an external DIN-4 heater brick (Mean Well GST160A24-R7B, D22) + HEATER DIN jack, hand-soldered (≈ $1.15, D64) + 2-outlet adapter on its smart plug | ≈ $56 each (no mains work in the printer) |
+| …or a 24 V barrel brick (5.5 × 2.5 mm, ≥ 160 W for full power, D66) in the HEATER barrel jack + 2-outlet adapter; or Mean Well GST120A24-P1M at `heater_power` ≤ 95 W (D22, D64) | ≈ $40 each for the 120 W brick [U: a listed ≥ 160 W barrel brick] |
 | Optional 24 V brick per extra injection point (larger fleets, D13) or per **wireless-only node** (D16; saves that node's CAT6 cable) | ≈ $8 each |
-| Contingency if R1 fails (the G4 can't be controlled, or stops when the hub goes silent): a fan with a documented interface, e.g. AC Infinity Cloudline 4″ with its controller port, or a 4-wire PWM EC inline fan (D41); a board-powered 24 V 4-wire PWM fan with a printed adapter is the cheapest supported option (doc 02 §6, D86) | ≈ $100–150, **not in the total** |
 | Filament for printed parts (~2 kg ASA/ABS + 0.3 kg TPU), if not already on hand | ≈ $40 |
 
 ```mermaid
@@ -37,21 +36,21 @@ pie showData
   "G. Safety" : 65
 ```
 
-### 1.1 Why this is higher than the first $470–490 estimate
+### 1.1 Cost per role
 
-> **Updates 2026-10-25:** D11 (XGZP6897D trunk sensor) took the total from ≈ $570 to ≈ $550. D12 (heater power from each AD5X's own supply, no hub relay, chamber-air KSD301) took it to ≈ $515. D13 (bus power injection) took it to ≈ $527. D17 (RJ45 safety) took it to ≈ $536. D18 (hub LAN jack) and D19 (AD5X recirculation blowers) took it to ≈ $548. D20 (ENS160, −$15) and D22 (three isolated power inputs with jumper selection; DIN-4 jack as a population option, +$25) took it to ≈ $558. D24 (C5 USB lead) took it to ≈ $561. D30 (damper encoders, trunk flow venturi) took it to ≈ $573. D31 (SDP31 on the venturi) took it to ≈ $587. D32 (low-flow thermistor anemometer) took it to ≈ $589. D33 (back to an XGZP6897D on the venturi) took it to ≈ $575. D35 (two-way current sense on the OUT ports) took it to ≈ $577. D36–D37 (reset hold, ideal-diode dev-board feed) took it to ≈ $581. D42 (a separate universal sensor board, ordered on its own, replacing the break-off tab and the XGZP and AS5600 breakouts) took it to ≈ $609. D43 (the carrier's connectors itemised, plus the extra XT30 plugs) took it to ≈ $635. D44 (a denser, diffused LED strip) took it to ≈ $640. D45 (carrier I/O controller, 8-channel I²C switch, 7 headers) took it to ≈ $650 (including the on-carrier I/O expander). D47 (one carrier population: LAN on every board, ILIM and RANGE shunts) took it to ≈ $670. D50 (LM2904 heater current sense, one extended-part fee less) took it to ≈ $666. D51 (clone and Preferred part swaps, rating fixes, carrier lines repriced from JLC stock prices, connectors at LCSC-class clone prices) took it to ≈ $638. D52 (pair-3 presence loop in place of the INA190, MX26631DL eFuse with an input guard, CH390D LAN chip, DIN brick on a pigtail) took it to ≈ $609. D54 (one PY32F030 carrier I/O controller in place of two CH32V003s, eight sensor headers) left it at ≈ $609. D56 (three bucks in place of one buck and an LDO, LED and header current-limit switches, the IN over-voltage guard) took it to ≈ $619. D57 (heater-rail over-voltage cut, OUT jack ratings, shared output fuse) took it to ≈ $624. D59 (1 oz copper, cheaper heater P-FET and MagJack) took it to ≈ $618; the A.Electronics subtotal is also corrected to the sum of its lines. D60 (LMR14030 bucks, 100 V guard FETs) took it to ≈ $622. D62 (port-live LED, its one extended-part fee) took it to ≈ $625. D63 (IN link LED, hardware CAN activity LED) took it to ≈ $626. D64 (heater sockets on the board: no ideal diodes, HEAT header, barrel heater sense or DIN pigtail; a HEATER barrel jack added) took it to ≈ $622, and its follow-up (a tap ideal diode with a two-supply check, and a bus-voltage sense) to ≈ $629, and XT60 sockets for the heater input and output (D64) to ≈ $631, and the follow-up that kept the header 7/8 interrupts separate to ≈ $630. D65 (a 1 × 5 SWD header for the carrier I/O controller, and the A-table connectors line corrected to the A.1 schedule, which D64 had raised to $2.70 per board) took it to ≈ $632, with the Electronics subtotal again the sum of its lines. D66 (a 15 A HEATER barrel for full-power barrel bricks, and a 5.5 × 2.1 mm POWER IN) took it to ≈ $634. D68 (no header INT, a JTAG header) left it there. D69 (JST-SH sensor headers and bought Qwiic cables) took it to ≈ $651. D72 (the ESP32 module on the carrier, a plug-in W5500 LAN module on the hub only, a UART0 header) took it to ≈ $625. D77 (the expansion port, about $0.20 per board) adds under $1, inside that rounding. D78 (the automatic fan power feed, about $0.45 per board) took it to ≈ $627. D80 (lower bus drop and short-proof fan outputs, about $1.08 per board plus two extended-part fees) took it to ≈ $638. D83 (the leaded PY32F030K28T6, about $0.20 per board) took it to ≈ $639. D85 (the fan tap with a 12 V fan buck and the FAN V jumper, about $1.02 per board, and a cheaper 5 V buzzer) took it to ≈ $644. D86 (no 12 V fan buck, about $0.77 per board less) took it to ≈ $640. D87 (a fan-tap eFuse in place of its polyfuse, about $0.55 per board) took it to ≈ $643. D90 (spring and magnet sets for the makeup flaps) took it to ≈ $646. D91 (an ideal diode on BAR, about $0.47 per board) took it to ≈ $648. D92 (the hub on a 120 W brick instead of an LRS-100-24 and IEC inlet) took it to ≈ $668. D93 (a POWER IN sense on GPIO 7, about $0.06 per board) took it to ≈ $669. The rest of this section explains the original $570.
+The same line items, grouped by what each role adds [E ±20 %]. Board lines are a share of a 5-board order (§1.2); pack items are whatever the printer pack lists.
 
-The first estimate used group-level figures. Building the BOM line by line added items those estimates **under-counted**:
-- ΔP tubing, the AD5X USB leads, pre-crimped pigtails, fasteners and standoffs (~$35)
-- JLC extended-part fees and shipping on the board order (~$20)
-- a spare ESP32 board (until D72) and spare servo, TCO and fuses (~$15)
+| Role or block | Adds | ≈ Cost |
+|---|---|---|
+| **Node-lite** (per printer) | Carrier with its ESP32 module and on-board chamber XGZP, sensor head (S), encoder board (E), damper servo and magnet, LED strip share, CAT6 segment, sensor cables, ΔP tubing, USB lead, smart plug | ≈ $85 |
+| **Node-heat** (per heated printer) | Node-lite plus the PTC heater, two KSD301s, TCO, fuses and holder, two NTCs, heater shroud, XT60 pairs, 14 AWG lead, enclosure sealing and insulation | ≈ $135 |
+| **Hub** (once) | Carrier, filter-ΔP XGZP, two P boards, LAN module, OLED, room sensor head, buzzer, hub brick (≈ $43) | ≈ $125 |
+| **Exhaust path** (once) | Duct, Ys, clamps, tape, hood, filter cartridge and housing, anemometer parts | ≈ $85, plus the exhaust fan (doc 02 §6) |
+| **Combined role** (one printer, D84) | One carrier does the node and the hub: drops the hub's separate board, supply, LAN module, CAT6 and duct-vacuum sensor | Node cost + exhaust path + a ≥ 2 A brick (≈ $15–25) |
+| **Pack items** | Port adapter (printed), recirculation blower, door reed, pass-throughs, heater-supply upgrade or external brick | Per pack, typically $0–60 |
+| **Services** | Pushover licence | $5 |
 
-The cost-reduction measures (C1–C9) still save about **$110** against the same design built the original way. It's the starting estimate that was low, not the savings.
-
-**If you want to get closer to $500,** these are the remaining levers. None of them changes function:
-- Buy the Shelly plugs as a multi-pack or on sale (~$10–15).
-- Source duct parts from a local hardware store's dryer-vent aisle (~$10).
-- Use reflective bubble insulation instead of foil-faced foam (~$8).
+An **N-printer fleet** with H node-heat printers costs roughly 125 + 85 + 5 + 85·N + 50·H plus pack items and the fan. The example fleet below (N = 3, H = 2) comes to ≈ $669 with its pack items.
 
 ### 1.2 Scaling to another fleet
 
@@ -59,8 +58,9 @@ The line items in §2 fall into three kinds. Re-count each against your own flee
 
 | Kind | Scales with | Examples |
 |---|---|---|
-| Per printer | Every printer | Carrier board (with its ESP32 module), sensor board (S), damper and encoder (E), CAT6 segment, USB lead, smart plug, LED strip, port adapter |
-| Per heated printer (node-heat) | Printers that get the PTC heater | Group B, the heater lead and XT60 pair, the enclosure mods in group F (pack-specific) |
+| Per printer | Every printer | Carrier board (with its ESP32 module), sensor board (S), damper and encoder (E), CAT6 segment, USB lead, smart plug, LED strip |
+| Per heated printer (node-heat) | Printers that get the PTC heater | Group B, the heater lead and XT60 pair, the enclosure sealing in group F |
+| Per pack | Whatever the printer pack lists | Port adapter, recirculation blower, door reed, pass-throughs, heater-supply upgrade or brick |
 | Per fleet | Once | Hub carrier and its W5500 LAN module, trunk sensors (P), filter housing and cartridge, trunk ducting, outlet hood, hub supply, the JLC order minimums (5 boards per design) |
 
 JLCPCB builds 5 of each board per order, so a fleet of up to 4 printers plus the hub uses one carrier order; more printers need a second.
@@ -111,17 +111,17 @@ Not in this table, because they are priced elsewhere: the POWER IN barrel jack a
 
 **Accessory (not in the total):** the **HEATER DIN jack** for a DIN-4 heater brick (D52, D64): a board-mount right-angle 4-pin power DIN jack, *GlobTek JACKPWRDIN4LS* (≈ $1.15 at DigiKey, ≈ $0.84 at 500) or *Kycon KPJX-4S-S* (C2875467, ≈ $4.11, not stocked at JLC), hand-soldered on the nodes that use a DIN brick. Every carrier has its footprint. The GlobTek part is rated −20 to 50 °C operating and the Kycon −40 to 75 °C [V]; use the Kycon where the housing runs hotter than 50 °C (doc 02 §2.2).
 
-### B. Chamber heating and recirculation (AD5X ×2)
+### B. Chamber heating and recirculation (2 node-heat)
 
 | Item | Qty | Unit | Total | Notes |
 |---|---|---|---|---|
 | 24 V 150 W PTC heater, integrated fan, aluminium housing | 2 | $18 | $36 | C8, conditional on the bench stall test (R8). Fallback: bare PTC + 3-wire 5015 blower, +$8. |
-| KSD301 normally-closed thermostat | 5 | $1 | $5 | Per AD5X: one on the heater housing (rating per O7) and one in chamber air (≈ 70 °C, D12, D26). 1 spare. |
+| KSD301 normally-closed thermostat | 5 | $1 | $5 | Per node-heat: one on the heater housing (rating per O7) and one in chamber air (≈ 70 °C, D12, D26). 1 spare. |
 | Thermal cut-off (TCO), rated per O7, DC-capable | 4 | $0.75 | $3 | 2 spares (one-shot). |
 | ATO blade fuses 10 A | 5 | $0.40 | $2 | Printer supply taps and node inputs, plus spares. |
-| NTC 100k (3950) with leads | 4 | $1 | $4 | Chamber air + heater housing per AD5X. |
+| NTC 100k (3950) with leads | 4 | $1 | $4 | Chamber air + heater housing per node-heat. |
 | Sheet aluminium (0.5–1 mm) for heater shrouds | 1 | $5 | $5 | |
-| 24 V 5015 blower (4-wire) | 2 | $4 | $8 | AD5X recirculation duct (O3, doc 08 E7). PWM lead left open runs it at full speed; node output B1 switches it. |
+| 24 V 5015 blower (4-wire) | 2 | $4 | $8 | Pack item: a recirculation duct where the printer's pack calls for one. PWM lead left open runs it at full speed; node output B1 switches it. |
 | | | | **$63** | |
 
 ### C. Dampers and user interface
@@ -129,7 +129,7 @@ Not in this table, because they are priced elsewhere: the POWER IN barrel jack a
 | Item | Qty | Unit | Total | Notes |
 |---|---|---|---|---|
 | MG90S metal-gear servo | 4 | $3 | $12 | 3 + 1 spare. |
-| Reed switch + magnets | 2 | $2 | $4 | AD5X doors. |
+| Reed switch + magnets | 2 | $2 | $4 | Pack item: door switch on printers that don't report their doors over the link. |
 | Addressable RGB LED strip, WS2812-protocol, 5 V, ~160 LED/m, with a frosted or milky silicone diffuser, 1 m | 1 | $12 | $12 | D44. Bed-lip indicator strips (~0.3 m each × 3, ~48 LEDs each). SK6812 RGB and WS2812B-type parts both work. Prefer RGB over RGBW unless the firmware driver adds it. |
 | 5 V active buzzer module (3-pin, active high, D85), momentary button | 1 | $2 | $2 | Hub panel; the buzzer plugs into the servo header. |
 | Diametric magnet (6 × 2.5 mm) | 4 | $0.75 | $3 | D30: one per damper, on the blade shaft (doc 06 §3); 1 spare. The AS5600 is on sensor board variant E (group A). |
@@ -139,17 +139,17 @@ Not in this table, because they are priced elsewhere: the POWER IN barrel jack a
 
 | Item | Qty | Unit | Total | Notes |
 |---|---|---|---|---|
-| Mean Well GST120A24-P1M (hub, logic only: 24 V, 5 A, 5.5 × 2.5 mm plug, D92) | 1 | $43 | $43 | In the hub's HEATER barrel, or a 5.5 × 2.1 mm-plug version on POWER IN (D93); no mains work. ≥ 2 A is enough when the exhaust fan has its own supply. Alternative: an LRS-100-24 ($17) with an IEC C14 inlet ($5) on the internal XT60, or a stock AD5X supply freed by an upgrade (doc 02 §3.1) [V: US distributor listings, 2026-11-07] |
-| AD5X internal supplies | 2 | — | $0 | **Reused** in the baseline. Upgrade cost is the contingency in §1. |
-| Inline ATO fuse holders | 2 | $1.50 | $3 | At each AD5X supply's heater tap. |
+| Mean Well GST120A24-P1M (hub, logic only: 24 V, 5 A, 5.5 × 2.5 mm plug, D92) | 1 | $43 | $43 | In the hub's HEATER barrel, or a 5.5 × 2.1 mm-plug version on POWER IN (D93); no mains work. ≥ 2 A is enough when the exhaust fan has its own supply. Alternative: an LRS-100-24 ($17) with an IEC C14 inlet ($5) on the internal XT60, or a printer's stock supply freed by an upgrade (doc 02 §3.1) [V: US distributor listings, 2026-11-07] |
+| Node-heat printers' internal supplies | 2 | — | $0 | **Reused** in the baseline. Upgrade or brick cost is in §1. |
+| Inline ATO fuse holders | 2 | $1.50 | $3 | At each printer supply's heater tap. |
 | XT60 connector pairs (plug side; XT60-F C98734 ≈ $0.42 with an XT60-M ≈ $0.35, D64) | 5 | $0.80 | $4 | D43. Mate with the carrier sockets: internal 24 V input on each node-heat (2), heater output on each node-heat (2), plus 1 spare; the hub's went with its internal PSU (D92). |
 | CAT6 patch cables, **distinct colour** (1 × 3 m hub→node 1, 2 × 1.5 m node→node, 1 spare) | 4 | $3.75 | $15 | Daisy chain; labelled "24 V – not Ethernet" (R10). |
 | 14 AWG 2-conductor cable | 3 m | $1.20 | $4 | Two short heater leads from each printer's supply tap (≤ 1.5 m). 14 AWG keeps the heater return share in the USB-link ground low (R11, doc 04 §6). |
 | JST-XH pre-crimped pigtail kit (2/3/4-pin) + housings | 1 | $10 | $10 | No crimp tool needed. |
 | JST-SH 4-pin pre-made cables, Qwiic / STEMMA QT class, 500 mm (the longest stock length; a generic 1 m cable where a hub run needs it) | 10 | $1.50 | $15 | D69. One per sensor-board link (3 sensor heads, 3 encoders, the hub room head, 2 trunk sensors) plus 1 spare. Bought, no crimping. |
 | Silicone tubing 2 × 4 mm | 5 m | $1.20 | $6 | ΔP sensor taps. |
-| USB-C plug → 4-pin header lead, **VBUS not connected** | 2 | $3 | $6 | AD5X link (doc 04 §5). |
-| USB-C plug → USB-A plug lead, **VBUS not connected** | 1 | $3 | $3 | C5 link via its external USB port (D24). A small USB 2.0 hub (~$8) keeps the port usable for a thumb drive; the J34 fallback adds a CH334F hub board (~$5). |
+| USB-C plug → 4-pin header lead, **VBUS not connected** | 2 | $3 | $6 | Link to a printer's internal USB header, where its pack uses one (doc 04 §5). |
+| USB-C plug → USB-A plug lead, **VBUS not connected** | 1 | $3 | $3 | Link through a printer's external USB port (D24). A small USB 2.0 hub (~$8) keeps the port usable for a thumb drive. |
 | M3 standoffs, screws, heat-set inserts, heat shrink, zip ties | 1 | $10 | $10 | |
 | | | | **$119** | |
 
@@ -166,21 +166,21 @@ Not in this table, because they are priced elsewhere: the POWER IN barrel jack a
 | Thermistor anemometer parts: 2 × 100k glass-bead NTC, 2.2 kΩ ½ W metal-film heater resistor, thermal epoxy, leads | 1 | $2 | $2 | D32, doc 06 §4.4. The printed probe is C18; the hub's NTC inputs and B1 output are already on the carrier. |
 | | | | **$86** | |
 
-### F. Enclosure modifications (AD5X ×2)
+### F. Enclosure sealing (2 node-heat)
 
 | Item | Qty | Unit | Total | Notes |
 |---|---|---|---|---|
 | EPDM D-profile gasket + closed-cell foam tape | 1 | $12 | $12 | Doors, lids, seams. |
 | Insulation: foil-faced foam board or reflective bubble | 1 | $20 | $20 | Rear, sides, top. |
-| PTFE couplers (PC4-M10) + grommets | 1 | $6 | $6 | Bowden pass-through plates. |
-| C2 makeup-flap hardware: preloaded torsion spring (≈ 0.35 mm music wire, ≈ 10 coils), small NdFeB disc magnet, steel washer, steel hinge pin | 3 | $1 | $3 | D90: one set per AD5X + 1 spare. Fixed values, no adjustment [E: spring and magnet chosen on samples]. |
+| PTFE couplers (PC4-M10) + grommets | 1 | $6 | $6 | Pack item: filament pass-throughs where a pack seals an external feeder's window. |
+| C2 makeup-flap hardware: preloaded torsion spring (≈ 0.35 mm music wire, ≈ 10 coils), small NdFeB disc magnet, steel washer, steel hinge pin | 3 | $1 | $3 | D90: one set per node-heat + 1 spare. Fixed values, no adjustment [E: spring and magnet chosen on samples]. |
 | | | | **$41** | |
 
 ### G. Safety and smart home
 
 | Item | Qty | Unit | Total | Notes |
 |---|---|---|---|---|
-| Shelly Plus Plug US | 3 | $20 | $60 | Mains cut + metering (`shelly_node` backend recommended, or `shelly`). **Alternative: a metering plug sold with Tasmota** (`tasmota_node` or `tasmota` backend, D73), e.g. Athom's Tasmota US plug V2 or V3 with a relay, ≈ $10–15 on sale, $18.40 list [V: vendor listings]; not a metering-only "no relay" model. **$0 if you use plugs you already own via the `ha` backend** (D14), e.g. Matter plugs, at the robustness cost in doc 05 §3.5. |
+| Shelly Gen2+ metering plug (e.g. Plus Plug US) | 3 | $20 | $60 | Mains cut + metering (`shelly_node` backend recommended, or `shelly`). **Alternative: a metering plug sold with Tasmota** (`tasmota_node` or `tasmota` backend, D73), e.g. Athom's Tasmota US plug V2 or V3 with a relay, ≈ $10–15 on sale, $18.40 list [V: vendor listings]; not a metering-only "no relay" model. **$0 if you use plugs you already own via the `ha` backend** (D14), e.g. Matter plugs, at the robustness cost in doc 05 §3.5. |
 | Pushover licence (one platform) | 1 | $5 | $5 | |
 | | | | **$65** | |
 

@@ -9,9 +9,9 @@
 ```mermaid
 flowchart TB
   RA["Room air<br>(makeup inlets, leaks)"]
-  RA --> A1["AD5X 1"] --> D1["Damper"]
-  RA --> A2["AD5X 2"] --> D2["Damper"]
-  RA --> C5["C5 Pro"] --> D3["Damper"]
+  RA --> A1["Printer 1"] --> D1["Damper"]
+  RA --> A2["Printer 2"] --> D2["Damper"]
+  RA --> P3["Printer 3"] --> D3["Damper"]
   D1 --> TR["4″ trunk, high<br>(all negative)"]
   D2 --> TR
   D3 --> TR
@@ -20,7 +20,7 @@ flowchart TB
   FI -.- FT["Filter ΔP taps"]
   FI --> VE["Flow venturi"]
   VE -.- VT["Venturi taps"]
-  VE --> FAN["G4 fan<br>inside the wall"]
+  VE --> FAN["Exhaust fan<br>(inline or in-wall)"]
   FAN --> HOOD["Wall hood<br>backdraft flap"]
 ```
 
@@ -41,7 +41,7 @@ All three sets of taps go to pressure sensors on the hub. The trunk tap is upstr
 |---|---|
 | **Fan at the outlet end** | Every metre of indoor duct is below room pressure, so duct leaks flow *in* (P7). |
 | **Filter upstream of the fan**, on the wall within reach | Protects the fan, and the cartridge is easy to change. |
-| **Branches leave each enclosure high** (AD5X port module at the rear; C5 shroud over the side exhaust fan) | Hot fumes rise; a high exit with a low makeup inlet gives clean displacement. The AD5X inlet (doc 08 C2) has ≥ ≈ 80 cm² open, the duct's own area, so it costs ≈ 17 Pa at 50 CFM (D89). |
+| **Branches leave each enclosure high** (a port module or a shroud over the printer's own exhaust, per its pack) | Hot fumes rise; a high exit with a low makeup inlet gives clean displacement. A makeup inlet needs ≥ ≈ 80 cm² open, the duct's own area, so it costs ≈ 17 Pa at 50 CFM (D89). |
 | **Idle: fan off, dampers closed, hood flap closed** | No winter heat loss, no back-flow into chambers. |
 | **No reserved space for a deep-carbon canister** | D6. |
 
@@ -68,9 +68,9 @@ One unsealed trunk joint leaks about as much as one printer's bleed, so:
 |---|---|---|
 | Bleed, 1–3 CFM per printer | < 35 fpm | Negligible loss and noise |
 | Purge, ~40–60 CFM (one branch) | ~460–690 fpm | Quiet range for residential duct |
-| G4 free air, 195 CFM | ~2 200 fpm | Never reached in practice; the filter and duct restrict it |
+| A ~200 CFM fan's free-air rating | ~2 300 fpm | Never reached in practice; the filter and duct restrict it |
 
-Three branches join the trunk through **two chained ModulAir 2:1 Ys** (D34, doc 08 §3c; two metal 4″ wyes as the fallback, P13). Purges are serialised (§5), so the trunk never has to carry three purge flows at once.
+In a three-printer fleet the branches join the trunk through **two chained ModulAir 2:1 Ys** (D34, doc 08 §3c; two metal 4″ wyes as the fallback, P13). Purges are serialised (§5), so the trunk never has to carry three purge flows at once.
 
 **Materials:**
 - Semi-rigid aluminium duct (not plastic flex) for low resistance and fire resistance.
@@ -94,8 +94,8 @@ Three branches join the trunk through **two chained ModulAir 2:1 Ys** (D34, doc 
 | Loop | Runs on | Measures | Moves | Setpoint |
 |---|---|---|---|---|
 | **Trunk vacuum** | Hub | XGZP6897D ±500 Pa class, trunk tap upstream of the filter vs room | Fan speed | **Constant while any branch is active**: start at **−80 Pa** *(commission)*, chosen so a fully open branch reaches purge flow while two others hold their bleed. **Never changed by mode** (P3). Fan off when no branch is active. |
-| **Chamber pressure** | Each node | XGZP6897D, chamber vs room | Damper angle | **Heated print: −3 Pa** (band −2 to −5; −2 Pa if the AD5X makeup flap's measured opening point is under ≈ 6 Pa, D90). **Cooling mode:** chamber temperature target, with −3 Pa as a floor. **Purge:** §5. |
-| **Chamber temperature** | Node-heat | Chamber-air NTC (SHT40 plausibility) | Heater PWM | `M141`/`FLEET_EXHAUST` value, capped at `chamber.cap_c` (AD5X: 60 °C) |
+| **Chamber pressure** | Each node | XGZP6897D, chamber vs room | Damper angle | **Heated print: −3 Pa** (band −2 to −5; −2 Pa if a makeup flap's measured opening point is under ≈ 6 Pa, D90). **Cooling mode:** chamber temperature target, with −3 Pa as a floor. **Purge:** §5. |
+| **Chamber temperature** | Node-heat | Chamber-air NTC (SHT40 plausibility) | Heater PWM | `M141`/`FLEET_EXHAUST` value, capped at `chamber.cap_c` |
 | **Filter monitor** | Hub | XGZP across the filter; venturi flow (§4.3) | — | Filter resistance (ΔP at the measured flow) when flow is in the venturi's range; otherwise alert thresholds vs fan speed *(commission)* |
 
 **Hub:**
@@ -103,7 +103,7 @@ Three branches join the trunk through **two chained ModulAir 2:1 Ys** (D34, doc 
 ```mermaid
 flowchart TB
   TSP["Setpoint −80 Pa<br>(constant)"] --> TPI["Trunk PI<br>5 Hz (hub)"]
-  TPI -->|"fan speed"| FAN["G4 fan"]
+  TPI -->|"fan speed"| FAN["Exhaust fan"]
   FAN --> TR(("Trunk<br>vacuum"))
   TR --> TS["Trunk XGZP"]
   TS --> TPI
@@ -159,7 +159,7 @@ All six sensors are XGZP6897D parts (D11, D30, D33), and their main error is off
 
 | # | Condition | Why |
 |---|---|---|
-| Z1 | G4 fan commanded off **and** tach reads 0 for ≥ 10 min | Duct air has stopped moving |
+| Z1 | Exhaust fan commanded off **and** tach reads 0 for ≥ 10 min | Duct air has stopped moving |
 | Z2 | Every node reports idle: no print running (`print_stats` standby/complete/cancelled), no purge, heater off, damper at 0° for ≥ 10 min | No branch flow and no damper motion |
 | Z3 | Every chamber within 3 °C of its room reading | A warm chamber creates a stack pressure of ~0.4 Pa (Δp ≈ ρ·g·h·ΔT/T), comparable to the chamber deadband |
 | Z4 | Each sensor's own reading is steady over the 60 s sample: σ < 0.3 Pa for chamber sensors and < 1 Pa for hub sensors, with a slope under 0.1 Pa/min | Rejects wind gusts at the outlet hood, a door being opened, or HVAC cycling |
@@ -288,7 +288,7 @@ CAN IDs: node 1 requests and releases on 0x131 and gets its token on 0x141; node
 |---|---|
 | Trigger | `FLEET_PURGE …` from end G-code, **or** `print_stats` → `complete` / `cancelled` / `error` (whichever comes first) |
 | Parameters | `RAMP` (°C/min), `MIN_TIME` (min), `SAFE_TEMP` (°C), `VOC_MARGIN`, from G-code or the material defaults (§6) |
-| Ramp | On an AD5X, a **crack test** first (D90): the damper steps 1° at a time from its hold angle while chamber ΔP is sampled at ≥ 10 Hz, and the deepest suction before it collapses is logged as the makeup flap's opening point. Then the damper opens progressively. If the chamber falls faster than `RAMP`, the damper eases off and, for heated materials, the heater holds a falling floor (target = start − RAMP × t) |
+| Ramp | On a printer with a makeup flap (`enclosure.makeup_flap: true`), a **crack test** first (D90): the damper steps 1° at a time from its hold angle while chamber ΔP is sampled at ≥ 10 Hz, and the deepest suction before it collapses is logged as the makeup flap's opening point. Then the damper opens progressively. If the chamber falls faster than `RAMP`, the damper eases off and, for heated materials, the heater holds a falling floor (target = start − RAMP × t) |
 | End condition | **All of:** chamber ≤ `SAFE_TEMP`; elapsed ≥ `MIN_TIME`; ≥ 5 chamber air changes (from the branch's angle–flow curve and encoder angle, D30; time-based estimate if the encoder is unavailable); chamber VOC within `VOC_MARGIN` of the hub room VOC (R3) |
 | Done | Bed LED **green breathing** ("safe to open"); push notification; damper closes; token released |
 | Door opened mid-purge | Purge continues at full damper; you've already opened it |
@@ -298,7 +298,7 @@ flowchart TD
   T["Print ends, cancels or errors,<br>or FLEET_PURGE"] --> RQ["PURGE_REQUEST"]
   RQ --> TK{"Token free?"}
   TK -->|"no"| Q["Queued; hold −3 Pa"] --> TK
-  TK -->|"yes"| CT{"AD5X?"}
+  TK -->|"yes"| CT{"Makeup<br>flap?"}
   CT -->|"yes"| CR["Crack test: damper steps 1°,<br>ΔP at ≥ 10 Hz,<br>log the flap opening"]
   CT -->|"no"| RP["Open the damper<br>progressively"]
   CR --> RP
@@ -311,7 +311,7 @@ flowchart TD
 ```
 
 **Physical check [E]:**
-- An AD5X kit chamber is ~0.1 m³, so 5 air changes at 20 CFM (0.57 m³/min) take **about 1 minute**.
+- A typical desktop chamber is ~0.1 m³, so 5 air changes at 20 CFM (0.57 m³/min) take **about 1 minute**.
 - For heated materials the **cooldown ramp sets the purge length**, not the air exchange. ABS cooling at 1 °C/min from 55 °C to 35 °C takes 20 min.
 
 ### 5.3 VOC criterion (R3)
@@ -326,23 +326,23 @@ flowchart TD
 |---|---|---|---|---|
 | ABS | 50 °C | Heated bleed | 1.0 °C/min / 35 °C / 10 min | Slow ramp limits warping and cracking |
 | ASA | 50 °C | Heated bleed | 1.0 / 35 / 10 | |
-| PC | 60 °C | Heated bleed | 1.0 / 40 / 10 | The AD5X reaches 60 °C only at its cap; the C5 Pro (65 °C) is preferred |
+| PC | 60 °C | Heated bleed | 1.0 / 40 / 10 | Needs a printer whose cap is ≥ 60 °C; one rated above that is preferred |
 | PA / PA-CF | 45 °C | Heated bleed | 2.0 / 35 / 5 | Filament must be dry |
 | PETG / PETG-CF | ≤ 35 °C | Cooling | none / 35 / 3 | |
 | PLA | ≤ 30 °C | Cooling | none / 30 / 3 | |
 | TPU | ≤ 30 °C | Cooling | none / 30 / 3 | |
 | Unknown (default policy, doc 07 §5) | No heat | Bleed at −3 Pa | 2.0 / 35 / 5 | Under-heating degrades; mis-heating PLA ruins it |
 
-**AD5X limits:** operating cap 60 °C, hard limit 65 °C (doc 01 §4.5, D26). **C5 Pro:** 65 °C, its own rating. The C5 uses its stock chamber heater and fans; the plugin selects `AIR_CIRCULATION_INTERNAL` during heated prints (with the node's bleed handling containment) and `AIR_CIRCULATION_EXTERNAL` for cooling and purge (O4).
+**Chamber limits:** each printer's pack sets `chamber.cap_c` (the operating cap) and the hard limit at cap + 5 °C (doc 05 §2, D26). A printer with its own chamber heater (`chamber.native_heater: true`) uses its stock heater and fans; its pack maps heated, cooling and purge modes onto the printer's own circulation macros (doc 12 §4).
 
-## 7. Heat budget (AD5X, why insulation and sealing)
+## 7. Heat budget (a kit-enclosed node-heat printer, why insulation and sealing)
 
 Assumptions [E]: enclosure surface ~1.7 m²; worst case room 15.5 °C (60 °F) and chamber at the 60 °C cap, so ΔT ≈ 45 K.
 
 | Loss path | Uninsulated, unsealed | **Insulated (rear/sides/top), sealed** |
 |---|---|---|
 | Panel conduction (U ≈ 5 vs ≈ 1.3–1.5 W/m²K) | ~380 W | **~105 W** |
-| Leakage at −3 Pa: 10 cm² open IFS window vs ~2 cm² after sealing (Q = C_d·A·√(2ΔP/ρ)) | ~2.8 CFM → ~75 W | **~0.6 CFM → ~15 W** |
+| Leakage at −3 Pa: 10 cm² of open pass-through gaps vs ~2 cm² after sealing (Q = C_d·A·√(2ΔP/ρ)) | ~2.8 CFM → ~75 W | **~0.6 CFM → ~15 W** |
 | Total | ~455 W | **~120 W** |
 | Available | 150 W PTC + steady bed heat (~60–100 W) | Margin |
 
@@ -357,9 +357,9 @@ Assumptions [E]: enclosure surface ~1.7 m²; worst case room 15.5 °C (60 °F) a
 | Cartridge | Standard cylindrical **HEPA (H13) + thin activated-carbon combo**, Levoit Core 300 class (~$15) |
 | Housing | Printed airtight canister with ModulAir L bayonet ports (D34), bayonet lid and TPU gasket; two barbed taps for the filter ΔP sensor (doc 08) |
 | Purpose | Odour courtesy for neighbours (carbon, ~6–12 months of life for styrene), particles out of the outdoor air, and a clean duct and fan (HEPA) |
-| Outlet concentration [E] | Bleed: ~0.5 ppm styrene, smellable within ~1 m until the carbon saturates. Purge: below the odour threshold. Doc 11 / T2 |
+| Outlet concentration [E] | Bleed: ~0.5 ppm styrene, smellable within ~1 m until the carbon saturates. Purge: below the odour threshold |
 | Loading alert | Filter ΔP vs fan-speed curve recorded new at commissioning; digest alert at +60 %, high at +120 % *(commission)* |
-| Static pressure | Combo cartridge ~100–250 Pa at 100 CFM [E]. If the G4 can't make purge flow through it (R2), use a HEPA-only cartridge in the same housing |
+| Static pressure | Combo cartridge ~100–250 Pa at 100 CFM [E]. If the fan can't make purge flow through it (R2), use a HEPA-only cartridge in the same housing |
 
 ## 9. Outlet
 
