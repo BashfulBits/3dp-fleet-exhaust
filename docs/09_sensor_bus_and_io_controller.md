@@ -26,7 +26,7 @@ A sensor board with an MCU on it (D42: an ADC, I/O expander, light sensor or pro
 
 ### 2.1 Part and pin plan
 
-**Part: PY32F030K28U6TR** (Puya, Cortex-M0+, QFN32 5 × 5 mm, 64 KB flash, 8 KB SRAM, 48 MHz rated, 12-bit ADC; LCSC C3018718, ≈ $0.41) [V: PY32F030 datasheet, JLC stock]. One part does what D45 split over two CH32V003s (the header controller and the slot-7 expander); D54 explains why. Pinout 2 (K2x) gives 28 I/O besides PF2-NRST and PF4-BOOT0 [V: datasheet fig. 3-3].
+**Part: PY32F030K28T6** (Puya, Cortex-M0+, LQFP32 7 × 7 mm, 0.8 mm pitch, 64 KB flash, 8 KB SRAM, 48 MHz rated, 12-bit ADC; LCSC C3018720, ≈ $0.61, since D83) [V: PY32F030 datasheet, JLC stock]. The leaded package is for bring-up: every pin takes a micro-grabber and the joints can be inspected and reworked with an iron. The QFN32 PY32F030K28U6TR (C3018718, ≈ $0.41, D54) has the same K2 pinout and is the cost-down option once the firmware and board are proven (D83). One part does what D45 split over two CH32V003s (the header controller and the slot-7 expander); D54 explains why. Pinout 2 (K2x) gives 28 I/O besides PF2-NRST and PF4-BOOT0 [V: datasheet fig. 3-3].
 
 Three pin rules drive the plan:
 - **I²C target on PA2/PA3.** PA2 is both I2C_SDA and USART1_TX, and PA3 both I2C_SCL and USART1_RX [V: datasheet pin table], and the ROM bootloader listens on that USART (§4.1). So the bootloader is reachable on the two I²C wires.
@@ -181,12 +181,12 @@ The carrier has a **1 × 5 2.54 mm SWD header** (D65): 3.3 V, SWDIO (PA13), SWCL
 
 | Part | Qty | ≈ Cost |
 |---|---|---|
-| PY32F030K28U6TR (QFN32) + 100 nF, BOOT0 pull-up, PA2 series resistor, status-LED resistor | 1 | $0.42 |
+| PY32F030K28T6 (LQFP32, D83) + 100 nF, BOOT0 pull-up, PA2 series resistor, status-LED resistor | 1 | $0.62 |
 | TCA9548A-compatible switch (FCA9548T, D51) | 1 | $0.58 |
 | HL3401-class P-FET + gate pull-down | 8 | $0.34 |
 | Pull-ups (2 per header, D68), single-line ESD diodes (H5VL10B class) | — | $0.22 |
 | JST-SH 4 right-angle headers (ZX-SH1.0-4PWT, D69) | 8 | $0.54 |
-| **Total** | | **≈ $2.11** |
+| **Total** | | **≈ $2.31** |
 
 Every part above is fitted on every carrier, including headers 5–8 and their FETs (D47: one population, one assembly order). Before D69's JST-SH headers (+ $0.42), that was the same total as D45's two CH32V003s and seven headers: the second MCU, slot 7's FET, pull-ups and ESD go, and two external headers come in.
 
