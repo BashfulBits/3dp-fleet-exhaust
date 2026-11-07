@@ -134,7 +134,7 @@ Rules applied:
 | 4 | Heater current, LM2904 out (ADC, D50) | – | – | ADC1_CH3; sampled at a fixed rate by ADC1 continuous mode with DMA (below) |
 | 5 | **Heater-rail voltage** (ADC, D75) | Same | Same; **hub supply** (D78) | ADC1_CH4. 100 kΩ / 9.1 kΩ divider, 100 nF at the pin. Back from the controller's PB0 (D75); AUX A moved to GPIO 36 |
 | 6 | AUX B: spare, or **UART1 RX** from the printer (D48) | Same | **Acknowledge button** (edge interrupt, debounced; D49, was GPIO 5): the on-board tact switch, or a remote button on AUX B | Level shifter as GPIO 36; 5 V-tolerant at the connector. The on-board tact switch is on this line (D49). The external heater-input sense (D22) moved to the carrier I/O controller's ADC (D47) |
-| 7 | **Tap-side heater voltage** (ADC, D64, D75) | Same | Same | ADC1_CH6. Divider as GPIO 5, on the internal XT60's side of the tap ideal diode. Back from the controller's PB1 (D75); the heater PWM moved to GPIO 35 |
+| 7 | **Tap-side heater voltage or POWER IN voltage** (ADC, D64, D75, D93) | Same | Same | ADC1_CH6. The internal XT60's side of the tap ideal diode while GPIO 37 is low, POWER IN while it is high (D93): two 100 kΩ / 27 kΩ dividers with 100 nF, each through 47 kΩ, the unselected one grounded by a 2N7002. Back from the controller's PB1 (D75); the heater PWM moved to GPIO 35 |
 | 8 | I²C SDA | I²C SDA | I²C SDA | On-board XGZP, carrier I/O controller (I²C target), 8-channel I²C switch; behind it, one channel per external sensor header 1–8 (header 1 = sensor head; header 2 = node damper encoder, or hub trunk XGZP; header 3 = hub trunk-flow XGZP, D30/D33; header 4 = optional OLED on any role, on its own channel, D48; D45, D54, doc 09 §3). While the ESP32 programs an MCU, GPIO 8 carries UART2 RX instead (doc 09 §4.1) |
 | 9 | I²C SCL | I²C SCL | I²C SCL | UART2 TX while programming (doc 09 §4.1) |
 | 10 | **LAN CS** (D45) | LAN CS | LAN CS | SPI2 IO MUX pin (no GPIO matrix), to the 2 × 5 LAN module socket (D72). Only a board with a W5500 module plugged in uses it |
@@ -149,7 +149,7 @@ Rules applied:
 | 21 | **Servo PWM** (50 Hz) | Servo PWM | **Buzzer** (D85): 5 V active buzzer module on the servo header | Pull-down, held low at boot (was GPIO 12), so the buzzer is silent through a reset. LED chain 2 was dropped from the fixed map (D45) |
 | 35 | Heater low-side PWM (D75, was GPIO 7) | – | – | LEDC. 10 kΩ pull-down. N8R2 module only (rules above) |
 | 36 | AUX A: spare, or **UART1 TX** to the printer (D48, D75, was GPIO 5) | Same | **Smoke dry-contact input** (edge interrupt; D49) | Through a 2N7002 level shifter to the AUX header (below), so digital only. N8R2 module only |
-| 37 | **Tap ideal-diode disable** (D74, was the controller's PF1) | Same | Same | Output to the 2N7002 on the MX74700T's EN; the 4.7 kΩ gate pull-down keeps the diode on while the pin floats at reset. Driven only by the two-supply check (doc 02 §2.2). N8R2 module only (rules above) |
+| 37 | **Tap ideal-diode disable** (D74, was the controller's PF1) | Same | Same | Output to the 2N7002 on the MX74700T's EN and, since D93, the GPIO 7 selector (high: diode off, GPIO 7 reads POWER IN); the 4.7 kΩ gate pull-down keeps the diode on and the tap side selected while the pin floats at reset. Driven by the two-supply check (doc 02 §2.2) and by ≈ 1 ms POWER IN samples, never while heating (D93). N8R2 module only (rules above) |
 | 38 | **LAN interrupt** (W5500 INTn, D72) | Same | Same | Input, 10 kΩ pull-up, active low, falling-edge interrupt; idle high with no module fitted. Was a DevKitC RGB LED pin |
 | 39 | **JTAG TCK** (MTCK, D68) | Same | Same | To the 1 × 6 JTAG header only. Output B1 moved to the carrier I/O controller (PA8) |
 | 40 | **JTAG TDO** (MTDO, D68) | Same | Same | JTAG header only. Output B2 moved to GPIO 45 |
@@ -278,7 +278,7 @@ Jumpers only choose what **feeds** the bus; every board's logic runs from the bu
 
 | Setup | INJECT | Outlet rules |
 |---|---|---|
-| Hub | INT: a 24 V, 5 A brick in the HEATER barrel (D92; or a PSU on the internal XT60, D78) | Hub supply and the fan on ordinary outlets, **never on a printer's plug** |
+| Hub | INT for a brick in the HEATER barrel (D92) or a PSU on the internal XT60 (D78); BAR for a brick on POWER IN (D93). ≥ 4 A with a board-powered exhaust fan, ≥ 2 A without | Hub supply and the fan on ordinary outlets, **never on a printer's plug** |
 | Wired node-heat, printer supply | INT | Logic survives the cut through the bus |
 | Wired node-heat, heater brick (HEATER DIN or HEATER barrel jack) | INT | Heater brick **on that printer's plug** (doc 05 §9 test 23) |
 | Wired node-lite | none, or BAR with a brick | Any brick on an ordinary outlet |
@@ -294,7 +294,7 @@ Checked at commissioning (doc 05 §9 test 29) and continuously by the hub: when 
 
 | Connection | From | To |
 |---|---|---|
-| 24 V logic | 24 V, 5 A brick on an ordinary outlet (D92) | Carrier HEATER barrel (INJECT INT fitted), CAT6 power via carrier |
+| 24 V logic | 24 V brick on an ordinary outlet (D92, D93): ≥ 4 A with a board-powered exhaust fan, ≥ 2 A without | Carrier HEATER barrel (INJECT INT) or POWER IN (INJECT BAR), CAT6 power via carrier |
 | Mains (alternative) | With an internal PSU instead: IEC inlet (fused, switched) → LRS-100-24 L/N/PE (PE to the PSU case and the inlet earth only), PSU +V/−V by an XT60 lead | Carrier internal XT60 (INJECT INT fitted) |
 | Buzzer | Carrier servo header (GPIO 21, D85) | 5 V active buzzer module (3-pin, active high) |
 | Panel | LED1 → WS2812 ×2; acknowledge = the carrier's on-board tact switch (GPIO 6, AUX B) through the C9 ACK plunger, SERVICE plunger over the carrier's BOOT button (D49); sensor header 4 (switch channel 3) → optional OLED (D48) | Panel |
