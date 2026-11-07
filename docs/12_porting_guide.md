@@ -157,6 +157,23 @@ A pack **must** meet all of these. A profile can only make limits stricter; noth
 7. Run the safety-contract tests (§6 item 7) and record the results in the pack README.
 8. Add the pack's parts to doc 08's pack index and its lines to your BOM.
 
+```mermaid
+flowchart TD
+  A["Copy printers/_template"] --> B["Pick the link tier and role;<br>does it heat its own chamber?"]
+  B --> C["Port adapter to the<br>standard interface (§5)"]
+  C --> D{"Node heater?"}
+  D -->|"yes"| E["Heater supply and<br>sizing check"]
+  D -->|"no"| F
+  E --> F["profile.yaml; measure idle<br>and printing watts"]
+  F --> G{"Link tier"}
+  G -->|"2: USB host plugin"| H["cdc_acm, a no-solder<br>USB point, the extra"]
+  G -->|"2b: direct serial"| I["uart or usb_host,<br>M115, logic level"]
+  G -->|"0 or 1"| J
+  H --> J["Safety-contract tests,<br>results in the pack README"]
+  I --> J
+  J --> K["Doc 08 pack index,<br>BOM lines"]
+```
+
 ## 8. Licensing and contributions
 
 | Area | Licence | Why |

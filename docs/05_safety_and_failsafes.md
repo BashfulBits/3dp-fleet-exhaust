@@ -26,7 +26,7 @@
 | Heater power | Comes from the printer's own supply (D12): printer off, or its Shelly cut, means no heater power. |
 | Hub firmware | Hardware watchdog (ESP32 task WDT + RTC WDT) resets it. Nodes detect the missing hub heartbeat within 3 s. |
 | Exhaust fan (G4) | **Must keep running** when the hub goes silent. This is a gate on R1: if the G4 can't be made to do this, switch to the fallback fan. A board-powered 4-wire PWM fan on B2 (D85) keeps running while the firmware is silent, but stops if the hub's own supply fails (§4). |
-| Hub PSU failure (D35) | **The hub keeps running on printer power.** Every node whose printer is on feeds the bus (D13), and the hub's OUT switch passes that power back to the hub (doc 04 §3a). The hub sees its own supply input drop (D52), sends a **High "hub supply lost, running on printer power"** push and enters back-fed mode (doc 07 §11.7). It goes down only when the last printer feeding the bus is switched off or cut; then the nodes still fed from elsewhere keep their local loops (heater off after 30 s), dampers hold, and the fan (on its own mains) keeps running per R1. A printer that is still on but whose node went down with the bus (e.g. the C5's node-lite) sees its USB link drop, and its **klippy extra sends `_NOTIFY`** through zmod notify (printer Wi-Fi), so you're still told. When the hub supply returns, the hub boots, finds the powered segment and reconnects by itself. If no printer is on, the hub and every node without its own brick are off, so every heater stage is off (no enable). |
+| Hub supply failure (D35) | **The hub keeps running on printer power.** Every node whose printer is on feeds the bus (D13), and the hub's OUT switch passes that power back to the hub (doc 04 §3a). The hub sees its own supply input drop (D52), sends a **High "hub supply lost, running on printer power"** push and enters back-fed mode (doc 07 §11.7). It goes down only when the last printer feeding the bus is switched off or cut; then the nodes still fed from elsewhere keep their local loops (heater off after 30 s), dampers hold, and the fan (on its own mains) keeps running per R1. A printer that is still on but whose node went down with the bus (e.g. the C5's node-lite) sees its USB link drop, and its **klippy extra sends `_NOTIFY`** through zmod notify (printer Wi-Fi), so you're still told. When the hub supply returns, the hub boots, finds the powered segment and reconnects by itself. If no printer is on, the hub and every node without its own brick are off, so every heater stage is off (no enable). |
 
 ## 3. Chamber-heater protection (node-heat)
 
@@ -61,6 +61,25 @@ flowchart TB
 ```
 
 The KSD301 loop is the heater-housing and chamber-air thermostats in series. The smart plug's mains cut removes printer and heater power together.
+
+How the layers stack: each one catches what the layer before it misses, and the hardware layers keep working with every task hung.
+
+```mermaid
+%%{init: {'flowchart': {'nodeSpacing': 20, 'padding': 8}}}%%
+flowchart LR
+  subgraph fw["Node firmware"]
+    direction TB
+    L1["L1 PID ≤ cap"] --> L2["L2 limits,<br>NTC vs SHT40"] --> L3["L3 gain<br>watchdog"] --> L4["L4 current,<br>high-side checks"]
+  end
+  subgraph hw["Node hardware"]
+    direction TB
+    L5["L5 charge pump<br>+ KSD301 loop"] --> L6["L6 TCO"] --> L7["L7 10 A fuses"]
+  end
+  subgraph hub["Hub, plug"]
+    L8["L8 mains cut"]
+  end
+  fw --> hw --> hub
+```
 
 **Why the KSD301 sits in the enable chain rather than the load path:** it then switches milliamps instead of 6–15 A DC, so its AC-only contact rating (P5) no longer matters. The TCO is the one device in the load path. Pick one with a DC rating at ≥ 10 A, 32 V [U: confirm datasheet DC rating].
 
@@ -322,6 +341,17 @@ The other printers keep running. The **room smoke alarm** remains the primary li
 - Door open longer than 60 s during a heated print → high-priority push ("door left open, chamber losing heat").
 - No auto-pause. Peeking at a print is normal.
 - Door state shows on the bed LED (amber) and the dashboard.
+
+```mermaid
+flowchart TD
+  O["Door opens"] --> D["Damper to purge;<br>heater holds; LED amber"]
+  D --> T{"Heated print and<br>open > 60 s?"}
+  T -->|"yes"| P["High push:<br>door left open"]
+  T -->|"no"| W["Wait"]
+  W --> C{"Door closed?"}
+  P --> C
+  C -->|"yes"| R["Damper back to<br>its ΔP loop"]
+```
 
 ## 7. Electrical safety
 

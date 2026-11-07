@@ -51,6 +51,21 @@ Three pin rules drive the plan:
 | Expansion port: USART2 (D77) | PA4 (TX, AF9), PF0 (RX, AF4) | PA4 is also ADC_IN4 and, with the UART off, the hardware chip select (AF0). PF0 is free since gate 8 moved to PF1 |
 | Expansion port: digital (D77) | PA9, PA10 | Chip selects or data-ready inputs, each with a 100 kΩ pull-up (bootloader pins, rule above). PA9 also takes the **B2 fan tach** through a 1N4148WS (D84, doc 04 §7a): edge count on EXTI 9, RPM reported over I²C |
 
+The controller and the I²C tree on one carrier:
+
+```mermaid
+%%{init: {'flowchart': {'nodeSpacing': 20, 'padding': 8}}}%%
+flowchart TB
+  ESP["ESP32-S3, I²C on GPIO 8, 9"]
+  ESP <--> XG["On-board XGZP<br>0x6D"]
+  ESP <--> SW["I²C switch<br>TCA9548A class"]
+  ESP <--> PY["I/O controller PY32F030<br>I²C target PA2, PA3<br>in: PA0 shunt, PA15 door,<br>PB0 bus V, PB1 IMON,<br>PF3 group rail"]
+  SW -->|"ch 0–7"| HD["Headers 1–8"]
+  PY -->|"PB2–PB8, PF1:<br>P-FETs"| HD
+  PY --> OUT["PA12 → GPIO 47 IRQ<br>PA5 LED chain 1<br>PA8 output B1"]
+  PY <---> EXP["Expansion port: PA1,<br>PA4, PA6, PA7, PF0,<br>PA9 B2 tach, PA10"]
+```
+
 All seven spare pins are the expansion port (D77, §2.5), and PF2-NRST goes to the debug header (D65) and, through an RC filter, to the interrupt net (D76). The 32-pin part's other pinouts (K1x, K3x, K4x) move pins around, so the PCB uses K2x only [E].
 
 ### 2.2 Per-header power
@@ -137,6 +152,22 @@ The controller **does not** carry the sensor traffic. SDA and SCL run from the E
    - No ACK → the application is already running (the ESP32 restarted on its own). The ESP32 returns to I²C, reads the controller's firmware version, and if it differs sends a "reset" command and starts again at step 1.
 2. **Sensor-board MCUs,** one header at a time: select its switch channel, then the same sync / check / write / Go sequence through the switch. A header with no MCU simply doesn't answer the sync.
 3. Only then do the power-input diagnostics run (D47). A new carrier takes a few seconds and needs no tools; heating is blocked until it finishes. If programming fails, the firmware raises **"I/O controller not programmed"**, kept apart from "heater rail absent", so a builder isn't sent looking for a supply fault.
+
+```mermaid
+flowchart TD
+  A["ESP32 start: all switch<br>channels deselected"] --> B["0x7F sync on the<br>PA2, PA3 UART"]
+  B --> C{"ACK?"}
+  C -->|"yes: bootloader"| D{"Checksum<br>matches?"}
+  D -->|"no"| E["Erase, write,<br>read back"]
+  E --> G["Go"]
+  D -->|"yes"| G
+  E -.->|"fails"| X["Alert: I/O controller<br>not programmed"]
+  C -->|"no: app running"| F{"Version<br>matches?"}
+  F -->|"no"| RS["Reset command"] --> B
+  F -->|"yes"| H
+  G --> H["Each header: select its channel,<br>same sync, check, write, Go"]
+  H --> I["Power-input diagnostics;<br>heating unblocked"]
+```
 
 The controller's image ships inside the ESP32's own firmware image, so an ESP32 OTA update (doc 07) carries the controller update with it.
 

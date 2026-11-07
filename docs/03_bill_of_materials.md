@@ -18,7 +18,7 @@
 | F. Enclosure modifications | $41 |
 | G. Safety and smart home | $65 |
 | **Total (cash)**, AD5X supplies reused | **≈ $669** |
-| Contingency if O1 shows the AD5X supplies need upgrading: 2 replacement supplies (~$80), less the hub LRS-100 (a removed stock unit replaces it, −$17) | **+≈ $63 → ≈ $732** |
+| Contingency if O1 shows the AD5X supplies need upgrading: 2 replacement supplies (~$80). The hub stays on its brick (D92); a freed stock unit could replace the brick on the internal XT60 with an IEC inlet (≈ −$38, but mains work in the hub enclosure) | **+≈ $80 → ≈ $749** |
 | Alternative to upgrading: external DIN-4 heater brick per AD5X (Mean Well GST160A24-R7B, D22) + HEATER DIN jack, hand-soldered (≈ $1.15, D64) + 2-outlet adapter on its smart plug | ≈ $56 each, **+≈ $112 → ≈ $768** (no mains work in the printers) |
 | Barrel alternative: 24 V barrel brick per AD5X (5.5 × 2.5 mm, ≥ 160 W for full power, D66) in the HEATER barrel jack + 2-outlet adapter; or Mean Well GST120A24-P1M at `heater_power` ≤ 95 W (D22, D64) | ≈ $40 each for the 120 W brick [U: a listed ≥ 160 W barrel brick] |
 | Optional 24 V brick per extra injection point (larger fleets, D13) or per **wireless-only node** (D16; saves that node's CAT6 cable) | ≈ $8 each |

@@ -30,9 +30,39 @@ flowchart TB
 
 RJ45 IN/OUT on every carrier; a TERM jumper on every carrier, fitted at the two ends of the chain (§3). Every carrier can inject 24 V onto the bus through its eFuse, from whichever inputs its INJECT jumpers select (§6a).
 
-- **The hub PSU powers node logic only**, over CAT6.
+- **The hub supply powers node logic only**, over CAT6.
 - **Each AD5X's heater runs from that printer's own 24 V supply** (D12, doc 02 §3.1). The printer's Shelly plug removes both.
 - **The exhaust fan is on the hub's B2 fan port** (D85, §7a). The reference G4 runs on its own mains power and the hub only drives its control port (R1). A board-powered fan takes 24 V from the hub's fan tap (doc 02 §2.2, D92) and stops if the hub supply fails.
+
+**Node-heat field wiring** (AD5X): what plugs into the carrier in its housing on the damper. Pins are in §4 and doc 02 §2.2.
+
+```mermaid
+flowchart LR
+  subgraph pr["Printer"]
+    PS["24 V supply"]
+    MB["Mainboard"]
+  end
+  subgraph cr["Carrier (C5)"]
+    XI["XT60 in"]
+    XO["XT60 out"]
+    UC["USB-C"]
+    LO["Fan A, B1,<br>servo, LED 1"]
+    LI["NTC, KSD301,<br>door inputs"]
+    SH["Headers 1, 2"]
+  end
+  subgraph ch["Chamber, damper"]
+    PTC["PTC + TCO"]
+    OUTS["Heater fan,<br>5015, servo,<br>LED strip"]
+    INS["2 NTCs,<br>2 KSD301,<br>door reed"]
+    HD["Head C4,<br>AS5600 C16"]
+  end
+  PS --> XI
+  MB <--> UC
+  XO --> PTC
+  LO --> OUTS
+  INS --> LI
+  SH --> HD
+```
 
 ## 2. Cables
 
@@ -225,7 +255,7 @@ It is reached with the node housing open. Holding it at power-up still enters do
 
 **RMT budget:** none since D70 (LED chain 1 is on the carrier I/O controller); all 4 TX channels are free for a second LED chain later.
 
-**LAN module socket (D18, D45, D72):** the W5500 module needs four SPI GPIOs (SCK, MOSI, MISO, CS) and its interrupt on GPIO 38. They are **GPIOs 10–13 on every carrier**, the S3's IO MUX pins for SPI2, so the SPI runs on the peripheral directly (up to 80 MHz) and not through the GPIO matrix (40 MHz, with extra delay on MISO) [E: confirm in the S3 technical reference manual]. CAN and the servo output use the matrix and moved to GPIOs 41, 42 and 21 to make room. There are no 0 Ω links, and the same map applies to all roles. The default SPI clock is 20 MHz; the W5500's own limit is higher, and bring-up checks 20 and 40 MHz with the module on the socket [E: a plug-in module adds lead length]. The interrupt keeps the driver from polling the chip; the module's own RC resets it.
+**LAN module socket (D18, D45, D72):** the W5500 module needs four SPI GPIOs (SCK, MOSI, MISO, CS) and its interrupt on GPIO 38. They are **GPIOs 10–13 on every carrier**, the S3's IO MUX pins for SPI2, so the SPI runs on the peripheral directly (up to 80 MHz) and not through the GPIO matrix (40 MHz, with extra delay on MISO) [E: confirm in the S3 technical reference manual]. CAN and the servo output use the matrix and moved to make room (CAN to GPIOs 16 and 18 since D68, the servo to GPIO 21). There are no 0 Ω links, and the same map applies to all roles. The default SPI clock is 20 MHz; the W5500's own limit is higher, and bring-up checks 20 and 40 MHz with the module on the socket [E: a plug-in module adds lead length]. The interrupt keeps the driver from polling the chip; the module's own RC resets it.
 
 The KSD301 and charge-pump chain works in **hardware**. The carrier I/O controller only *reports* its state; the firmware can't override it.
 
@@ -250,7 +280,7 @@ Every Tier 2 printer (doc 12 §3.2) uses the same link; only the printer end dif
 
 ## 6. Grounding rules
 
-1. **The hub PSU's −V stays floating** (not bonded to earth), so the fleet logic ground has no path to mains earth of its own.
+1. **The hub supply's −V stays floating** (not bonded to earth; a desktop brick's output is, and an internal supply's is left unbonded), so the fleet logic ground has no path to mains earth of its own.
 2. **Heater current stays in its printer cell.** It leaves the AD5X supply on the 14 AWG lead and returns on it. **No heater current flows in the CAT6** any more.
 3. **USB-link ground share (R11):** each node's ground reaches its printer twice, via the heater return lead and via the USB GND, so part of the heater return can flow in the USB lead. With a 14 AWG return ≤ 1.5 m the share is ≲ 0.3 A [E], within a USB lead's rating, with a ground offset of ~50 mV. Measure it at commissioning; if it's higher or the link misbehaves, fit a USB isolator (ADuM3160-class) on the link.
 4. **Between printers:** if the stock AD5X supplies bond −V to earth, the two printers' grounds also meet through mains earth and through the CAT6 chain. Only a small share of heater current can take that long path [E]. The offset stays far inside CAN's common-mode range (−2 to +7 V). The USB isolator fallback breaks this path too.
@@ -262,13 +292,13 @@ Every Tier 2 printer (doc 12 §3.2) uses the same link; only the printer end dif
 
 | Item | Rule |
 |---|---|
-| Sources | Selected per board by the **INJECT jumpers** (INT, BAR), each through its own diode (INT has two, one on each side of the tap ideal diode, D64; since D80 the heater-rail one is an ideal diode, since D91 BAR's too, and the internal XT60's an SS56 Schottky), then the input guard, into the eFuse. Hub: INT (its PSU on the internal XT60, always). Node-heat: INT (the AD5X supply tap or an upgraded internal supply), or a DIN-4 or barrel heater brick in the HEATER DIN or HEATER barrel jack (D52, D64). Any node: BAR with a 24 V brick or PoE splitter. |
+| Sources | Selected per board by the **INJECT jumpers** (INT, BAR), each through its own diode (INT has two, one on each side of the tap ideal diode, D64; since D80 the heater-rail one is an ideal diode, since D91 BAR's too, and the internal XT60's an SS56 Schottky), then the input guard, into the eFuse. Hub: INT for a brick in the HEATER barrel or a supply on the internal XT60, or BAR for a brick on POWER IN (D92, D93). Node-heat: INT (the AD5X supply tap or an upgraded internal supply), or a DIN-4 or barrel heater brick in the HEATER DIN or HEATER barrel jack (D52, D64). Any node: BAR with a 24 V brick or PoE splitter. |
 | Protection | Each source enters the bus through an eFuse with reverse-current blocking, so no supply is back-fed by another, and a short is current-limited at the source. |
 | Load sharing | Diode-OR by voltage. Every source runs at its factory 24 V (no trim, D79), so at each point the highest one carries its stretch of the chain, up to its eFuse limit, and cable drop under load shifts load toward local sources. No sharing controller is needed. |
 | Printer supply protection | If a printer's rail sags (bed + heater load), it falls below the bus voltage and its injection stops by itself, so the bus never takes power from a printer that needs it (R12). The ~1.5 A limit caps the most it can ever add to the printer supply at ~36 W (D81). |
 | Printers off | Their injection disappears. Idle nodes draw ~1–2 W each, which the hub covers alone, so nodes can still purge powered-off printers. |
-| Sizing rule (D35) | Size for the worst moment: **every printer off (a power cut, or all cut in a fire) with the busiest node at its alarm peak** (servo moving, LEDs flashing). Hub PSU ≥ idle load of the whole chain + that peak + the peak of nodes on their own bricks only if they share the hub's outlet. Any single CAT6 segment ≤ ~1.5 A (two +24 V conductors, D17; deliberately not raised, D21). Three nodes: ~2 W idle each plus ~10 W for one alarm peak [E], well inside both. Checked by commissioning test 16 (doc 05 §9). |
-| Bus voltage (D64) [E] | Since D80 the INT injection path drops ≈ 0.12–0.17 V at 1 A and ≈ 0.25 V at 1.5 A (ideal diode ≈ 0.02–0.03 V, guard, eFuse and its blocking FET; ≈ 0.7 V and ≈ 0.95 V with the Schottky before), and BAR about the same through its ideal diode (D91; ≈ 0.4 V more through an SS56 before). So the bus sits at ≈ 23.5–24.1 V at the hub (LRS-100-24, 24 V ±1 %), ≈ 23.75–23.9 V at a node injecting from its own 24.0 V supply on INT, and ≥ ≈ 22.7 V at a far node fed by the hub alone at an alarm peak (≥ ≈ 22.2 V on a ±3 % brick, ≥ ≈ 21.75 V on ±5 %), after ≈ 0.8 V of cable and per-node IN/OUT losses (≈ 1.1 V before D80's OUT switch FETs). INT sources lose the same drop, so sharing among them follows the supplies' own voltages; BAR sources share with them the same way (D91). Every board measures its own bus voltage (doc 02 §2.2) and reports it with its injected current. The bucks run down to 4 V and the eFuse and buck turn-on points sit at ≤ ≈ 18 V, so only the bus-fed fans notice (B2, and fan A and B1 on the bus leg, D78): they run ≈ 1–9 % slower than at 24 V, which the characterise run measures as installed (doc 05 §3.2). |
+| Sizing rule (D35) | Size for the worst moment: **every printer off (a power cut, or all cut in a fire) with the busiest node at its alarm peak** (servo moving, LEDs flashing). Hub supply ≥ idle load of the whole chain + that peak + the peak of nodes on their own bricks only if they share the hub's outlet. Any single CAT6 segment ≤ ~1.5 A (two +24 V conductors, D17; deliberately not raised, D21). Three nodes: ~2 W idle each plus ~10 W for one alarm peak [E], well inside both. Checked by commissioning test 16 (doc 05 §9). |
+| Bus voltage (D64) [E] | Since D80 the INT injection path drops ≈ 0.12–0.17 V at 1 A and ≈ 0.25 V at 1.5 A (ideal diode ≈ 0.02–0.03 V, guard, eFuse and its blocking FET; ≈ 0.7 V and ≈ 0.95 V with the Schottky before), and BAR about the same through its ideal diode (D91; ≈ 0.4 V more through an SS56 before). So the bus sits at ≈ 23.5–24.1 V at the hub on a ±1 % supply (LRS-100-24 class; wider on a ±2–5 % brick), ≈ 23.75–23.9 V at a node injecting from its own 24.0 V supply on INT, and ≥ ≈ 22.7 V at a far node fed by the hub alone at an alarm peak (≥ ≈ 22.2 V on a ±3 % brick, ≥ ≈ 21.75 V on ±5 %), after ≈ 0.8 V of cable and per-node IN/OUT losses (≈ 1.1 V before D80's OUT switch FETs). INT sources lose the same drop, so sharing among them follows the supplies' own voltages; BAR sources share with them the same way (D91). Every board measures its own bus voltage (doc 02 §2.2) and reports it with its injected current. The bucks run down to 4 V and the eFuse and buck turn-on points sit at ≤ ≈ 18 V, so only the bus-fed fans notice (B2, and fan A and B1 on the bus leg, D78): they run ≈ 1–9 % slower than at 24 V, which the characterise run measures as installed (doc 05 §3.2). |
 | Hub supply lost (D35) | The hub's injection eFuse blocks reverse current, so its dead supply is never back-fed. The nodes whose printers are on carry the whole chain and the hub through the OUT switches (§3a); the hub enters back-fed mode (doc 07 §11.7). Load then: ~0.35 A idle, up to ~0.85 A in an alarm [E], against ~1.5 A per injecting node (D81). A board-powered exhaust fan (on the fan tap, D85, D92) stops with the hub supply: the fan tap is on the supply's side of the eFuse, and back-fed power reaches only the bus. A fan on its own mains keeps running (FAN V's BUS position, which kept a ≤ 0.75 A fan running, went in D92). |
 | Fan tap (D85, D87) | A second branch after the INJECT diodes and the input guard, ahead of the bus eFuse, through its own tap eFuse limited to ≈ 2.7 A (D91), to B2's pin 2 (D92). It carries only the board's own exhaust fan, so that current never counts against the eFuse limit or the CAT6 segment limit. |
 
@@ -288,6 +318,23 @@ Jumpers only choose what **feeds** the bus; every board's logic runs from the bu
 
 A node that stays up when its heater supply drops out (on the bus or a barrel logic brick) sees the drop directly and doesn't reset with it (doc 05 §3.3).
 
+Choosing the INJECT jumpers and the brick, by setup (the table above is the rule; this is the same rule as a decision tree):
+
+```mermaid
+flowchart LR
+  R{"Role?"} -->|"hub"| H{"Supply?"}
+  H -->|"brick<br>2.5 mm"| H1["HEATER barrel,<br>INT"]
+  H -->|"brick<br>2.1 mm"| H2["POWER IN,<br>BAR"]
+  H -->|"internal"| H3["XT60, INT"]
+  R -->|"combined"| C1["POWER IN,<br>BAR only"]
+  R -->|"node"| W{"CAT6 to<br>the hub?"}
+  W -->|"node-heat"| N1["INT (tap or<br>heater brick)"]
+  W -->|"node-lite"| N2["None, or BAR<br>with a brick"]
+  W -->|"no"| N3["BAR brick<br>(+ INT if heat)"]
+```
+
+Bricks: hub and combined boards ≥ 4 A with a board-powered exhaust fan, ≥ 2 A without. Every logic brick goes on an ordinary outlet, never on a printer's plug; only a node-heat's heater brick goes on its printer's plug.
+
 Checked at commissioning (doc 05 §9 test 29) and continuously by the hub: when a printer's plug reads off in normal use, its node must stay online, or the hub alerts (doc 05 §4).
 
 ## 7. Hub wiring summary
@@ -306,6 +353,24 @@ Checked at commissioning (doc 05 §9 test 29) and continuously by the hub: when 
 | Fan | B2 fan port (D85, §7a) | Exhaust fan: the G4's control port through an adapter per R1, or a supported fan (doc 02 §6) |
 | Smoke | AUX A (GPIO 36) | Optional relay-output smoke detector (dry contact) |
 
+**Hub field wiring** (reference build):
+
+```mermaid
+flowchart LR
+  BR["24 V 5 A brick"] -->|"HEATER<br>barrel"| HC["Hub carrier<br>(C9)"]
+  SM["Smoke relay"] -->|"AUX A"| HC
+  HC --> FAN["B2: exhaust fan"]
+  HC --> RH["Hdr 1: room head"]
+  HC --> TP["Hdr 2: trunk XGZP"]
+  HC --> VP["Hdr 3: venturi XGZP"]
+  HC --> OL["Hdr 4: OLED"]
+  HC --> FI["Barbs: filter ΔP"]
+  HC --> AN["GPIO 1, 2, B1:<br>anemometer"]
+  HC --> BZ["Servo hdr: buzzer"]
+  HC --> PL["LED 1: panel"]
+  HC <--> N1["OUT RJ45: node 1"]
+```
+
 ## 7a. Combined roles: one printer, one carrier (D84)
 
 A one-printer system can run its hub and its node on one carrier: the role shunt's **C-HEAT** (`combined-heat`) or **C-LITE** (`combined-lite`) position. There is no CAN chain, no duct-vacuum loop and no branch damper: the exhaust fan's speed holds the chamber ΔP directly (doc 06 §4), and the purge token has one holder. A second printer later turns the board back into a node (HEAT or LITE) and adds a hub carrier.
@@ -322,7 +387,21 @@ A one-printer system can run its hub and its node on one carrier: the role shunt
 | Duct vacuum, low-flow anemometer | Not fitted (the chamber ΔP takes their place) | Same | – |
 | Venturi trunk flow, room head, OLED | Optional, each on a free sensor header | Same | Hub |
 | Logic power | **≥ 24 V, 2 A barrel brick on POWER IN, INJECT BAR only** (D85; ≥ 4 A with a board-powered exhaust fan, D91), **on an outlet that is not the printer's smart plug** (§6b), so the board and a board-powered exhaust fan outlive a mains cut | Same | – |
+| RANGE 1 and RANGE 2 shunts (D47) | **Both on** (chamber-air and heater-housing NTCs, as node-heat) | Off (the NTC inputs are spare) | Node |
 | RJ45 IN/OUT, TERM | Unused; OUT stays dark (§3a) | Same | – |
+
+```mermaid
+flowchart LR
+  BR["24 V brick ≥ 2 A,<br>not on the<br>printer's plug"] -->|"POWER IN"| CB["Carrier<br>C-HEAT or<br>C-LITE"]
+  PS["Printer 24 V<br>(C-HEAT)"] -->|"XT60"| CB
+  PR["Printer"] <-->|"USB"| CB
+  SM["Smoke contact"] -->|"AUX A"| CB
+  CB --> HT["PTC heater"]
+  CB -->|"B2"| FAN["Exhaust fan"]
+  CB --> BZ["Buzzer"]
+  CB --> FP["Filter ΔP"]
+  CB --> CH["Chamber ΔP"]
+```
 
 - **Printer link:** combined roles need a printer on the USB link, because AUX carries the smoke contact and the button. A printer on the UART link (`marlin_serial`, doc 12) keeps the two-board layout.
 - **Exhaust fan:** it must be a 4-wire PWM fan, or a fan with the same open-collector PWM input, so that it runs at full speed while the board is silent (F3, doc 02 §6). A plain on/off fan on B2 stops with the board and is not allowed as the exhaust, on a combined board or on the hub. A fan with a proprietary port (the reference G4, R1) needs the adapter that R1 decides on. Supported fans are in doc 02 §6 (D85).

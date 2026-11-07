@@ -31,7 +31,59 @@ flowchart TB
   E3a -->|"branch"| C14["ModulAir 2:1 Ys ×2<br>(D34)"]
   E3b -->|"branch"| C14
   C14 --> C11["C11 filter housing<br>+ C12 trunk ΔP mount"]
-  C11 --> C17["C17 flow venturi"]
+  C11 --> C17["C17 flow venturi<br>+ C18 anemometer"]
+  C17 --> FAN["Fan in the<br>wall sleeve"]
+  FAN --> HOOD["Wall hood<br>(gravity flap)"]
+```
+
+Where the printed parts sit on an AD5X (side view, rear on the right):
+
+```mermaid
+flowchart TB
+  subgraph ad["AD5X with the E1 enclosure kit"]
+    direction TB
+    E2["E2 IFS pass-through<br>(panel facing the IFS)"] ~~~ C4["C4 sensor-head cover<br>+ chamber KSD301, high"]
+    C4 ~~~ C6["C6 door reed mounts"]
+    C6 ~~~ E7["E7 recirculation duct<br>+ 5015 blower"]
+    E7 ~~~ C3["C3 heater mount,<br>low rear"]
+    C3 ~~~ C2["C2 makeup inlet,<br>low front or side"]
+  end
+  C1["C1 port module + C8<br>grommet, rear, high"] --> E3["E3 damper + C16 encoder,<br>C5 node housing + C21 shutter"]
+  ad --> C1
+  E3 --> BR["Branch duct to the Ys"]
+```
+
+**Node housing (C5)**, the three faces a builder handles:
+
+```mermaid
+%%{init: {'flowchart': {'nodeSpacing': 20, 'padding': 8}}}%%
+flowchart TB
+  subgraph out["Outside face"]
+    direction LR
+    RI["IN, OUT<br>RJ45"] ~~~ PI["POWER IN"] ~~~ SH["C21 shutter:<br>HEATER DIN,<br>barrel"]
+  end
+  subgraph inn["Inside, cover off"]
+    direction LR
+    CA["Carrier"] ~~~ XI["XT60 tap in"] ~~~ XO["XT60<br>heater out"]
+  end
+  subgraph pf["Printer face, to the C8 grommet"]
+    direction LR
+    J["JST row"] ~~~ SV["Servo"] ~~~ U["USB-C"] ~~~ SR["Two strain<br>reliefs"]
+  end
+  out ~~~ inn
+  inn ~~~ pf
+  pf -->|"thermal break"| DM["E3 damper body"]
+```
+
+**Hub on the wall** (C9 and the instrument spool):
+
+```mermaid
+flowchart LR
+  C9["C9 hub enclosure:<br>carrier, C10 light pipe,<br>ACK and SERVICE<br>plungers, buzzer;<br>24 V brick outside"] -.->|"ΔP tubes,<br>NTC leads,<br>fan lead"| run
+  subgraph run["Along the trunk"]
+    direction TB
+    TR["Trunk"] --> M12["C12 ΔP mount"] --> F11["C11 filter"] --> V17["C17 venturi + C18"] --> FAN["Fan in sleeve"] --> HO["Hood"]
+  end
 ```
 
 - **Also in each AD5X:** E1 kit parts (ASA), E2 IFS pass-through plate, E7 recirculation duct, C2 makeup inlet, C3 heater mount, C4 sensor-head cover, C6 door reed mounts.
@@ -55,7 +107,7 @@ flowchart TB
 | Drybox optical motion block | Drybox sensors deferred |
 | C5 Pro USB hub bracket | Not needed: the C5 link uses its external USB port (D24). Verify and use it only if the J34 fallback is needed |
 | C5 rear 4-hole flange | The C5's port is a perforated side port; replaced by C7 |
-| ESP32 DIN shield enclosures (#1556383, #258431) | The hub now holds the PSU, inlet and carrier; replaced by C9 |
+| ESP32 DIN shield enclosures (#1556383, #258431) | The hub enclosure holds the carrier (and, with an internal supply, the supply and inlet); replaced by C9 |
 
 ## 3a. Printer-pack parts
 
@@ -119,11 +171,11 @@ The duct system builds on **[ModulAir](https://makerworld.com/en/collections/734
 | C4 | **Sensor-head cover** | ASA | Vented, snap-on, M2 mount; places the sensor head at the exhaust port out of the heater jet, a short cable run from the node housing. **Also holds the chamber-air KSD301** in free air beside the head (D12) |
 | C5 | **Node housing** | ASA | **Attaches to the E3 damper body** at the exhaust port, on both the AD5X and the C5 (D19), with a thermal break (air gap or standoffs) from the duct wall. Carrier with its ESP32 module (D72). **Outside face:** 2 × RJ45, POWER IN barrel, and the **HEATER DIN** and **HEATER barrel** openings side by side under the C21 shutter (D64). **Printer face, toward the C8 grommet:** JST row, servo, USB-C, and two **strain reliefs** for the tap lead and the heater lead, whose XT60s plug in inside the housing with the cover off (D64). **Port names embossed beside each opening** (IN, OUT, LOGIC 24 V (POWER IN), HEATER 24 V over the shutter pair, TAP and HEATER OUT by the strain reliefs, USB, and "FLEET BUS – NOT ETHERNET" by the RJ45s; R10); **2.5–3 mm windows in the wall** in front of the carrier's side-view LEDs (the port-live LED beside the OUT jack, D62; the link LED beside the IN jack and the CAN activity LED, D63), so they show with no light pipe (a short clear or white printed pipe is optional). **Suggested order on the outside face, left to right: IN link LED, IN jack, CAN activity LED, OUT jack, OUT port-live LED** (the activity LED between the two jacks, a solid link LED on each outer side; doc 02 §2.2); optional C20 bezels; every opening takes a C15 blanking plug when unused; a captive printed **CLEAR plunger** over the carrier's BOOT switch (D72), recessed so it can't be pressed by accident and labelled CLEAR (doc 05 §4.1); ΔP barb routed through; vents; ESP32 antenna end facing away from the printer frame (R6) |
 | C8 | **Cable grommet** | TPU | Split grommet in the C1 port module for the heater feed from the printer's supply tap, the heater lead, sensor cable, NTC leads, USB lead and ΔP tube; seals |
-| C9 | **Hub enclosure** | PETG | Wall-mount; holds the carrier; the reference supply is a brick outside it (D92). With an internal PSU it also holds the LRS-100-24 (or a reused stock AD5X supply; vented per its spacing) and an IEC inlet module. Front panel: light pipe (C10), captive **ACK plunger** over the carrier's on-board acknowledge switch (D49), a recessed **SERVICE plunger** over the carrier's BOOT switch (D72) (Wi-Fi provisioning and NVS reset, D46), labelled and recessed like the node's CLEAR plunger, buzzer grille, OLED window. The carrier mounts behind the front panel so both plungers land on their switches. Cutouts for the fleet RJ45 with a window for its port-live LED (D62) and the CAN activity LED (D63), the W5500 module's RJ45 (D18, D72), the POWER IN barrel opening (blanked; D22), a **HEATER barrel** opening for the hub brick (D92; none under D64), fan control lead, ΔP tubes, with **embossed port names** (R10). With an internal PSU, a mains section physically separated from low-voltage, with a cover |
+| C9 | **Hub enclosure** | PETG | Wall-mount; holds the carrier; the reference supply is a brick outside it (D92). With an internal PSU it also holds the LRS-100-24 (or a reused stock AD5X supply; vented per its spacing) and an IEC inlet module. Front panel: light pipe (C10), captive **ACK plunger** over the carrier's on-board acknowledge switch (D49), a recessed **SERVICE plunger** over the carrier's BOOT switch (D72) (Wi-Fi provisioning and NVS reset, D46), labelled and recessed like the node's CLEAR plunger, buzzer grille, OLED window. The carrier mounts behind the front panel so both plungers land on their switches. Cutouts for the fleet RJ45 with a window for its port-live LED (D62) and the CAN activity LED (D63), the W5500 module's RJ45 (D18, D72), the POWER IN barrel opening (blanked unless the hub brick is on POWER IN, D22, D93), a **HEATER barrel** opening for the hub brick (D92; none under D64), fan control lead, ΔP tubes, with **embossed port names** (R10). With an internal PSU, a mains section physically separated from low-voltage, with a cover |
 | C10 | **Panel light pipe** | Clear PETG | Diffuses 1–2 WS2812s into a visible status lens |
 | C11 | **Filter housing** | PETG (body), TPU (gasket) | Cylindrical, sized to the chosen combo cartridge (Levoit Core 300 class); ModulAir L bayonet inlet and outlet (D34); bayonet lid with TPU gasket, tool-free; **two barbed ΔP taps** (upstream and downstream of the cartridge); wall brackets |
 | C12 | **Trunk ΔP sensor mount** | PETG | Clamps the sensor board P (XGZP6897D) to the trunk; short tube to a tap upstream of the filter; room-reference port |
-| C13 | **Dev-board hold-down clip** | PETG | Retains the ESP32 board in its headers against vibration and cable pull |
+| C13 | ~~Dev-board hold-down clip~~ | – | **Retired (D72):** the ESP32 module is soldered on the carrier, so there is no plug-in board to hold down |
 | C14 | **Branch junction** | PETG | **Superseded by two chained ModulAir 2:1 Ys** (§3c, D34). A one-piece 3-into-1 or larger manifold doesn't fit a 256 mm build plate; two metal 4″ wyes remain the fallback |
 | C15 | **Blanking plugs** (set) | ASA (node housings), PETG (hub) | Snap-in plugs for any unused opening in C5 or C9: POWER IN barrel (the HEATER pair is covered by the C21 shutter instead), LAN RJ45, the OUT RJ45 at the end of the chain, the IN RJ45 on a wireless-only node. Each is embossed with its port name, keeps dust out, and stops an unused jack being mistaken for a free one. A small tether loop holds the plug on the housing while the port is in use (D22) |
 | C16 | **Damper encoder mount** (D30) | ASA | Cap holding a 6 × 2.5 mm diametric magnet on the blade shaft's free end (opposite the servo), and a bracket holding the sensor board E (AS5600) 1–2 mm from it, centred on the shaft. Remix onto the chosen damper body (doc 08 §3b) |

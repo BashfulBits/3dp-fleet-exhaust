@@ -56,6 +56,34 @@ flowchart TB
 | Debugging | JTAG over the carrier's USB-C (the module's native USB) in a debug USB mode, the UART0 console header, core dumps, and a hold on the carrier I/O controller for its SWD header; no probe or pin change on the ESP32 (§11.8, D65) |
 | Sensors | Drivers are plugins behind one interface, and the installed sensors come from a config, not from code (§2.1, D55). |
 
+Tasks and what each drives:
+
+```mermaid
+flowchart TB
+  SM["Sensor manager"] --> S["1 Safety task, 10 Hz"]
+  SM --> C["2 Control loops: PID 1 Hz,<br>ΔP 2 Hz, trunk 5 Hz"]
+  S -->|"square wave while<br>checks pass"| CP["Charge pump<br>→ enable chain"]
+  C --> ACT["Heater PWM,<br>damper, fan"]
+  WD["Task and RTC<br>watchdogs"] -.-> S
+  WD -.-> C
+  CM["3 CAN: hub, nodes<br>4 USB: Klippy extra<br>5 Wi-Fi: Moonraker,<br>Pushover, web, MQTT"] -.->|"commands"| SM
+```
+
+Boot, every start (details in doc 09 §4.2, doc 04 §4 and doc 05 §3.1; the exact order is fixed in the firmware [E]):
+
+```mermaid
+flowchart TD
+  P["Power on"] --> PY["Program or check the carrier<br>I/O controller, then each<br>sensor-board MCU"]
+  PY --> ID{"Role shunt matches<br>the stored role?"}
+  ID -->|"no, or unset"| SH["Safe hold: heater and<br>outputs off, fault raised"]
+  ID -->|"controller silent"| UC["Run the stored role,<br>'identity unchecked',<br>heater off until read"]
+  ID -->|"yes"| Z["Zero the heater current<br>(both switches off)"]
+  Z --> RG{"NTCs agree with<br>the SHT40? (RANGE)"}
+  RG -->|"no"| SH
+  RG -->|"yes"| PD["Power-input diagnostics,<br>two-supply check"]
+  PD --> ST["Safety task starts the<br>charge pump; role tasks run"]
+```
+
 ### 2.1 Sensor drivers and the installed-sensor config (D55)
 
 The firmware never names a sensor part in its control, safety or alert code. Those consume **roles** (`chamber.temp`, `trunk.dp`, `room.pm2_5` …). A per-carrier config says which driver on which header provides each role. Adding a sensor means adding a driver; using a different one means changing the config.
@@ -445,7 +473,7 @@ The REST call goes straight to the plug's entity, so no HA automation is needed 
 - **Auto-on after power loss: "restore last state"** (or the plug's equivalent), so a power blip doesn't leave printers off. A plug that was cut was off, so it comes back off; the latched re-cut (doc 05 §4.1) covers anything else (D38).
 - Shelly cloud disabled with the `shelly` backend; MQTT host empty with the Tasmota backends.
 - **The hub never switches a printer back on automatically** after a cut.
-- **The hub PSU and the exhaust fan are never on a printer's plug** (doc 04 §6b).
+- **The hub supply and the exhaust fan are never on a printer's plug** (doc 04 §6b).
 - **Plug-local power limit (D16):** on Tasmota plugs, `MaxPower` (§10.3). On Shelly plugs, set the switch's own over-power limit (Gen2 `Switch.SetConfig` `power_limit`, plus `current_limit` where available) to the printer's measured peak draw × 1.3 [U: confirm the fields on the device]. The plug then trips by itself on a gross overload, even with the hub, node and Wi-Fi all down. The hub reads the setting back at startup and alerts if it's missing. On HA-backend plugs, use the plug's own overload setting if it has one.
 - Under the `ha` backend, **require a confirmation in HA before the plug can be switched** (for example `tap_action` with `confirmation:` on its dashboard card, and the same on any voice or automation exposure), so it can't be turned back on or off by accident. Hiding it isn't enough: it would also hide its state.
 
@@ -523,6 +551,32 @@ Each node-heat keeps a small first-order model of its chamber: predicted tempera
 | **Hub supply lost** | The hub reads its own supply input: the heater rail on ESP32 GPIO 5 (D78), so an internal PSU on the XT60 and a brick in either HEATER jack all read. Before D78 it read the tap side of the ideal diode on GPIO 7, which saw only the XT60. Since D93 it also reads POWER IN on GPIO 7, sampled for ≈ 1 ms about once a second through the GPIO 37 selector, so a brick in either barrel reads. If both drop below ~20 V while the hub stays up on the bus, its supply has failed and the chain is feeding it (D52; the OUT-port current direction this used is gone with the INA190). A live POWER IN while the hub injects nothing alerts "fit INJECT BAR", and a live heater rail while it injects nothing "fit INJECT INT" (D93). The hub sends a **High** "hub supply lost, running on printer power" push and enters back-fed mode. **A reading that stops counts as back-fed** (D64): in a fire the siren and push must go before the cut, so the hub assumes the safe order. Since D75 the reading is the ESP32's own, so a silent carrier I/O controller no longer forces back-fed mode. Back-fed mode ends only when the supply reads healthy again |
 | **Fan power feed** (D78) | Fan A and B1 run from the heater rail whenever it is above ≈ 15.5 V, and from the bus otherwise (doc 02 §2.2). The ESP32 reads the heater rail on GPIO 5 and treats it as down below 20 V. **Node-heat on the bus leg:** both fans off, their tach ignored and the stall counter not advanced. **Hub or node-lite:** the fans run normally on either leg. **Over-voltage:** from 30 to 34 V on the rail the firmware turns both off; above that the D57 comparator holds them off in hardware. |
 | **Back-fed mode** | While back-fed: LED brightness capped and **one damper servo moving at a time**, so a single injecting node's ~1.5 A limit (D81) carries the whole chain even in an alarm; in a fire or runaway, **siren and push go before the cut** (doc 05 §3.4, §5), since the cut printer may be the hub's only power; the dashboard shows the mode and the hub's measured bus voltage (D64), and anemometer readings are flagged as degraded (doc 06 §4.4). It ends when the hub's supply input returns |
+
+Hub supply check, about once a second (D35, D64, D93):
+
+```mermaid
+flowchart TD
+  A["About once a second"] --> B["GPIO 5: heater rail"]
+  B --> C["GPIO 37 high ≈ 1 ms:<br>GPIO 7 reads POWER IN"]
+  C --> D{"Either input<br>above ≈ 20 V?"}
+  D -->|"no, or<br>no reading"| BF["Back-fed mode:<br>High push, LEDs capped,<br>one servo at a time,<br>siren before a cut"]
+  D -->|"yes"| E{"Live input,<br>nothing injected?"}
+  E -->|"POWER IN"| F1["Alert: fit<br>INJECT BAR"]
+  E -->|"heater rail"| F2["Alert: fit<br>INJECT INT"]
+  E -->|"no"| OK["Healthy;<br>back-fed ends"]
+```
+
+Fan power feed (D78), on every role:
+
+```mermaid
+%%{init: {'flowchart': {'nodeSpacing': 20, 'padding': 8}}}%%
+flowchart TD
+  R["Heater rail, GPIO 5"] --> V{"Rail voltage"}
+  V -->|"above 34 V"| HW["Comparator:<br>fan A, B1 off"]
+  V -->|"30–34 V"| FW["Firmware:<br>fan A, B1 off"]
+  V -->|"20–30 V"| HL["Fans on the<br>heater leg"]
+  V -->|"below 20 V"| RL["Node-heat: fans off,<br>tach ignored. Hub,<br>node-lite: bus leg"]
+```
 
 ### 11.8 Debugging (D65, D68, D72)
 

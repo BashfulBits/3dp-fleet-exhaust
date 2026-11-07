@@ -19,6 +19,14 @@ How to go from this repository to your own fleet. It points at the other docs ra
 
 Follow the staged bring-up in [doc 01 §8](01_system_architecture.md#8-phase-2-bring-up-stages-d41): de-risk first, then the exhaust core, then heating, then the monitoring extras. Each stage has commissioning tests in [doc 05](05_safety_and_failsafes.md) that must pass before the next stage starts, and monitoring never feeds a safety layer, so the last stage can wait.
 
+```mermaid
+flowchart TD
+  P["Plan: packs, BOM,<br>open items, private record"] --> S0["Stage 0, de-risk:<br>fan interface, printer supply,<br>bench tests"]
+  S0 -->|"PCB layout waits<br>for the de-risk results"| S1["Stage 1, exhaust core:<br>hub, ducts, filter, node-lite,<br>plugs, mains cut"]
+  S1 -->|"stage 1 tests,<br>doc 05 §9"| S2["Stage 2, heating:<br>node-heat with every<br>hardware layer"]
+  S2 -->|"stage 2 tests pass:<br>unattended heating allowed"| S3["Stage 3, monitoring extras<br>(no safety role)"]
+```
+
 ## 4. Reading order
 
 | If you want to… | Read |

@@ -24,6 +24,17 @@ flowchart TB
   FAN --> HOOD["Wall hood<br>backdraft flap"]
 ```
 
+Pressure along the path, in normal running (the fan at the outlet end keeps every indoor metre below room pressure):
+
+```mermaid
+flowchart TB
+  R["Room, 0 Pa"] -->|"C2 flap shut at −3 Pa,<br>opens at ≈ 12 Pa (purge)"| C["Chamber ≈ −3 Pa<br>(node loop, damper)"]
+  C -->|"damper sets<br>the branch flow"| T["Trunk tap −80 Pa<br>(hub loop, fan speed)"]
+  T -->|"filter loss<br>(monitored)"| V["Venturi: flow"]
+  V --> F["Fan inlet:<br>lowest pressure"]
+  F -->|"above room pressure<br>only past the fan"| O["Wall hood, outdoors"]
+```
+
 All three sets of taps go to pressure sensors on the hub. The trunk tap is upstream of the filter; the venturi (D30) is between the filter and the fan, in filtered air, so its taps stay clean.
 
 | Principle | Why |
@@ -120,6 +131,17 @@ The hub's trunk loop and each node's loops are linked only by the **trunk-active
 - **PI with deadband ±0.5 Pa**, servo rate limit ~2°/s, and the minimum change held off until the error persists > 5 s. The servo doesn't hunt or hum.
 - **Auto-zero:** every pressure sensor is re-zeroed in the system-wide static window (§4.1).
 - The **trunk-active flag** comes from the hub over CAN. The node doesn't run its ΔP loop when the trunk is off. What a node does when the hub, and so the flag, is lost is open item O14 (doc 01 §7).
+
+**Combined roles (D84):** one carrier on one printer has no trunk loop and no branch damper. Its chamber ΔP loop moves the exhaust fan's speed (B2) instead of a damper angle, against the same setpoints (heated print, cooling floor, purge); the purge token has one holder. The loop's gains are set at commissioning [E].
+
+```mermaid
+flowchart TB
+  SP["Chamber setpoint<br>−3 Pa, cooling, purge"] --> PI["Chamber ΔP PI<br>(combined board)"]
+  PI -->|"fan speed, B2 PWM"| FAN["Exhaust fan"]
+  FAN --> CH(("Chamber"))
+  CH --> CS["On-board XGZP"]
+  CS --> PI
+```
 
 ### 4.1 Static auto-zero (all pressure sensors)
 
@@ -270,6 +292,23 @@ CAN IDs: node 1 requests and releases on 0x131 and gets its token on 0x141; node
 | End condition | **All of:** chamber ≤ `SAFE_TEMP`; elapsed ≥ `MIN_TIME`; ≥ 5 chamber air changes (from the branch's angle–flow curve and encoder angle, D30; time-based estimate if the encoder is unavailable); chamber VOC within `VOC_MARGIN` of the hub room VOC (R3) |
 | Done | Bed LED **green breathing** ("safe to open"); push notification; damper closes; token released |
 | Door opened mid-purge | Purge continues at full damper; you've already opened it |
+
+```mermaid
+flowchart TD
+  T["Print ends, cancels or errors,<br>or FLEET_PURGE"] --> RQ["PURGE_REQUEST"]
+  RQ --> TK{"Token free?"}
+  TK -->|"no"| Q["Queued; hold −3 Pa"] --> TK
+  TK -->|"yes"| CT{"AD5X?"}
+  CT -->|"yes"| CR["Crack test: damper steps 1°,<br>ΔP at ≥ 10 Hz,<br>log the flap opening"]
+  CT -->|"no"| RP["Open the damper<br>progressively"]
+  CR --> RP
+  RP --> RC{"Cooling faster<br>than RAMP?"}
+  RC -->|"yes"| EZ["Ease the damper;<br>heater holds a falling floor<br>(heated materials)"]
+  EZ --> EC
+  RC -->|"no"| EC{"≤ SAFE_TEMP, ≥ MIN_TIME,<br>≥ 5 air changes,<br>VOC near room?"}
+  EC -->|"no"| RC
+  EC -->|"yes"| DN["LED green, push,<br>damper closes,<br>PURGE_RELEASE"]
+```
 
 **Physical check [E]:**
 - An AD5X kit chamber is ~0.1 m³, so 5 air changes at 20 CFM (0.57 m³/min) take **about 1 minute**.

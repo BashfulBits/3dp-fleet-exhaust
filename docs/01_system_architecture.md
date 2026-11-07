@@ -29,7 +29,7 @@ These are the reference build's requirements, and they decided every trade-off b
 | P-4 | **Near-zero false positives** for anything drastic (mains cut, paging) | Two-signal corroboration for fire response; a narrow paging policy. |
 | P-5 | **Mechanically robust assembly, no screw terminals, no wires on PCB pads** | Locking connectors, a plug-in ESP32 board, header-on-footprint for the AD5X USB link; the C5's external USB port. |
 | P-6 | **Office-quiet** (no louder than the printers) | Low-speed bleed most of the time; full-flow purge only briefly. |
-| P-7 | **Cost: "do it right", but trimmed** | Full tier with cheaper pressure sensors, one universal carrier PCB plus one small universal sensor board, and off-the-shelf parts (≈ $650 line-item BOM, see doc 03). |
+| P-7 | **Cost: "do it right", but trimmed** | Full tier with cheaper pressure sensors, one universal carrier PCB plus one small universal sensor board, and off-the-shelf parts (≈ $669 line-item BOM, see doc 03). |
 | P-8 | **Open source, prefer existing printable models** | Existing models wherever they fit; custom parts only where they're genuinely better. |
 
 ## 3. Topology
@@ -39,7 +39,7 @@ These are the reference build's requirements, and they decided every trade-off b
 ```mermaid
 flowchart TB
   LAN["Home Wi-Fi<br>dashboard, Pushover,<br>MQTT → HA (optional)"]
-  HUB["Hub<br>fan, trunk + filter ΔP,<br>room air, panel, PSU"]
+  HUB["Hub<br>fan, trunk + filter ΔP,<br>room air, panel,<br>24 V brick"]
   FAN["Vivosun G4 fan<br>(wall outlet)"]
   N1["Node 1 · node-heat<br>(AD5X #1)"]
   N2["Node 2 · node-heat<br>(AD5X #2)"]
@@ -64,11 +64,33 @@ flowchart TB
   PL -->|"mains"| A
 ```
 
+**Physical layout** (side view of one printer and the wall run; the other printers join at the Ys):
+
+```mermaid
+flowchart TB
+  subgraph pr["Each printer"]
+    MU["C2 makeup inlet<br>low on a panel"] --> CH["Chamber: heater,<br>recirculation, sensor head"]
+    CH --> PA["Port adapter, high<br>(C1 or C7)"]
+    PA --> DM["E3 damper + encoder,<br>C5 node housing on it"]
+  end
+  subgraph wall["Duct and wall (all below room pressure)"]
+    Y["ModulAir 2:1 Ys"] --> TR["4″ trunk, run high"]
+    TR --> FI["C11 filter<br>HEPA + carbon"]
+    FI --> VE["C17 venturi<br>+ anemometer"]
+    VE --> FAN["Exhaust fan<br>in the wall sleeve"]
+    FAN --> HO["Wall hood<br>gravity flap"]
+  end
+  DM -->|"branch duct"| Y
+  HUB["C9 hub enclosure<br>on the wall"] -.->|"ΔP tubes"| FI
+  HUB -.->|"fan lead (B2)"| FAN
+  HUB -.-|"CAT6 bus"| DM
+```
+
 The **C5 Pro cell** is the same without heater power: node 3 (node-lite) talks to the C5 over the same USB-serial link, through the C5's external USB port (D24, pending O10). Every node uses Moonraker on Wi-Fi as its backup link.
 
 | Element | Role |
 |---|---|
-| **Universal carrier PCB** | One JLCPCB-assembled design with an **ESP32-S3-WROOM-1 module on the board** (D72), populated three ways: **node-heat** (AD5X), **node-lite** (C5 Pro), **hub**. Order of 5: 3 nodes, hub, spare. |
+| **Universal carrier PCB** | One JLCPCB-assembled design with an **ESP32-S3-WROOM-1 module on the board** (D72), assembled one way (D47) and set by its role shunt to **node-heat** (AD5X), **node-lite** (C5 Pro), **hub**, or a combined role (D84). Order of 5: 3 nodes, hub, spare. |
 | **Node-heat** (AD5X ×2) | 150 W PTC heater (powered from **that AD5X's own 24 V supply**, D12) with recirculation and intake filter, chamber temperature/RH/VOC, chamber ΔP, branch damper, door switch, bed LED strip, and the switched output for the AD5X recirculation-duct blower (O3). It runs its own heater control and safety. |
 | **Node-lite** (C5 Pro) | The same minus the heater stage. The C5 keeps its stock chamber heater and fans; the node adds monitoring, the damper, chamber-ΔP control and the LED strip. Its USB lead goes to the C5's **external** USB port, so there's **no wiring inside the C5** unless the J34 fallback is needed (D24). |
 | **Hub** | On the wall next to the fan. It feeds the 24 V **logic** bus (nodes can inject too, D13) and is sized to carry every node's logic with all printers off (D35); runs the trunk-vacuum loop, measures filter loading and room air, queues purges, cuts a printer's mains (Shelly) on a corroborated fire or a verified heater runaway, sends notifications and serves the dashboard. It has **no heater switch** (D12). |
@@ -88,10 +110,10 @@ Each row is an approved decision. The full record and the trade studies are in [
 
 ### 4.2 Logic bus and wired CAN from the hub; heater power from each printer (D4, amended by D12)
 
-- **Node logic** comes from a small hub PSU over the CAT6 daisy chain, so nodes keep running when a printer is off and can still purge it.
+- **Node logic** comes from a small hub supply (a 24 V desktop brick, D92) over the CAT6 daisy chain, so nodes keep running when a printer is off and can still purge it.
 - **Heater power** comes from **each AD5X's own internal 24 V supply**, reused if its label shows headroom or upgraded if not, or from an external 24 V brick on the same smart plug, plugged into the node's HEATER DIN or HEATER barrel jack (O1, D52, D22, D64, doc 02 §3.1). The Shelly plug that feeds a printer therefore removes printer *and* heater power in one cut.
 - **Why no hub heater relay (D12):** every fault the relay covered is a heater runaway, and the node handles all single faults itself (two series switches; a hardware enable chain with housing and chamber-air thermostats; a TCO in the load path). A runaway needs a double fault. At that point the print is lost anyway, so a per-printer mains cut costs nothing extra.
-- **Extensibility:** adding a printer needs only a CAT6 patch cable, a node and a smart plug (Shelly, or any plug via HA, D14). There's no heavy cable, hub relay or larger hub PSU per printer. A CAT6 segment carries about 36 W (1.5 A, kept there on purpose, D21). **Power injection at the nodes (D13)** removes that as a chain limit: every carrier can feed the bus through a current-limited, reverse-blocking eFuse, the AD5X nodes do so from their heater tap, and any node can take a 24 V brick. With every printer off, the hub carries the chain alone: the idle load (~1–2 W per node) plus the busiest node's alarm peak, which is what its supply is sized for (D35, doc 04 §6a).
+- **Extensibility:** adding a printer needs only a CAT6 patch cable, a node and a smart plug (Shelly, or any plug via HA, D14). There's no heavy cable, hub relay or larger hub supply per printer. A CAT6 segment carries about 36 W (1.5 A, kept there on purpose, D21). **Power injection at the nodes (D13)** removes that as a chain limit: every carrier can feed the bus through a current-limited, reverse-blocking eFuse, the AD5X nodes do so from their heater tap, and any node can take a 24 V brick. With every printer off, the hub carries the chain alone: the idle load (~1–2 W per node) plus the busiest node's alarm peak, which is what its supply is sized for (D35, doc 04 §6a).
 - **ESP-NOW backup (D16):** the same messages also go over ESP32 peer-to-peer radio, so an unplugged or damaged cable costs nothing. A node can also run **wireless-only** (no CAT6) with a 24 V brick (doc 07 §6.4).
 - **Safe RJ45 (D17):** the bus pinout puts equal potential on both wires of every pair, and every outgoing jack powers up only for a fleet node, so plugging it into a switch, laptop or PoE port does no harm.
 - CAN in a CAT6 cable keeps hub↔node coordination (purge token, runaway reports, heartbeats) working **without the router**. It's daisy-chained hub → node 1 → node 2 → node 3, which is standard CAN practice.
@@ -142,6 +164,28 @@ stateDiagram-v2
 
 Prints started from the touchscreen, the Flashforge app or FlashPrint follow the same flow with a default policy (doc 07 §5).
 
+A heated print end to end, across the printer, its node, the hub and the phone:
+
+```mermaid
+sequenceDiagram
+  participant X as Printer extra
+  participant N as Node
+  participant H as Hub
+  X->>N: FLEET_EXHAUST<br>or M191 (USB)
+  N->>H: trunk on<br>(CAN 0x130+n)
+  Note over H: fan on,<br>trunk −80 Pa
+  Note over N: damper to bleed,<br>heater soft-start
+  N-->>X: wait_ok<br>(at target)
+  Note over N: print: hold<br>temp and −3 Pa
+  X->>N: print end or<br>FLEET_PURGE
+  N->>H: PURGE_REQUEST
+  H->>N: PURGE_TOKEN
+  Note over N: crack test,<br>cooldown ramp,<br>end criteria
+  N->>H: PURGE_RELEASE,<br>trunk off
+  Note over H: push to phone:<br>safe to open
+  Note over H: fan off when<br>no branch is active
+```
+
 ## 6. Document map
 
 | Doc | Content |
@@ -177,7 +221,7 @@ Consolidated here; each item is also referenced in the doc it affects.
 | R10 | Low-voltage RJ45/CAT6 bus can be plugged into real Ethernet gear by mistake | Was: 24 V into a switch or laptop port damages it. **Mitigated by D17** (pair-safe pinout, detect-before-power, fault-tolerant CAN, 30 V input cut-off; doc 04 §3a); residual risk is the Phase 2 circuit not behaving as designed (commissioning test 21) | Distinct cable colour; **port names embossed on the printed node housing and hub enclosure** beside each jack (IN, OUT, POWER IN, LAN on the hub, plus "FLEET BUS – NOT ETHERNET"; doc 08 C5, C9); documented in doc 04. |
 | R11 | Heater return current shares the AD5X USB-link ground (the heater runs from the printer's supply and the node's ground also reaches the printer through the USB lead) | Ground offset or heating in the USB lead; USB link errors | 14 AWG heater lead ≤ 1.5 m keeps the USB share ≲ 0.3 A [E]; measure at commissioning (doc 05 §9). Fallback: a USB isolator (ADuM3160-class module, ~$6) on the link. |
 | R12 | Printer's 24 V rail sags under bed + heater + motion load (stock supply reused) | Mainboard reset kills the print (P-2) | O1 sizing rule (doc 02 §3.1); bed-heat interlock and rail-voltage throttle on the node; load test before unattended use (doc 05 §9). |
-| O1 | **AD5X PSU rating, form factor and whether the bed runs from it** | **Decides reuse, upgrade or an external DIN-4 brick for the heater** (doc 02 §3.1, D22) | Read the label and trace the bed supply at unboxing. Every node-heat carrier takes all three, so the answer changes only what you buy. **Also decides the hub supply:** unless an upgrade frees a stock AD5X supply, the leaning is a **24 V desktop brick** (Mean Well GST60A24 class) into the hub's POWER IN instead of the LRS-100 and IEC inlet, which takes all mains wiring out of the printed hub enclosure at about the same cost. |
+| O1 | **AD5X PSU rating, form factor and whether the bed runs from it** | **Decides reuse, upgrade or an external DIN-4 brick for the heater** (doc 02 §3.1, D22) | Read the label and trace the bed supply at unboxing. Every node-heat carrier takes all three, so the answer changes only what you buy. **Hub supply settled (D92, D93):** a **24 V, 5 A desktop brick** in either of the hub's barrel jacks, so the printed hub enclosure has no mains wiring. A stock AD5X supply freed by an upgrade can run the hub from the internal XT60 instead, with an IEC inlet and mains work in the enclosure. |
 | O2 | ~~IFS on top of or beside the enclosure~~ **Closed: beside the enclosure** (the standard arrangement, assumed) | Bowden pass-through plate location | E2 plate goes on the panel facing the IFS. |
 | O3 | ~~Does the kit's chamber/filter fan exhaust or recirculate?~~ **Closed: it recirculates** | No conflict with the exhaust | **Required on each AD5X:** a printed recirculation duct with a 24 V 5015 blower that pulls chamber air through the AD5X's rear filter and returns it (doc 08 E7: Printables #1473971, alternative #1472826). Node output B1 switches it. |
 | O4 | C5 Pro side port: **mostly answered from published models.** The port is the stock **7025 exhaust fan** (Peerless DF7025B24V class, 24 V) behind the right side cover; an internal **9733 blower** (DB9733B24V class) circulates chamber air. The exhaust fan runs in "Adaptive Air Circulation" (external) mode for PLA/PETG/TPU; in engineering-filament (internal) mode it is off and its outlet is open. Still unconfirmed: which Klipper name (`chamber_fan` / `chamber_cool_fan`) is which [U] | C5 shroud design | Base C7 on Printables #1802285 (adaptor over the exhaust fan with a side-cover gasket and a ⌀80 mm hose fixture) or MakerWorld #2934469 (80 mm duct held by the filament-holder pins), opened up to 100 mm (doc 08 E8). Port dimensions come from those models; read the fan names from `printer.cfg` at setup. |
