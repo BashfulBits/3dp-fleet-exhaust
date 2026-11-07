@@ -271,24 +271,38 @@ By default the heater runs from **its own printer's internal 24 V supply**. An *
 
 ## 6. Exhaust fan
 
-| Item | Requirement |
-|---|---|
-| Placement | At the outlet end of the run, so all indoor duct is under negative pressure (D6) |
-| Flow and pressure | Purge flow through the whole path (below) |
-| Control | Speed set from the hub's B2 port: 4-wire PWM, or 0–10 V through the adapter stage. Speed read back (tach) or a health signal where the fan has one |
-| Hub silent | **The fan must keep running if the hub goes silent mid-print** (F3) |
-| Static pressure | From the maker's P–Q curve; a fan with no published curve is measured before relying on it (doc 06) |
+The framework sets what an exhaust fan must do and lists products known to qualify; each build picks its own fan and records it in its own fleet record. Any fan that meets every requirement below is supported. To add a product, add a row to the examples table with its evidence.
 
-**Supported exhaust fans (D85–D88, D91).** Every exhaust fan goes on the B2 fan port (doc 04 §7a), powered from the fan tap (D92) or its own supply. It must make purge flow through the whole path: **≥ 50 CFM at ≥ ≈ 250 Pa (1.0 inH₂O)** on the maker's P–Q curve at full speed (D88). That covers a typical run (≈ 15 ft of 4″ semi-rigid duct, five bends, the makeup inlet, the filter at its +60 % alert, the venturi and the hood) [E]; long or bendy runs need ≈ 330 Pa (1.33 inH₂O). Where a seller gives only a shut-off pressure, screen at **≥ ≈ 1.4 inH₂O (≈ 350 Pa)**: 120 × 38 mm fans keep only ≈ 70–77 % of it at 50 CFM [V: two maker P–Q curves]. Speed and current alone don't predict it. It must also run at full speed with no control signal (F3), which a 4-wire PWM fan does.
+### 6.1 Requirements
 
-| Class | Example | Supply | Notes |
+| # | Requirement | Value | Source |
 |---|---|---|---|
-| Budget | 24 V 120 × 38 mm 4-wire PWM fan, ≤ ≈ 2.2 A: Jentech JC12038B24UC1 class (228 CFM, 1.03 inH₂O shut-off, ≈ 176 Pa at 50 CFM, 1.3 A, 58 dB(A)) [V: maker datasheet and P–Q curve] | Fan tap | Printed 120 mm → 4″ adapter. Below the 250 Pa requirement: reaches 50 CFM only on short, low-loss runs (≈ 40–60 CFM with a new filter, D88 [E]), so **bench-check purge flow** through the filter. Loud at full speed; normal running is well below it |
-| Industrial | 24 V 120 × 38 mm 4-wire PWM fan: Delta PFB1224SE / PFB1224HE class (≈ $46–51) [U: running current] | Fan tap (≤ ≈ 2.2 A) | More pressure than the budget class; the same adapter |
-| High pressure | 24 V 120 × 38 mm 4-wire PWM fan: Jentech JC12038B24UC2 class (270 CFM, 1.97 inH₂O shut-off, ≈ 380 Pa at 50 CFM, 1.63 A typ, 1.80 A max) [V: maker datasheet and P–Q curve; U: starting current, sourcing] | Fan tap | Meets the requirement with margin (≈ 55–85 CFM delivered, D88 [E]), so it runs well below full speed and quieter in normal use. **Measure** its starting and full-speed current on samples (D87) |
-| 12 V | 12 V 120 × 38 mm 4-wire PWM fan meeting the same operating point (Wathai 12038 class, 1.17 inH₂O shut-off, 2.0 A, below the 1.4 inH₂O screen) [U: retailer listing, no P–Q curve], through an **inline 24 → 12 V adapter** | Fan tap | Off the board (D86). The adapter passes PWM and tach through and limits a short on its output |
-| Quiet | 4″ EC inline fan on its own mains with an external PWM or 0–10 V input: TerraBloom ECMF-100 class (≈ $78) [U: 334 Pa, and its speed with no signal] | Pin 2 not connected | PWM on pin 4, or the 0–10 V stage. **Bench-check F3** (full speed with the signal removed) before relying on it |
-| Proprietary controller | An inline fan with its own controller and an undocumented control port | Pin 2 not connected (own mains) | Usable only after its control port is reverse-engineered to a PWM or 0–10 V input with an adapter on B2, and F3 is shown on the bench. Record the result as a new row here |
+| FN-1 | Placement | At the outlet end of the run, downstream of the filter, so all indoor duct is below room pressure | D6 |
+| FN-2 | Operating point | **≥ 50 CFM at ≥ ≈ 250 Pa (1.0 inH₂O)** at full speed, read off the maker's P–Q curve. Long or bendy runs (≈ 330 Pa budget): **≥ 50 CFM at ≥ ≈ 330 Pa (1.33 inH₂O)** | D88 |
+| FN-3 | Screening without a P–Q curve | Shut-off pressure **≥ ≈ 1.4 inH₂O (≈ 350 Pa)** for a 120 × 38 mm axial fan (it keeps only ≈ 70–77 % of shut-off at 50 CFM [V: two maker P–Q curves]); otherwise measure before relying on it. Speed and current alone don't predict it | D88 |
+| FN-4 | Duct connection | 4″ (100 mm), directly or through a printed adapter | doc 06 §2 |
+| FN-5 | Control input | **4-wire PWM** (PWM on pin 4 of B2) or **0–10 V** (B2's 0–10 V stage). On/off-only fans are not supported | D85 |
+| FN-6 | No-signal behaviour | **Runs at full speed with the control signal absent or the hub silent** (a 4-wire PWM fan does this by its standard) | F3 |
+| FN-7 | Feedback | Tach or a health output, read on B2 (doc 04 §7a), where the fan has one | D84 |
+| FN-8a | Power, board-powered | **24 V** from the fan tap: running current **≤ ≈ 2.2 A (≈ 50 W) at full speed**, starting current inside the tap eFuse's **≈ 2.7 A** limit. A 12 V fan runs only through an inline 24 → 12 V adapter that passes PWM and tach and limits a short | D86, D87, D91 |
+| FN-8b | Power, own supply | Any mains or separate supply, with B2 pin 2 not connected. Keeps running through a hub-supply failure | D85, doc 05 §2 |
+| FN-9 | Noise | Should run at or below the printers' own noise at bleed speed; full speed is used only during a purge | P-6 |
+
+A fan with a proprietary controller qualifies only once its control port is mapped to FN-5 through an adapter on B2 and FN-6 is shown on the bench.
+
+### 6.2 Qualifying examples
+
+These products were checked against §6.1, with the evidence shown; only a **Yes** row meets every requirement on paper, and the others qualify once the marked item is measured. "Class" means any fan with the same ratings qualifies equally.
+
+| Class | Meets §6.1 | Example | Supply | Notes |
+|---|---|---|---|---|
+| Budget | Short, low-loss runs only (≈ 176 Pa at 50 CFM); bench-check | 24 V 120 × 38 mm 4-wire PWM fan, ≤ ≈ 2.2 A: Jentech JC12038B24UC1 class (228 CFM, 1.03 inH₂O shut-off, ≈ 176 Pa at 50 CFM, 1.3 A, 58 dB(A)) [V: maker datasheet and P–Q curve] | Fan tap | Printed 120 mm → 4″ adapter. Below the 250 Pa requirement: reaches 50 CFM only on short, low-loss runs (≈ 40–60 CFM with a new filter, D88 [E]), so **bench-check purge flow** through the filter. Loud at full speed; normal running is well below it |
+| Industrial | [U] running current, P–Q curve | 24 V 120 × 38 mm 4-wire PWM fan: Delta PFB1224SE / PFB1224HE class (≈ $46–51) [U: running current] | Fan tap (≤ ≈ 2.2 A) | More pressure than the budget class; the same adapter |
+| High pressure | **Yes** on paper, with margin; measure the starting current (FN-8a) | 24 V 120 × 38 mm 4-wire PWM fan: Jentech JC12038B24UC2 class (270 CFM, 1.97 inH₂O shut-off, ≈ 380 Pa at 50 CFM, 1.63 A typ, 1.80 A max) [V: maker datasheet and P–Q curve; U: starting current, sourcing] | Fan tap | Meets the requirement with margin (≈ 55–85 CFM delivered, D88 [E]), so it runs well below full speed and quieter in normal use. **Measure** its starting and full-speed current on samples (D87) |
+| 12 V | [U] no P–Q curve; below the FN-3 screen | 12 V 120 × 38 mm 4-wire PWM fan meeting the same operating point (Wathai 12038 class, 1.17 inH₂O shut-off, 2.0 A, below the 1.4 inH₂O screen) [U: retailer listing, no P–Q curve], through an **inline 24 → 12 V adapter** | Fan tap | Off the board (D86). The adapter passes PWM and tach through and limits a short on its output |
+| Quiet | [U] 334 Pa and FN-6 to bench-check | 4″ EC inline fan on its own mains with an external PWM or 0–10 V input: TerraBloom ECMF-100 class (≈ $78) [U: 334 Pa, and its speed with no signal] | Pin 2 not connected | PWM on pin 4, or the 0–10 V stage. **Bench-check F3** (full speed with the signal removed) before relying on it |
+
+FN-2 covers a typical run (≈ 15 ft of 4″ semi-rigid duct, five bends, the makeup inlet, the filter at its +60 % alert, the venturi and the hood) [E].
 
 Not suitable: 120 × 25 mm case fans (well under 1 inH₂O [E]), and on/off fans with no PWM input, which stop when the board goes silent. On the hub, a fan on 24V stops if the hub supply fails (doc 05 §4); one on its own mains doesn't.
 

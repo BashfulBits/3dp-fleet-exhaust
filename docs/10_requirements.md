@@ -44,7 +44,7 @@
 | S-6 | A mains cut shall latch, re-assert itself within 5 s if the plug is switched back on from any app, and survive a reboot | P-3 | D16, D27; doc 07 §11.1 | Tests 19, 25 |
 | S-7 | The hardware heater layers shall work with no Wi-Fi, no hub, no Home Assistant and no printer firmware; the mains cut shall need only the node's own access point or Wi-Fi to reach the plug | P-3 | D12, D15, D16 | Tests 1–4, 15, 22 |
 | S-8 | An unpowered or crashed unit shall leave a safe state: heater off, damper holding, exhaust fan running | P-3 | F3; doc 05 §2 | Tests 1, 7 |
-| S-9 | The exhaust fan shall keep running when the hub goes silent; a fan that can't is not a supported exhaust fan | P-3 | F3, D10, D88; doc 02 §6 | Test 7 |
+| S-9 | The exhaust fan shall keep running when the hub goes silent (doc 02 FN-6); a fan that can't is not a supported exhaust fan | P-3 | F3, D10, D88; doc 02 §6.1 | Test 7 |
 | S-10 | An open door shall get more extraction, not less | — | F1; doc 05 §6 | Test 12 |
 | S-11 | A plug that can't be reached shall raise an alert within ~1 min, and each plug shall also enforce its own power limit | P-3 | D14, D16 | Tests 15, 18 |
 | S-12 | Loss of the hub supply shall leave the hub running on printer power where any printer is on, with a push | P-3 | D35; doc 05 §2 | Test 30 |
@@ -86,7 +86,7 @@
 | ID | Requirement | From | Met by | Verified by |
 |---|---|---|---|---|
 | M-1 | Duct 4″ throughout; every joint gasketed; total duct leakage < 0.5 CFM | — | D34; doc 06 §1.1, §2 | Duct leak test M10 |
-| M-2 | The exhaust fan shall deliver ≥ 50 CFM at ≥ ≈ 250 Pa at full speed (purge flow through the filter and duct) | — | D88; doc 02 §6 | Flow measurement (doc 06 §10) |
+| M-2 | The exhaust fan shall meet doc 02 §6.1 (FN-1…FN-9): ≥ 50 CFM at ≥ ≈ 250 Pa at full speed (≥ ≈ 330 Pa on long runs), 4″ connection, 4-wire PWM or 0–10 V control, full speed with no signal, and on the board's fan tap 24 V at ≤ ≈ 2.2 A running and a start inside ≈ 2.7 A. The framework lists qualifying products; each build chooses one | — | D85–D88, D91; doc 02 §6 | Flow measurement (doc 06 §10); test 7 |
 | M-3 | Bleed shall cost little heat and noise: 1–3 CFM per printer at −3 Pa | P-6 | D7; doc 06 §2, §7 | Commissioning ΔP and flow |
 | M-4 | Each printer shall meet the core at one standard interface: a port adapter to the damper's bayonet port, with the node housing on the damper outside the frame | — | D19, D34; doc 12 §5 | Pack review |
 | M-5 | A chamber with a makeup inlet shall take its makeup air low and exhaust high; a gravity or spring flap shall close the inlet when the chamber isn't drawn | — | D89, D90; doc 06 §1 | Crack test where fitted (doc 06 §5.2) |

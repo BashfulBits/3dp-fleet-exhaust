@@ -20,7 +20,7 @@
 | Printer USB lead | ≤ 1.5 m, no VBUS | doc 04 §5 | Use the network link instead |
 | Heater lead | 14 AWG ≤ 1.5 m when the heater shares the USB ground | R11 | Fit a USB isolator, or keep the ground share under test 9's 0.3 A |
 | Duct | 4″ throughout, fan at the outlet | D6, doc 06 §2 | A fan inside the room would put duct above room pressure: not supported |
-| Exhaust fan | ≥ 50 CFM at ≥ ≈ 250 Pa; keeps running when the hub is silent | D88, F3 | Not a supported exhaust fan (doc 02 §6) |
+| Exhaust fan | ≥ 50 CFM at ≥ ≈ 250 Pa; PWM or 0–10 V; full speed with no signal; ≤ ≈ 2.2 A at 24 V on the fan tap, or its own supply | D88, D91, F3 | Not a supported exhaust fan (doc 02 §6.1) |
 | Indoor recirculation | None; the exhaust always leaves the building | D6 | Not supported |
 | Printer enclosure | Built in, or a kit that can be sealed to ≈ 2 cm² of open gap | D7, doc 06 §7 | An open-frame printer has no chamber to hold at −3 Pa: not supported |
 | Mains cut | One metering smart plug per printer, alone on that plug | D14 | A shared plug cuts every printer on it and blurs Tier 0 print detection |
