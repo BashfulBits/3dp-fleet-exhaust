@@ -83,7 +83,7 @@ Three branches join the trunk through **two chained ModulAir 2:1 Ys** (D34, doc 
 | Loop | Runs on | Measures | Moves | Setpoint |
 |---|---|---|---|---|
 | **Trunk vacuum** | Hub | XGZP6897D ±500 Pa class, trunk tap upstream of the filter vs room | Fan speed | **Constant while any branch is active**: start at **−80 Pa** *(commission)*, chosen so a fully open branch reaches purge flow while two others hold their bleed. **Never changed by mode** (P3). Fan off when no branch is active. |
-| **Chamber pressure** | Each node | XGZP6897D, chamber vs room | Damper angle | **Heated print: −3 Pa** (band −2 to −5). **Cooling mode:** chamber temperature target, with −3 Pa as a floor. **Purge:** §5. |
+| **Chamber pressure** | Each node | XGZP6897D, chamber vs room | Damper angle | **Heated print: −3 Pa** (band −2 to −5; −2 Pa if the AD5X makeup flap's measured opening point is under ≈ 6 Pa, D90). **Cooling mode:** chamber temperature target, with −3 Pa as a floor. **Purge:** §5. |
 | **Chamber temperature** | Node-heat | Chamber-air NTC (SHT40 plausibility) | Heater PWM | `M141`/`FLEET_EXHAUST` value, capped at `chamber.cap_c` (AD5X: 60 °C) |
 | **Filter monitor** | Hub | XGZP across the filter; venturi flow (§4.3) | — | Filter resistance (ΔP at the measured flow) when flow is in the venturi's range; otherwise alert thresholds vs fan speed *(commission)* |
 
@@ -266,7 +266,7 @@ CAN IDs: node 1 requests and releases on 0x131 and gets its token on 0x141; node
 |---|---|
 | Trigger | `FLEET_PURGE …` from end G-code, **or** `print_stats` → `complete` / `cancelled` / `error` (whichever comes first) |
 | Parameters | `RAMP` (°C/min), `MIN_TIME` (min), `SAFE_TEMP` (°C), `VOC_MARGIN`, from G-code or the material defaults (§6) |
-| Ramp | The damper opens progressively. If the chamber falls faster than `RAMP`, the damper eases off and, for heated materials, the heater holds a falling floor (target = start − RAMP × t) |
+| Ramp | On an AD5X, a **crack test** first (D90): the damper steps 1° at a time from its hold angle while chamber ΔP is sampled at ≥ 10 Hz, and the deepest suction before it collapses is logged as the makeup flap's opening point. Then the damper opens progressively. If the chamber falls faster than `RAMP`, the damper eases off and, for heated materials, the heater holds a falling floor (target = start − RAMP × t) |
 | End condition | **All of:** chamber ≤ `SAFE_TEMP`; elapsed ≥ `MIN_TIME`; ≥ 5 chamber air changes (from the branch's angle–flow curve and encoder angle, D30; time-based estimate if the encoder is unavailable); chamber VOC within `VOC_MARGIN` of the hub room VOC (R3) |
 | Done | Bed LED **green breathing** ("safe to open"); push notification; damper closes; token released |
 | Door opened mid-purge | Purge continues at full damper; you've already opened it |
@@ -344,4 +344,4 @@ Assumptions [E]: enclosure surface ~1.7 m²; worst case room 15.5 °C (60 °F) a
 | M8 | Per-branch angle–flow curve (D30): one branch open, others closed, sweep its damper at the trunk setpoint and record venturi flow vs encoder angle; spot-check the venturi with a vane anemometer if available | Purge air-change estimate (§5.2); filter resistance baseline |
 | M9 | Low-flow anemometer (D32): static zero, then the 10 mm and 15 mm reference venturis in turn, fan stepped through its lowest speeds with one branch open; record reference flow vs element conductance from ~0.5 to 5 CFM. M4's residual decides whether the venturi keeps the XGZP or gets an SDP31 | Low end of the anemometer curve (§4.4) |
 | M10 | Duct leak test (D34): all dampers closed, trunk at its setpoint, read the low-flow anemometer; repeat after any joint is disturbed | Leakage baseline (< 0.5 CFM target), subtracted in M8 (§1.1) |
-| M11 | Makeup inlet (D89): one branch at purge flow (venturi ≥ 40 CFM), read that chamber's ΔP | Confirms the inlet: ≤ ≈ 25 Pa at 50 CFM, scaled by flow² |
+| M11 | Makeup inlet (D89, D90): one branch at purge flow (venturi ≥ 40 CFM), read that chamber's ΔP; and the first crack test's opening point | Confirms the inlet: ≤ ≈ 25 Pa at 50 CFM, scaled by flow²; opening point ≈ 8–16 Pa. Nothing to adjust: out of range means a wrong part |
