@@ -48,6 +48,7 @@ RJ45 IN/OUT on every carrier; a TERM jumper on every carrier, fitted at the two 
 | **Heater element** | Node XT60 out (inside the housing, through a strain relief, D64) → PTC (via TCO) | Element leads + TCO in series on the + lead | 2 | XT60 | ≤0.5 m |
 | **Heater fan** (separate leads, C8) or 5015 blower (fallback) | Node fan A → fan | 22–24 AWG | 24 V, GND, (tach), (PWM) | JST-XH 4 | ≤0.5 m |
 | **Recirculation-duct blower** (AD5X, O3) | Node B1 → 5015 blower | 22–24 AWG | 24 V, switched GND (PWM and tach leads unused) | JST-XH 2 | ≤1 m |
+| **Fan on B2** (D84) | Carrier B2 fan port → a spare fan, or the exhaust fan on a combined board (§7a) | 22–24 AWG | GND, 24 V, tach, B2 (switched GND or open-drain PWM) | JST-XH 4 | as needed |
 | **KSD301 loop** | Node → heater-housing KSD301 → chamber-air KSD301 (in series) → node | 22–24 AWG, high-temp silicone | 2 | JST-XH 2 | ≤1 m |
 | **NTCs** | Node → chamber air NTC, heater housing NTC | NTC leads | 2 each | JST-XH 2 | ≤0.5 m |
 | **Sensor head** | Node sensor header 1 (switch channel 0) → sensor board S in chamber | Pre-made Qwiic cable (4-core 28 AWG, D69), ≤0.5 m (I²C at 100 kHz) | GND, 3.3 V, SDA, SCL | JST-SH 4, Qwiic pinout (D69) | ≤0.5 m |
@@ -155,7 +156,7 @@ Rules applied:
 | 40 | **JTAG TDO** (MTDO, D68) | Same | Same | JTAG header only. Output B2 moved to GPIO 45 |
 | 41 | **JTAG TDI** (MTDI, D68) | Same | Same | JTAG header only. CAN TX moved to GPIO 16 |
 | 42 | **JTAG TMS** (MTMS, D68) | Same | Same | JTAG header only. CAN RX moved to GPIO 18 |
-| 45 | Output B2: spare (D68, was GPIO 40) | – | **Buzzer** | Pull-down, low at reset (strapping pin, above) |
+| 45 | Output B2: spare (D68, was GPIO 40) | – | **Buzzer** | Pull-down, low at reset (strapping pin, above). LEDC when B2 drives a fan; the fan port and its tach (through the carrier I/O controller's PA9) are in §7a (D84). On a combined board B2 is the exhaust fan (§7a) |
 | 46 | **High-side output sense** (`24V_HEAT` through a divider and clamp, D64) | Same | Same | Digital input, strapping pin used as an input only (above). Low whenever the high side is off. Moved here from the carrier I/O controller by D64 so a welded high-side FET is seen directly by the safety task |
 | 43 | **UART0 TX** (console header, D72) | Same | Same | 1 × 3 header with GPIO 44 and GND; the ROM bootloader and the ESP-IDF console use it |
 | 44 | **UART0 RX** (console header, D72) | Same | Same | |
@@ -170,13 +171,15 @@ Rules applied:
 - **Re-zero:** only while both switches are commanded off, and an update that moves more than 50 mA from the boot zero is refused (and counted), so a slowly rising leak can't hide in the zero.
 - After zeroing, the error left is drift (≈ 7 µV/°C, about 60 mA over a 40 °C swing) and ±6 % gain (shunt and resistors), against the 0.3 A L4 threshold (doc 05 §3.1) [E].
 
-**Board identity (D46).** A 2 × 3 pin header with one shunt (the same 2.54 mm header and shunt as TERM) selects the board's role. It is read by the carrier I/O controller on **PA0** (ADC_IN0, D68; GPIO 3 before), which has 100 kΩ to 3.3 V, plus 100 nF to GND so the ADC sees a low source impedance. The shunt adds a resistor to GND (1 % parts) [E]:
+**Board identity (D46, D84).** A 2 × 5 pin header with one shunt (2 × 3 until D84) (the same 2.54 mm header and shunt as TERM) selects the board's role. It is read by the carrier I/O controller on **PA0** (ADC_IN0, D68; GPIO 3 before), which has 100 kΩ to 3.3 V, plus 100 nF to GND so the ADC sees a low source impedance. The shunt adds a resistor to GND (1 % parts) [E]:
 
 | Shunt position | Resistor to GND | PA0 voltage | Read as |
 |---|---|---|---|
-| HEAT | 10 kΩ | ≈ 0.30 V | `node-heat` (below 0.65 V) |
-| LITE | 47 kΩ | ≈ 1.06 V | `node-lite` (0.65–1.6 V) |
-| HUB | 220 kΩ | ≈ 2.27 V | `hub` (1.6–2.8 V) |
+| HEAT | 10 kΩ | ≈ 0.30 V | `node-heat` (below 0.45 V) |
+| C-HEAT | 22 kΩ | ≈ 0.60 V | `combined-heat` (0.45–0.80 V, D84) |
+| LITE | 47 kΩ | ≈ 1.06 V | `node-lite` (0.80–1.35 V) |
+| C-LITE | 100 kΩ | ≈ 1.65 V | `combined-lite` (1.35–1.95 V, D84) |
+| HUB | 220 kΩ | ≈ 2.27 V | `hub` (1.95–2.8 V) |
 | No shunt | — | 3.3 V | **unset** (above 2.8 V) |
 
 The ESP32 reads it from the controller once at boot, after the controller starts (doc 09 §4.2). If the shunt and the role stored in NVS disagree (doc 07 §2), or the shunt is unset, the board starts in a **safe hold**. If the controller can't be reached, the board runs the stored role with an "identity unchecked" alert, and the heater stays off until the identity has been read once since boot (D75). In safe hold, the heater enable stays off, the outputs stay off and the LEDs work, and a "role mismatch" fault is raised. Since D47 every carrier carries the same parts, so the shunt is what makes a board a given role. The firmware also checks the **RANGE shunts** against it: at boot, after the heater has been off, each NTC must agree with the sensor head's SHT40 to within a few °C. A RANGE shunt left in the wrong position reads tens of degrees off, and raises the same mismatch fault and safe hold. The eFuse limit is one fixed resistor since D81 (doc 02 §2.2), so there is no shunt to set; the injected-current monitor (D61) reads it back.
@@ -301,3 +304,37 @@ Checked at commissioning (doc 05 §9 test 29) and continuously by the hub: when 
 | Room sensor | Sensor header 1 (switch channel 0) | Sensor head |
 | Fan | Fan A (+ adapter per R1) | G4 control port |
 | Smoke | AUX A (GPIO 36) | Optional relay-output smoke detector (dry contact) |
+
+## 7a. Combined roles: one printer, one carrier (D84)
+
+A one-printer system can run its hub and its node on one carrier: the role shunt's **C-HEAT** (`combined-heat`) or **C-LITE** (`combined-lite`) position. There is no CAN chain, no duct-vacuum loop and no branch damper: the exhaust fan's speed holds the chamber ΔP directly (doc 06 §4), and the purge token has one holder. A second printer later turns the board back into a node (HEAT or LITE) and adds a hub carrier.
+
+| Function | Combined-heat | Combined-lite | Same as |
+|---|---|---|---|
+| Heater, fan A (heater fan), B1 (recirculation blower), NTCs, KSD301 loop, door, LED chain 1 (bed strip), servo (unused), USB link | Node-heat | Node-lite (fan A free) | Node |
+| **Exhaust fan** | **B2 fan port** (below) | **B2 fan port** | – |
+| Buzzer (active 24 V) | None: fan A, B1 and B2 are taken; the bed strip's alarm pattern is the local alarm, and the room smoke alarm stays the audible fire alarm (doc 05 S-6) | Fan A | Hub (B2) |
+| Smoke dry contact, acknowledge button | AUX A (GPIO 36), AUX B (GPIO 6) and the on-board tact switch | Same | Hub |
+| Panel LEDs | Ahead of the bed strip on LED chain 1, or left out | Same | Hub |
+| Chamber ΔP | On-board XGZP | Same | Node |
+| Filter ΔP | Sensor board P on a free sensor header (≤ 1 m Qwiic cable, or tubes run back to the board) | Same | Hub (on-board XGZP) |
+| Duct vacuum, low-flow anemometer | Not fitted (the chamber ΔP takes their place) | Same | – |
+| Venturi trunk flow, room head, OLED | Optional, each on a free sensor header | Same | Hub |
+| Logic power | **24 V barrel brick on POWER IN, INJECT BAR fitted, on an outlet that is not the printer's smart plug** (§6b), so the board outlives a mains cut | Same | – |
+| RJ45 IN/OUT, TERM | Unused; OUT stays dark (§3a) | Same | – |
+
+- **Printer link:** combined roles need a printer on the USB link, because AUX carries the smoke contact and the button. A printer on the UART link (`marlin_serial`, doc 12) keeps the two-board layout.
+- **Exhaust fan:** it must be a 4-wire PWM fan, or a fan with the same open-collector PWM input, so that it runs at full speed while the board is silent (F3, doc 02 §6). A plain 24 V on/off fan on B2 stops with the board and is not allowed as the combined exhaust. A fan with a proprietary port (the reference G4, R1) needs the adapter that R1 decides on.
+
+**B2 fan port (D84).** JST-XH 4 on every carrier, in fan order:
+
+| Pin | Signal | 2- or 3-wire 24 V fan, switched | 4-wire PWM fan |
+|---|---|---|---|
+| 1 | GND | – | Fan GND |
+| 2 | +24 V (the bus through B2's 0.75 A fuse, doc 02 §2.2) | Fan + | Fan + (24 V fans up to 0.75 A), or not connected for a fan on its own supply |
+| 3 | Tach | Tach (valid only while B2 is fully on) | Tach |
+| 4 | B2: the N-FET's drain | Fan − (low-side switched) | PWM input: the N-FET pulls it low as an open-drain output, so the firmware inverts the duty; ≈ 25 kHz on LEDC |
+
+- **Tach:** pin 3 runs through a **1N4148WS** (C2128, basic; cathode at the connector) to the expansion port's **D1** net (PA9, 100 kΩ pull-up, 1 kΩ series and ESD, doc 09 §2.5). The fan's open collector pulls D1 to ≈ 0.4 V through the diode; a fan ground floating at 24 V while B2 is off only reverse-biases it. The carrier I/O controller counts edges on EXTI 9 and reports RPM over I²C. PA9 is a bootloader transmit pin, so tach edges after a controller reset can't be taken for a sync byte (doc 09 §2.1). A builder who uses D1 on the expansion port can't also use the B2 tach.
+- **At reset:** GPIO 45's pull-down holds the FET off, so pin 4 floats and a 4-wire fan's own pull-up runs it at full speed (Intel 4-wire behaviour [E], as for fan A).
+

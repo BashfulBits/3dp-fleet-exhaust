@@ -163,6 +163,7 @@ The hub reads the plug back after every cut command and treats "still on after 5
 | Mains-cut plug unreachable (Shelly, HA server or HA entity unavailable) | Hub poll (1 min) | None | Continues | High |
 | Chamber NTC / SHT40 fault | Node | Heater off | Continues | High |
 | Node firmware hang | Hardware charge-pump; hub heartbeat timeout | Heater off (hardware); hub alerts after 10 s | Continues | High (from hub) |
+| **Combined board firmware hang** (D84, doc 04 §7a) | Hardware charge pump; carrier I/O controller (no I²C poll for 10 s) | Heater off (hardware); the exhaust fan runs at full speed (B2 floats); red alarm on LED chain 1. **No remote alert from the board itself**: no other carrier watches it, so set up a "board offline" alert in Home Assistant or on the plug | Continues | Local only, unless HA or the plug alerts |
 | Node unplugged from CAN (cable) | CAN heartbeat timeout | Traffic continues on ESP-NOW (doc 07 §6.4); nothing else changes | Continues | Digest |
 | **Both hub links lost** (CAN and ESP-NOW) | Hub and node heartbeat timeouts | Hub alerts; node keeps its local loops, heater off after 30 s (no mains-cut backstop from the hub; the `shelly_node` cut still works for RW-a) | Continues | High |
 | **Hub supply lost** (D35) | Hub: current flowing back into it through its OUT switch | Back-fed mode (doc 07 §11.7): LED cap, one servo at a time, siren and push before any cut | Continues | **High** |

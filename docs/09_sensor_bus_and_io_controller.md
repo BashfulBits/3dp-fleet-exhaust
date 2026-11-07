@@ -49,7 +49,7 @@ Three pin rules drive the plan:
 | Header group rail sense (D56) | PF3 | EXTI 3. Digital input through a divider: low when the header group's current-limit switch is in limit. Moved from PA13 by D68 |
 | Expansion port: SPI1 (D77) | PA1 (SCK), PA6 (MISO), PA7 (MOSI), all AF0 | Also ADC_IN1, 6, 7 while SPI is off. Freed by D68, D71, D74, D75; PA6 and PA7 by moving the bus voltage and injection current to PB0 and PB1 (D77) |
 | Expansion port: USART2 (D77) | PA4 (TX, AF9), PF0 (RX, AF4) | PA4 is also ADC_IN4 and, with the UART off, the hardware chip select (AF0). PF0 is free since gate 8 moved to PF1 |
-| Expansion port: digital (D77) | PA9, PA10 | Chip selects or data-ready inputs, each with a 100 kΩ pull-up (bootloader pins, rule above) |
+| Expansion port: digital (D77) | PA9, PA10 | Chip selects or data-ready inputs, each with a 100 kΩ pull-up (bootloader pins, rule above). PA9 also takes the **B2 fan tach** through a 1N4148WS (D84, doc 04 §7a): edge count on EXTI 9, RPM reported over I²C |
 
 All seven spare pins are the expansion port (D77, §2.5), and PF2-NRST goes to the debug header (D65) and, through an RC filter, to the interrupt net (D76). The 32-pin part's other pinouts (K1x, K3x, K4x) move pins around, so the PCB uses K2x only [E].
 
@@ -76,7 +76,8 @@ The controller takes the slow, non-safety signals that would otherwise need ESP3
 - **Frees:** GPIOs 13, 21, 41, 42 and 47 (D45). CAN TX/RX and the servo output (all GPIO-matrix peripherals) use 41, 42 and 21, which leaves GPIOs 10–13, the S3's IO MUX pins for SPI2, to the LAN SPI (doc 04 §4). GPIO 47 is the controller's interrupt line. D68 then moves CAN to GPIOs 16 and 18 so GPIOs 39–42 can be the ESP32's JTAG pins (doc 04 §4).
 - **ADC reference (D56):** the ADC runs from `+3V3`, which the 3.3 V buck (LMR14030, D60) sets only to ≈ ±3 % (±2 % reference over temperature plus the 1 % divider). The firmware measures the PY32's internal reference channel and scales the rail readings by it, so the D53 rail throttle (23.0 V) stays within ≈ ±1 % [E]. Since D72 the ESP32 runs from the same rail, so the controller reports the measured rail voltage to the ESP32, which scales its NTC readings by it (doc 02 §2.2).
 - **Interrupt:** a change on any of its inputs (door, group rail) reaches the ESP32 in a few milliseconds through §2.3.
-- **Failure behaviour:** nothing it carries feeds a safety layer (S-7), and after boot nothing it carries gates the heater (D75). A missing, silent or not-yet-programmed controller blanks the door input (the AD5X falls back to Moonraker), the status LED and LED chain 1, leaves output B1 at full duty (its gate pull-up; on the hub the anemometer then alerts), and leaves the board identity unchecked. The heater stays off only until the identity has been read once since boot; after that a silent controller raises an alert and heating carries on.
+- **Failure behaviour:** nothing it carries feeds a safety layer (S-7), and after boot nothing it carries gates the heater (D75). A missing, silent or not-yet-programmed controller blanks the door input (the AD5X falls back to Moonraker), the status LED and LED chain 1, leaves output B1 at full duty (its gate pull-up; on the hub the anemometer then alerts), and leaves the board identity unchecked, and blanks the B2 fan tach (D84). The heater stays off only until the identity has been read once since boot; after that a silent controller raises an alert and heating carries on.
+- **ESP32 silence on a combined board (D84):** with no I²C poll from the ESP32 for 10 s, the controller shows a red alarm pattern on LED chain 1 until polling resumes. On a combined board no other carrier watches the ESP32 (doc 05 §4).
 - **No power switching of its own:** it is the carrier's own firmware, with no cable. A reset command over I²C, its hardware watchdog or the ESP32's hold on its reset line (§2.3, D76) restarts it, and every reset lands in the ROM bootloader (§4.1), so it never needs a power cycle to recover.
 - **It sits on the ESP32's main I²C bus,** not behind the switch. If it ever held SDA low, it would block the whole bus, which is why its firmware enables the watchdog at start-up, resets its I²C peripheral when the bus has seen no valid transaction for 1 s [E], and the ESP32 runs the usual nine-clock bus recovery before reporting a fault. A hang that leaves SCL stretched or SDA held, with the watchdog not yet firing, is cleared by the ESP32 resetting the controller through its reset line (§2.3, D76).
 
@@ -93,7 +94,7 @@ Seven carrier I/O controller pins go to a **2 × 5 2.54 mm pin header** for an o
 | 5 | P3 | PA6 | ADC_IN6, SPI1 MISO (AF0) |
 | 6 | P4 | PA7 | ADC_IN7, SPI1 MOSI (AF0) |
 | 7 | P5 | PF0 | USART2 RX (AF4), GPIO |
-| 8 | D1 | PA9 | GPIO: chip select or data-ready, 100 kΩ pull-up |
+| 8 | D1 | PA9 | GPIO: chip select or data-ready, 100 kΩ pull-up; shared with the B2 fan tach (D84), so use D2 when a tach fan is on B2 |
 | 9 | D2 | PA10 | GPIO: chip select or data-ready, 100 kΩ pull-up |
 
 - **Modes:** every pin resets to analog (high-impedance). The ESP32 enables the SPI group (P1, P3, P4), the UART pair (P2, P5), or neither. SPI and the UART run together. A pin that its peripheral is not using is an ADC input (P1–P4) or a GPIO. No analog reading is taken during an SPI transfer.
