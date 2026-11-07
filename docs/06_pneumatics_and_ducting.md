@@ -30,7 +30,7 @@ All three sets of taps go to pressure sensors on the hub. The trunk tap is upstr
 |---|---|
 | **Fan at the outlet end** | Every metre of indoor duct is below room pressure, so duct leaks flow *in* (P7). |
 | **Filter upstream of the fan**, on the wall within reach | Protects the fan, and the cartridge is easy to change. |
-| **Branches leave each enclosure high** (AD5X port module at the rear; C5 shroud over the side exhaust fan) | Hot fumes rise; a high exit with a low makeup inlet gives clean displacement. |
+| **Branches leave each enclosure high** (AD5X port module at the rear; C5 shroud over the side exhaust fan) | Hot fumes rise; a high exit with a low makeup inlet gives clean displacement. The AD5X inlet (doc 08 C2) has ≥ ≈ 80 cm² open, the duct's own area, so it costs ≈ 17 Pa at 50 CFM (D89). |
 | **Idle: fan off, dampers closed, hood flap closed** | No winter heat loss, no back-flow into chambers. |
 | **No reserved space for a deep-carbon canister** | D6. |
 
@@ -344,3 +344,4 @@ Assumptions [E]: enclosure surface ~1.7 m²; worst case room 15.5 °C (60 °F) a
 | M8 | Per-branch angle–flow curve (D30): one branch open, others closed, sweep its damper at the trunk setpoint and record venturi flow vs encoder angle; spot-check the venturi with a vane anemometer if available | Purge air-change estimate (§5.2); filter resistance baseline |
 | M9 | Low-flow anemometer (D32): static zero, then the 10 mm and 15 mm reference venturis in turn, fan stepped through its lowest speeds with one branch open; record reference flow vs element conductance from ~0.5 to 5 CFM. M4's residual decides whether the venturi keeps the XGZP or gets an SDP31 | Low end of the anemometer curve (§4.4) |
 | M10 | Duct leak test (D34): all dampers closed, trunk at its setpoint, read the low-flow anemometer; repeat after any joint is disturbed | Leakage baseline (< 0.5 CFM target), subtracted in M8 (§1.1) |
+| M11 | Makeup inlet (D89): one branch at purge flow (venturi ≥ 40 CFM), read that chamber's ΔP | Confirms the inlet: ≤ ≈ 25 Pa at 50 CFM, scaled by flow² |
