@@ -10,7 +10,7 @@
 flowchart TB
   IEC["Mains → IEC inlet<br>fuse + switch"] --> PSU["LRS-100-24<br>24 V"]
   PSU -->|"XT60 (INT)"| HC["Hub carrier<br>injection eFuse"]
-  HC -->|"fan A port"| FAN["G4 fan<br>(own mains)"]
+  HC -->|"B2 fan port"| FAN["Exhaust fan<br>(own mains, or<br>FAN V 12/24 V)"]
   HC ===|"CAT6 #1"| N1["Node 1<br>(AD5X #1)"]
   N1 ===|"CAT6 #2"| N2["Node 2<br>(AD5X #2)"]
   N2 ===|"CAT6 #3"| N3["Node 3<br>(C5, lite)"]
@@ -33,7 +33,7 @@ RJ45 IN/OUT on every carrier; a TERM jumper on every carrier, fitted at the two 
 
 - **The hub PSU powers node logic only**, over CAT6.
 - **Each AD5X's heater runs from that printer's own 24 V supply** (D12, doc 02 §3.1). The printer's Shelly plug removes both.
-- **The G4 fan runs on its own mains power.** The hub only drives its control port (R1).
+- **The exhaust fan is on the hub's B2 fan port** (D85, §7a). The reference G4 runs on its own mains power and the hub only drives its control port (R1). A board-powered fan takes 12 V or 24 V from the hub's fan tap (FAN V jumper, doc 02 §2.2) and stops if the hub supply fails.
 
 ## 2. Cables
 
@@ -131,7 +131,7 @@ Rules applied:
 | 0 | **Service button** (the carrier's BOOT tact switch, D46, D72) | Same | Same | Input; 10 kΩ pull-up per Espressif's module reference. Held at power-up, it enters download mode as usual |
 | 1 | Chamber-air NTC (ADC) | – (fitted, spare) | **Anemometer reference NTC** (D32) | ADC1_CH0. 47 kΩ pull-up, ≈ 4.6 kΩ with the RANGE 1 shunt on (node-heat, D47) |
 | 2 | Heater-housing NTC (ADC) | – (fitted, spare) | **Anemometer heated NTC** (D32) | ADC1_CH1. RANGE 2 shunt as for GPIO 1 |
-| 3 | **Fan A high-side enable** (D68, was GPIO 18) | – | Fan A enable (if used) | 10 kΩ pull-down, low at reset (strapping pin, above). The board identity moved to the carrier I/O controller (D68, below) |
+| 3 | **Fan A high-side enable** (D68, was GPIO 18) | – | – (fan A spare, D85) | 10 kΩ pull-down, low at reset (strapping pin, above). The board identity moved to the carrier I/O controller (D68, below) |
 | 4 | Heater current, LM2904 out (ADC, D50) | – | – | ADC1_CH3; sampled at a fixed rate by ADC1 continuous mode with DMA (below) |
 | 5 | **Heater-rail voltage** (ADC, D75) | Same | Same; **hub supply** (D78) | ADC1_CH4. 100 kΩ / 9.1 kΩ divider, 100 nF at the pin. Back from the controller's PB0 (D75); AUX A moved to GPIO 36 |
 | 6 | AUX B: spare, or **UART1 RX** from the printer (D48) | Same | **Acknowledge button** (edge interrupt, debounced; D49, was GPIO 5): the on-board tact switch, or a remote button on AUX B | Level shifter as GPIO 36; 5 V-tolerant at the connector. The on-board tact switch is on this line (D49). The external heater-input sense (D22) moved to the carrier I/O controller's ADC (D47) |
@@ -142,12 +142,12 @@ Rules applied:
 | 11 | **LAN MOSI** (D45) | LAN MOSI | LAN MOSI | SPI2 IO MUX pin |
 | 12 | **LAN SCK** (D45) | LAN SCK | LAN SCK | SPI2 IO MUX pin |
 | 13 | **LAN MISO** (D45) | LAN MISO | LAN MISO | SPI2 IO MUX pin. The door input is read through the carrier I/O controller (doc 02 §2.4) |
-| 14 | **Fan A PWM** (open-drain, D70) | – | **G4 fan control** (per R1) | LEDC. Floats while the ESP32 is in reset, so a 4-wire fan runs at full speed. LED chain 1 moved to the carrier I/O controller (PA5, D70, D71) |
+| 14 | **Fan A PWM** (open-drain, D70) | – | – (fan A spare, D85) | LEDC. Floats while the ESP32 is in reset, so a 4-wire fan runs at full speed. LED chain 1 moved to the carrier I/O controller (PA5, D70, D71) |
 | 15 | Heater enable charge-pump drive (square wave) | – | – | No wave → high-side off. **A plain GPIO toggled by the safety task, deliberately not a PWM peripheral** (doc 07 §2): a peripheral would keep the wave running if the safety task hung |
 | 16 | **CAN TX** (D68, was GPIO 41) | CAN TX | CAN TX | TWAI, routed through the GPIO matrix; pull-up on the transceiver's TXD so the bus stays recessive while the pin floats at reset. Fan A's PWM moved to GPIO 14 (D70) |
-| 17 | Fan A tach in | – | **G4 tach/health** (per R1) | Pull-up + clamp |
+| 17 | Fan A tach in | – | – (fan A spare, D85) | Pull-up + clamp |
 | 18 | **CAN RX** (D68, was GPIO 42) | CAN RX | CAN RX | TWAI. Fan A enable moved to GPIO 3 |
-| 21 | **Servo PWM** (50 Hz) | Servo PWM | – | Pull-down, held low at boot (was GPIO 12). LED chain 2 was dropped from the fixed map (D45) |
+| 21 | **Servo PWM** (50 Hz) | Servo PWM | **Buzzer** (D85): 5 V active buzzer module on the servo header | Pull-down, held low at boot (was GPIO 12), so the buzzer is silent through a reset. LED chain 2 was dropped from the fixed map (D45) |
 | 35 | Heater low-side PWM (D75, was GPIO 7) | – | – | LEDC. 10 kΩ pull-down. N8R2 module only (rules above) |
 | 36 | AUX A: spare, or **UART1 TX** to the printer (D48, D75, was GPIO 5) | Same | **Smoke dry-contact input** (edge interrupt; D49) | Through a 2N7002 level shifter to the AUX header (below), so digital only. N8R2 module only |
 | 37 | **Tap ideal-diode disable** (D74, was the controller's PF1) | Same | Same | Output to the 2N7002 on the MX74700T's EN; the 4.7 kΩ gate pull-down keeps the diode on while the pin floats at reset. Driven only by the two-supply check (doc 02 §2.2). N8R2 module only (rules above) |
@@ -156,7 +156,7 @@ Rules applied:
 | 40 | **JTAG TDO** (MTDO, D68) | Same | Same | JTAG header only. Output B2 moved to GPIO 45 |
 | 41 | **JTAG TDI** (MTDI, D68) | Same | Same | JTAG header only. CAN TX moved to GPIO 16 |
 | 42 | **JTAG TMS** (MTMS, D68) | Same | Same | JTAG header only. CAN RX moved to GPIO 18 |
-| 45 | Output B2: spare (D68, was GPIO 40) | – | **Buzzer** | Pull-down, low at reset (strapping pin, above). LEDC when B2 drives a fan; the fan port and its tach (through the carrier I/O controller's PA9) are in §7a (D84). On a combined board B2 is the exhaust fan (§7a) |
+| 45 | Output B2: spare (D68, was GPIO 40) | – | **Exhaust fan** (D85) | Pull-down, low at reset (strapping pin, above). LEDC when B2 drives a fan; the fan port and its tach (through the carrier I/O controller's PA9) are in §7a (D84). On the hub and the combined boards B2 is the exhaust fan (D85, §7a) |
 | 46 | **High-side output sense** (`24V_HEAT` through a divider and clamp, D64) | Same | Same | Digital input, strapping pin used as an input only (above). Low whenever the high side is off. Moved here from the carrier I/O controller by D64 so a welded high-side FET is seen directly by the safety task |
 | 43 | **UART0 TX** (console header, D72) | Same | Same | 1 × 3 header with GPIO 44 and GND; the ROM bootloader and the ESP-IDF console use it |
 | 44 | **UART0 RX** (console header, D72) | Same | Same | |
@@ -270,7 +270,8 @@ Every Tier 2 printer (doc 12 §3.2) uses the same link; only the printer end dif
 | Printers off | Their injection disappears. Idle nodes draw ~1–2 W each, which the hub covers alone, so nodes can still purge powered-off printers. |
 | Sizing rule (D35) | Size for the worst moment: **every printer off (a power cut, or all cut in a fire) with the busiest node at its alarm peak** (servo moving, LEDs flashing). Hub PSU ≥ idle load of the whole chain + that peak + the peak of nodes on their own bricks only if they share the hub's outlet. Any single CAT6 segment ≤ ~1.5 A (two +24 V conductors, D17; deliberately not raised, D21). Three nodes: ~2 W idle each plus ~10 W for one alarm peak [E], well inside both. Checked by commissioning test 16 (doc 05 §9). |
 | Bus voltage (D64) [E] | Since D80 the INT injection path drops ≈ 0.12–0.17 V at 1 A and ≈ 0.25 V at 1.5 A (ideal diode ≈ 0.02–0.03 V, guard, eFuse and its blocking FET; ≈ 0.7 V and ≈ 0.95 V with the Schottky before), and BAR ≈ 0.4 V more through its SS56. So the bus sits at ≈ 23.5–24.1 V at the hub (LRS-100-24, 24 V ±1 %), ≈ 23.75–23.9 V at a node injecting from its own 24.0 V supply on INT, and ≥ ≈ 22.7 V at a far node fed by the hub alone at an alarm peak (≥ ≈ 22.2 V on a ±3 % brick, ≥ ≈ 21.75 V on ±5 %), after ≈ 0.8 V of cable and per-node IN/OUT losses (≈ 1.1 V before D80's OUT switch FETs). INT sources lose the same drop, so sharing among them follows the supplies' own voltages; BAR sources sit ≈ 0.4 V lower and take over later. Every board measures its own bus voltage (doc 02 §2.2) and reports it with its injected current. The bucks run down to 4 V and the eFuse and buck turn-on points sit at ≤ ≈ 18 V, so only the bus-fed fans notice (B2, and fan A and B1 on the bus leg, D78): they run ≈ 1–9 % slower than at 24 V, which the characterise run measures as installed (doc 05 §3.2). |
-| Hub supply lost (D35) | The hub's injection eFuse blocks reverse current, so its dead supply is never back-fed. The nodes whose printers are on carry the whole chain and the hub through the OUT switches (§3a); the hub enters back-fed mode (doc 07 §11.7). Load then: ~0.35 A idle, up to ~0.85 A in an alarm [E], against ~1.5 A per injecting node (D81). |
+| Hub supply lost (D35) | The hub's injection eFuse blocks reverse current, so its dead supply is never back-fed. The nodes whose printers are on carry the whole chain and the hub through the OUT switches (§3a); the hub enters back-fed mode (doc 07 §11.7). Load then: ~0.35 A idle, up to ~0.85 A in an alarm [E], against ~1.5 A per injecting node (D81). A board-powered exhaust fan (FAN V on 12V or 24V, D85) stops with the hub supply: the fan tap is on the supply's side of the eFuse, and back-fed power reaches only the bus. A fan on its own mains, or one of ≤ 0.75 A on BUS, keeps running. |
+| Fan tap (D85) | A second branch after the INJECT diodes and the input guard, ahead of the eFuse, through its own 2 A polyfuse, to the FAN V jumper and the 12 V fan buck. It carries only the board's own exhaust fan, so that current never counts against the eFuse limit or the CAT6 segment limit. |
 
 ## 6b. Power configurations (D35)
 
@@ -284,6 +285,7 @@ Jumpers only choose what **feeds** the bus; every board's logic runs from the bu
 | Wired node-lite | none, or BAR with a brick | Any brick on an ordinary outlet |
 | Wireless-only node-heat (AD5X) | BAR (logic brick) + INT | **Two supplies:** logic brick in POWER IN on an ordinary outlet, heater supply on INT. The logic brick is never on the printer's plug |
 | Wireless-only node-lite | BAR | Logic brick on an ordinary outlet |
+| Combined-heat or combined-lite (D84, D85) | **BAR only**: a ≥ 24 V, 2 A brick in POWER IN (≥ 2.5 A for a 24 V exhaust fan above ≈ 1 A) | Brick on an ordinary outlet, **never on the printer's plug**. INT stays out, so the exhaust fan never loads the printer's supply and keeps running through its cut. The heater still runs from the heater rail |
 
 A node that stays up when its heater supply drops out (on the bus or a barrel logic brick) sees the drop directly and doesn't reset with it (doc 05 §3.3).
 
@@ -295,14 +297,14 @@ Checked at commissioning (doc 05 §9 test 29) and continuously by the hub: when 
 |---|---|---|
 | Mains | IEC inlet (fused, switched) | LRS-100-24 L/N/PE (PE to the PSU case and the inlet earth only) |
 | 24 V logic | PSU +V/−V, lead with an XT60 | Carrier internal XT60 (INJECT INT fitted), CAT6 power via carrier |
-| Buzzer | Carrier B2 | Active 24 V buzzer |
+| Buzzer | Carrier servo header (GPIO 21, D85) | 5 V active buzzer module (3-pin, active high) |
 | Panel | LED1 → WS2812 ×2; acknowledge = the carrier's on-board tact switch (GPIO 6, AUX B) through the C9 ACK plunger, SERVICE plunger over the carrier's BOOT button (D49); sensor header 4 (switch channel 3) → optional OLED (D48) | Panel |
 | Trunk ΔP | Sensor header 2 (switch channel 1) | Sensor board P (XGZP6897D), tubes to the trunk tap and room |
 | Trunk flow (D30) | Sensor header 3 (switch channel 2) | Sensor board P (D33), tubes to the venturi inlet and throat taps |
 | Low-flow anemometer (D32) | NTC 1 (GPIO 1), NTC 2 (GPIO 2), B1 (carrier I/O controller PA8, D68) | C18 probe: reference NTC at the venturi inlet, heated NTC + heater resistor in the throat |
 | Filter ΔP | On-board XGZP barbs | Filter housing inlet and outlet taps |
 | Room sensor | Sensor header 1 (switch channel 0) | Sensor head |
-| Fan | Fan A (+ adapter per R1) | G4 control port |
+| Fan | B2 fan port (D85, §7a), FAN V set for the fan | Exhaust fan: the G4's control port through an adapter per R1, or a supported fan (doc 02 §6) |
 | Smoke | AUX A (GPIO 36) | Optional relay-output smoke detector (dry contact) |
 
 ## 7a. Combined roles: one printer, one carrier (D84)
@@ -311,30 +313,31 @@ A one-printer system can run its hub and its node on one carrier: the role shunt
 
 | Function | Combined-heat | Combined-lite | Same as |
 |---|---|---|---|
-| Heater, fan A (heater fan), B1 (recirculation blower), NTCs, KSD301 loop, door, LED chain 1 (bed strip), servo (unused), USB link | Node-heat | Node-lite (fan A free) | Node |
+| Heater, fan A (heater fan), B1 (recirculation blower), NTCs, KSD301 loop, door, LED chain 1 (bed strip), USB link | Node-heat | Node-lite (fan A free) | Node |
 | **Exhaust fan** | **B2 fan port** (below) | **B2 fan port** | – |
-| Buzzer (active 24 V) | None: fan A, B1 and B2 are taken; the bed strip's alarm pattern is the local alarm, and the room smoke alarm stays the audible fire alarm (doc 05 S-6) | Fan A | Hub (B2) |
+| Buzzer (5 V active module) | **Servo header** (GPIO 21, D85) | Same | Hub |
 | Smoke dry contact, acknowledge button | AUX A (GPIO 36), AUX B (GPIO 6) and the on-board tact switch | Same | Hub |
 | Panel LEDs | Ahead of the bed strip on LED chain 1, or left out | Same | Hub |
 | Chamber ΔP | On-board XGZP | Same | Node |
 | Filter ΔP | Sensor board P on a free sensor header (≤ 1 m Qwiic cable, or tubes run back to the board) | Same | Hub (on-board XGZP) |
 | Duct vacuum, low-flow anemometer | Not fitted (the chamber ΔP takes their place) | Same | – |
 | Venturi trunk flow, room head, OLED | Optional, each on a free sensor header | Same | Hub |
-| Logic power | **24 V barrel brick on POWER IN, INJECT BAR fitted, on an outlet that is not the printer's smart plug** (§6b), so the board outlives a mains cut | Same | – |
+| Logic power | **≥ 24 V, 2 A barrel brick on POWER IN, INJECT BAR only** (D85; ≥ 2.5 A for a 24 V exhaust fan above ≈ 1 A), **on an outlet that is not the printer's smart plug** (§6b), so the board and a board-powered exhaust fan outlive a mains cut | Same | – |
 | RJ45 IN/OUT, TERM | Unused; OUT stays dark (§3a) | Same | – |
 
 - **Printer link:** combined roles need a printer on the USB link, because AUX carries the smoke contact and the button. A printer on the UART link (`marlin_serial`, doc 12) keeps the two-board layout.
-- **Exhaust fan:** it must be a 4-wire PWM fan, or a fan with the same open-collector PWM input, so that it runs at full speed while the board is silent (F3, doc 02 §6). A plain 24 V on/off fan on B2 stops with the board and is not allowed as the combined exhaust. A fan with a proprietary port (the reference G4, R1) needs the adapter that R1 decides on.
+- **Exhaust fan:** it must be a 4-wire PWM fan, or a fan with the same open-collector PWM input, so that it runs at full speed while the board is silent (F3, doc 02 §6). A plain on/off fan on B2 stops with the board and is not allowed as the exhaust, on a combined board or on the hub. A fan with a proprietary port (the reference G4, R1) needs the adapter that R1 decides on. Supported fans and their FAN V setting are in doc 02 §6 (D85).
 
-**B2 fan port (D84).** JST-XH 4 on every carrier, in fan order:
+**B2 fan port (D84, D85).** JST-XH 4 on every carrier, in fan order. It is the exhaust fan port on the hub too (D85):
 
 | Pin | Signal | 2- or 3-wire 24 V fan, switched | 4-wire PWM fan |
 |---|---|---|---|
 | 1 | GND | – | Fan GND |
-| 2 | +24 V (the bus through B2's 0.75 A fuse, doc 02 §2.2) | Fan + | Fan + (24 V fans up to 0.75 A), or not connected for a fan on its own supply |
+| 2 | **FAN V** (D85, doc 02 §2.2): BUS (24 V through B2's 0.75 A fuse), 24V (the fan tap, ≤ ≈ 1.5 A) or 12V (the fan buck, ≤ 2 A) | Fan + | Fan +, with FAN V set to the fan's voltage; not connected for a fan on its own supply |
 | 3 | Tach | Tach (valid only while B2 is fully on) | Tach |
 | 4 | B2: the N-FET's drain | Fan − (low-side switched) | PWM input: the N-FET pulls it low as an open-drain output, so the firmware inverts the duty; ≈ 25 kHz on LEDC |
 
 - **Tach:** pin 3 runs through a **1N4148WS** (C2128, basic; cathode at the connector) to the expansion port's **D1** net (PA9, 100 kΩ pull-up, 1 kΩ series and ESD, doc 09 §2.5). The fan's open collector pulls D1 to ≈ 0.4 V through the diode; a fan ground floating at 24 V while B2 is off only reverse-biases it. The carrier I/O controller counts edges on EXTI 9 and reports RPM over I²C. PA9 is a bootloader transmit pin, so tach edges after a controller reset can't be taken for a sync byte (doc 09 §2.1). A builder who uses D1 on the expansion port can't also use the B2 tach.
+- **FAN V (D85):** a 2 × 3 header beside the port, silkscreened BUS / 24V / 12V, with **one** shunt. Set it before plugging in the fan: a 12 V fan on 24V is overdriven, and a second shunt ties two supplies together. A fan on its own supply (G4, EC inline) needs no shunt.
 - **At reset:** GPIO 45's pull-down holds the FET off, so pin 4 floats and a 4-wire fan's own pull-up runs it at full speed (Intel 4-wire behaviour [E], as for fan A).
 
