@@ -10,7 +10,7 @@
 flowchart TB
   IEC["Mains → IEC inlet<br>fuse + switch"] --> PSU["LRS-100-24<br>24 V"]
   PSU -->|"XT60 (INT)"| HC["Hub carrier<br>injection eFuse"]
-  HC -->|"B2 fan port"| FAN["Exhaust fan<br>(own mains, or<br>FAN V 12/24 V)"]
+  HC -->|"B2 fan port"| FAN["Exhaust fan<br>(own mains, or<br>FAN V BUS/24V)"]
   HC ===|"CAT6 #1"| N1["Node 1<br>(AD5X #1)"]
   N1 ===|"CAT6 #2"| N2["Node 2<br>(AD5X #2)"]
   N2 ===|"CAT6 #3"| N3["Node 3<br>(C5, lite)"]
@@ -33,7 +33,7 @@ RJ45 IN/OUT on every carrier; a TERM jumper on every carrier, fitted at the two 
 
 - **The hub PSU powers node logic only**, over CAT6.
 - **Each AD5X's heater runs from that printer's own 24 V supply** (D12, doc 02 §3.1). The printer's Shelly plug removes both.
-- **The exhaust fan is on the hub's B2 fan port** (D85, §7a). The reference G4 runs on its own mains power and the hub only drives its control port (R1). A board-powered fan takes 12 V or 24 V from the hub's fan tap (FAN V jumper, doc 02 §2.2) and stops if the hub supply fails.
+- **The exhaust fan is on the hub's B2 fan port** (D85, §7a). The reference G4 runs on its own mains power and the hub only drives its control port (R1). A board-powered fan takes 24 V from the hub's fan tap or bus (FAN V jumper, doc 02 §2.2); on the tap it stops if the hub supply fails.
 
 ## 2. Cables
 
@@ -270,8 +270,8 @@ Every Tier 2 printer (doc 12 §3.2) uses the same link; only the printer end dif
 | Printers off | Their injection disappears. Idle nodes draw ~1–2 W each, which the hub covers alone, so nodes can still purge powered-off printers. |
 | Sizing rule (D35) | Size for the worst moment: **every printer off (a power cut, or all cut in a fire) with the busiest node at its alarm peak** (servo moving, LEDs flashing). Hub PSU ≥ idle load of the whole chain + that peak + the peak of nodes on their own bricks only if they share the hub's outlet. Any single CAT6 segment ≤ ~1.5 A (two +24 V conductors, D17; deliberately not raised, D21). Three nodes: ~2 W idle each plus ~10 W for one alarm peak [E], well inside both. Checked by commissioning test 16 (doc 05 §9). |
 | Bus voltage (D64) [E] | Since D80 the INT injection path drops ≈ 0.12–0.17 V at 1 A and ≈ 0.25 V at 1.5 A (ideal diode ≈ 0.02–0.03 V, guard, eFuse and its blocking FET; ≈ 0.7 V and ≈ 0.95 V with the Schottky before), and BAR ≈ 0.4 V more through its SS56. So the bus sits at ≈ 23.5–24.1 V at the hub (LRS-100-24, 24 V ±1 %), ≈ 23.75–23.9 V at a node injecting from its own 24.0 V supply on INT, and ≥ ≈ 22.7 V at a far node fed by the hub alone at an alarm peak (≥ ≈ 22.2 V on a ±3 % brick, ≥ ≈ 21.75 V on ±5 %), after ≈ 0.8 V of cable and per-node IN/OUT losses (≈ 1.1 V before D80's OUT switch FETs). INT sources lose the same drop, so sharing among them follows the supplies' own voltages; BAR sources sit ≈ 0.4 V lower and take over later. Every board measures its own bus voltage (doc 02 §2.2) and reports it with its injected current. The bucks run down to 4 V and the eFuse and buck turn-on points sit at ≤ ≈ 18 V, so only the bus-fed fans notice (B2, and fan A and B1 on the bus leg, D78): they run ≈ 1–9 % slower than at 24 V, which the characterise run measures as installed (doc 05 §3.2). |
-| Hub supply lost (D35) | The hub's injection eFuse blocks reverse current, so its dead supply is never back-fed. The nodes whose printers are on carry the whole chain and the hub through the OUT switches (§3a); the hub enters back-fed mode (doc 07 §11.7). Load then: ~0.35 A idle, up to ~0.85 A in an alarm [E], against ~1.5 A per injecting node (D81). A board-powered exhaust fan (FAN V on 12V or 24V, D85) stops with the hub supply: the fan tap is on the supply's side of the eFuse, and back-fed power reaches only the bus. A fan on its own mains, or one of ≤ 0.75 A on BUS, keeps running. |
-| Fan tap (D85) | A second branch after the INJECT diodes and the input guard, ahead of the eFuse, through its own 2 A polyfuse, to the FAN V jumper and the 12 V fan buck. It carries only the board's own exhaust fan, so that current never counts against the eFuse limit or the CAT6 segment limit. |
+| Hub supply lost (D35) | The hub's injection eFuse blocks reverse current, so its dead supply is never back-fed. The nodes whose printers are on carry the whole chain and the hub through the OUT switches (§3a); the hub enters back-fed mode (doc 07 §11.7). Load then: ~0.35 A idle, up to ~0.85 A in an alarm [E], against ~1.5 A per injecting node (D81). A board-powered exhaust fan (FAN V on 24V, D85) stops with the hub supply: the fan tap is on the supply's side of the eFuse, and back-fed power reaches only the bus. A fan on its own mains, or one of ≤ 0.75 A on BUS, keeps running. |
+| Fan tap (D85) | A second branch after the INJECT diodes and the input guard, ahead of the eFuse, through its own 2 A polyfuse, to the FAN V jumper. It carries only the board's own exhaust fan, so that current never counts against the eFuse limit or the CAT6 segment limit. |
 
 ## 6b. Power configurations (D35)
 
@@ -333,11 +333,11 @@ A one-printer system can run its hub and its node on one carrier: the role shunt
 | Pin | Signal | 2- or 3-wire 24 V fan, switched | 4-wire PWM fan |
 |---|---|---|---|
 | 1 | GND | – | Fan GND |
-| 2 | **FAN V** (D85, doc 02 §2.2): BUS (24 V through B2's 0.75 A fuse), 24V (the fan tap, ≤ ≈ 1.5 A) or 12V (the fan buck, ≤ 2 A) | Fan + | Fan +, with FAN V set to the fan's voltage; not connected for a fan on its own supply |
+| 2 | **FAN V** (D85, D86, doc 02 §2.2): BUS (24 V through B2's 0.75 A fuse) or 24V (the fan tap, ≤ ≈ 1.5 A) | Fan + | Fan +, with FAN V set to the fan's voltage; not connected for a fan on its own supply |
 | 3 | Tach | Tach (valid only while B2 is fully on) | Tach |
 | 4 | B2: the N-FET's drain | Fan − (low-side switched) | PWM input: the N-FET pulls it low as an open-drain output, so the firmware inverts the duty; ≈ 25 kHz on LEDC |
 
 - **Tach:** pin 3 runs through a **1N4148WS** (C2128, basic; cathode at the connector) to the expansion port's **D1** net (PA9, 100 kΩ pull-up, 1 kΩ series and ESD, doc 09 §2.5). The fan's open collector pulls D1 to ≈ 0.4 V through the diode; a fan ground floating at 24 V while B2 is off only reverse-biases it. The carrier I/O controller counts edges on EXTI 9 and reports RPM over I²C. PA9 is a bootloader transmit pin, so tach edges after a controller reset can't be taken for a sync byte (doc 09 §2.1). A builder who uses D1 on the expansion port can't also use the B2 tach.
-- **FAN V (D85):** a 2 × 3 header beside the port, silkscreened BUS / 24V / 12V, with **one** shunt. Set it before plugging in the fan: a 12 V fan on 24V is overdriven, and a second shunt ties two supplies together. A fan on its own supply (G4, EC inline) needs no shunt.
+- **FAN V (D85, D86):** a 1 × 3 header beside the port, silkscreened BUS and 24V at its ends, with **one** shunt from the centre pin (B2 pin 2) to either end. Set it before plugging in the fan. A 12 V fan needs an inline 24 → 12 V adapter (doc 02 §6). A fan on its own supply (G4, EC inline) needs no shunt.
 - **At reset:** GPIO 45's pull-down holds the FET off, so pin 4 floats and a 4-wire fan's own pull-up runs it at full speed (Intel 4-wire behaviour [E], as for fan A).
 
