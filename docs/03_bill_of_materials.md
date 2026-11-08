@@ -45,7 +45,7 @@ The same line items, grouped by what each role adds [E ±20 %]. Board lines are 
 | **Node-lite** (per printer) | Carrier with its ESP32 module and on-board chamber XGZP, sensor head (S), encoder board (E), damper servo and magnet, LED strip share, CAT6 segment, sensor cables, ΔP tubing, USB lead, smart plug | ≈ $85 |
 | **Node-heat** (per heated printer) | Node-lite plus the PTC heater, two KSD301s, TCO, fuses and holder, two NTCs, heater shroud, XT60 pairs, 14 AWG lead, enclosure sealing and insulation | ≈ $135 |
 | **Hub** (once) | Carrier, filter-ΔP XGZP, two P boards, LAN module, OLED, room sensor head, buzzer, hub brick (≈ $43) | ≈ $125 |
-| **Exhaust path** (once) | Duct, Ys, clamps, tape, hood, filter cartridge and housing, anemometer parts | ≈ $85 on 4″ duct, plus the exhaust fan (doc 02 §6); the 6″ kit for 5–15 printers costs more [U: not priced] (D95) |
+| **Exhaust path** (once) | Duct, Ys, clamps, tape, hood, filter cartridge and housing, anemometer parts | ≈ $85 on 4″ duct, plus the exhaust fan (doc 02 §6); the 6″ kit for 5–15 printers ≈ $85–125 plus ≈ $20–35 per metal 6 × 4″ wye (D95) |
 | **Combined role** (one printer, D84) | One carrier does the node and the hub: drops the hub's separate board, supply, LAN module, CAT6 and duct-vacuum sensor | Node cost + exhaust path + a ≥ 2 A brick (≈ $15–25) |
 | **Pack items** | Port adapter (printed), recirculation blower, door reed, pass-throughs, heater-supply upgrade or external brick | Per pack, typically $0–60 |
 | **Services** | Pushover licence | $5 |
@@ -107,9 +107,10 @@ JLCPCB builds 5 of each board per order, so a fleet of up to 4 printers plus the
 | 2.54 mm pin header, 2 × 5, no shunt | 1 | ≈ $0.03 | $0.03 | Carrier I/O controller expansion port (D77, doc 09 §2.5) |
 | 2.54 mm pin header, 1 × 2, + shunt | 4 | ≈ $0.02 | $0.08 | DC and STRONG jumpers on fan A and B2 (D95, doc 04 §7a) |
 | USB-C receptacle, 16-pin (TYPE-C-31-M-12, C165948, 20 V) | 1 | $0.187 | $0.19 | B2 "FAN 10 V" jack (D95) [V: JLC listing, 2026-11-08] |
-| 3.5 mm TRRS jack (PJ-320A class, C3038674 or C2884926) | 1 | ≈ $0.10 | $0.10 | B2 TRRS jack (D95) [V: JLC listings, $0.07–0.145] |
-| 3.5 mm pluggable terminal header, 4-pole (15EDGRC class) | 1 | ≈ $0.15 | $0.15 | B2 terminal-header jack; its push-in plug (15EDGKNH class) goes with the fan's cable (D95) [U: 4-pole price; 2- and 3-pole ≈ $0.04–0.18] |
-| | | | **$3.83** | × 5 boards ≈ $19.15 (D95 adds B2's three jacks and four jumpers, +$0.52); before D95 $3.31, × 5 ≈ $16.55 (D51; was $5.31 at generic prices; D54 adds two sensor headers; D64 adds the HEATER barrel and moves the two power sockets from XT30 to XT60; D65 adds the SWD header; D66 makes the HEATER barrel 15 A; D68 adds the JTAG header; D69 the JST-SH sensor headers; D72 drops the dev-board sockets and adds the LAN socket and UART header; D85 adds the FAN V header, D92 removes it) |
+| 3.5 mm TRRS jack (PJ-320A class, C2884926; C3038674 $0.07 is thinly stocked) | 1 | $0.145 | $0.15 | B2 TRRS jack (D95) [V: JLC listing, 2026-11-08] |
+| 3.5 mm pluggable terminal header, 4-pole (15EDGRC class, MX15EDGRC-3.5-04P, C5188297) | 1 | $0.078 | $0.08 | B2 terminal-header jack; its push-in plug (15EDGKNH class) goes with the fan's cable (D95) [V: JLC listing, 2026-11-08] |
+| 2.54 mm pin header 2 × 3 + 2 shunts | 1 | ≈ $0.04 | $0.04 | B2 USB-C SWAP jumper (D95) |
+| | | | **$3.83** | × 5 boards ≈ $19.15 (D95 adds B2's three jacks, four jumpers and the SWAP jumper, +$0.52); before D95 $3.31, × 5 ≈ $16.55 (D51; was $5.31 at generic prices; D54 adds two sensor headers; D64 adds the HEATER barrel and moves the two power sockets from XT30 to XT60; D65 adds the SWD header; D66 makes the HEATER barrel 15 A; D68 adds the JTAG header; D69 the JST-SH sensor headers; D72 drops the dev-board sockets and adds the LAN socket and UART header; D85 adds the FAN V header, D92 removes it) |
 
 Not in this table, because they are priced elsewhere: the POWER IN barrel jack (eFuse line), the USB-C receptacle (ESP32 support line), the sensor boards' own JST-SH (their lines), the HEATER DIN jack (accessory), and the mating plugs (group D).
 

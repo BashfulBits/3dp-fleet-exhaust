@@ -78,7 +78,7 @@ flowchart LR
 | **Heater fan** (separate leads, C8) or 5015 blower (fallback) | Node fan A → fan | 22–24 AWG | 24 V, GND, (tach), (PWM) | JST-XH 6, pins 1–4 (D95) | ≤0.5 m |
 | **Recirculation-duct blower** (where the pack fits one) | Node B1 → 5015 blower | 22–24 AWG | 24 V, switched GND (PWM and tach leads unused) | JST-XH 2 | ≤1 m |
 | **Fan on B2** (D84, D95) | Carrier B2 fan port → a spare fan, or the exhaust fan on the hub or a combined board (§7a) | 22–24 AWG, or the fan's own control cable | GND, 24 V, tach, B2 (switched GND or open-drain PWM), REF, CTRL | JST-XH 6, or B2's USB-C, TRRS or terminal-header jack (§7a) | as needed |
-| **Second exhaust fan** (D95, 9–15 printers) | Hub fan A → passive adapter (barrel jack + fan header) ← its own 24 V brick → 4-wire fan | 22–24 AWG | GND, tach, PWM to the hub; 24 V from the brick (pin 2 not connected) | JST-XH 6 / fan plug | as needed |
+| **Second exhaust fan** (D95, 9–15 printers) | Hub fan A → passive adapter (barrel jack + fan header) ← its own 24 V brick → 4-wire fan | 22–24 AWG | GND, tach, PWM to the hub; 24 V from the brick (pin 2 not connected; a Mean Well GST-class brick's −V is not tied to mains earth, so no ground loop) | JST-XH 6 / fan plug | as needed |
 | **KSD301 loop** | Node → heater-housing KSD301 → chamber-air KSD301 (in series) → node | 22–24 AWG, high-temp silicone | 2 | JST-XH 2 | ≤1 m |
 | **NTCs** | Node → chamber air NTC, heater housing NTC | NTC leads | 2 each | JST-XH 2 | ≤0.5 m |
 | **Sensor head** | Node sensor header 1 (switch channel 0) → sensor board S in chamber | Pre-made Qwiic cable (4-core 28 AWG, D69), ≤0.5 m (I²C at 100 kHz) | GND, 3.3 V, SDA, SCL | JST-SH 4, Qwiic pinout (D69) | ≤0.5 m |
@@ -400,14 +400,14 @@ flowchart LR
 | 5 | REF: the fan's own +10 V, in | – | – | Fan +10 V reference out |
 | 6 | CTRL: 10 kΩ to REF, pulled down by a 2N7002 on the same GPIO as pin 4 | – | – | Fan speed input |
 
-- **Jumpers (D95):** **DC** (RC filter in the CTRL line, for a fan that reads 0–10 V but not PWM; off by default) and **STRONG** (1.5 kΩ to REF, ≈ 7 mA; off by default, and never with a reference rated ≈ 1 mA).
+- **Jumpers (D95):** **DC** (RC filter in the CTRL line, for a fan that reads 0–10 V but not PWM; off by default) and **STRONG** (1.5 kΩ to REF, ≈ 7 mA; off by default, and never with a reference rated ≈ 1 mA). B2 also has **SWAP** (2 × 3, two shunts) on its USB-C jack: straight by default (D+ → CTRL, D− → TACH), crossed for a fan metered the other way round (doc 02 §2.2.7).
 - **At reset or unpowered:** both FETs are off, so pin 4 floats to a 4-wire fan's own pull-up and CTRL sits at the fan's 10 V: either fan runs at full speed (Intel 4-wire behaviour [E]; the EC reference, D95).
 - **B2 external jacks (D95, doc 02 §2.2.7):** in parallel with pins 1, 3, 5 and 6, one fan at a time:
 
 | Jack | GND | REF | CTRL | TACH |
 |---|---|---|---|---|
-| USB-C "FAN 10 V" (5.1 kΩ on CC1 and CC2) | GND | VBUS | D+ | D− |
-| 3.5 mm TRRS | neutral | +10 V | 0–10 V | – |
+| USB-C "FAN 10 V" (5.1 kΩ on CC1 and CC2) | GND | VBUS | D+ (D− with SWAP fitted crossed) | D− (D+ when crossed) |
+| 3.5 mm TRRS | GND | +10 V | 0–10 V/PWM | tach (contact positions [U]) |
 | 4-pole pluggable terminal header | GND | REF | CTRL | TACH |
 
 - **Tach (B2):** pin 3 runs through a **1N4148WS** (C2128, basic; cathode at the connector) to the expansion port's **D1** net (PA9, 100 kΩ pull-up, 1 kΩ series and ESD, doc 09 §2.5). The fan's open collector pulls D1 to ≈ 0.4 V through the diode; a fan ground floating at 24 V while B2 is off only reverse-biases it. The carrier I/O controller counts edges on EXTI 9 and reports RPM over I²C. PA9 is a bootloader transmit pin, so tach edges after a controller reset can't be taken for a sync byte (doc 09 §2.1). A builder who uses D1 on the expansion port can't also use the B2 tach.
