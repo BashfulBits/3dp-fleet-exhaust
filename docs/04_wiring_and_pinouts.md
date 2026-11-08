@@ -8,7 +8,7 @@
 
 ```mermaid
 flowchart TB
-  PSU["24 V 5 A brick<br>(ordinary outlet)"] -->|"HEATER barrel (INT)"| HC["Hub carrier<br>injection eFuse"]
+  PSU["24 V 5 A brick<br>(ordinary outlet)"] -->|"HEATER barrel"| HC["Hub carrier<br>injection eFuse"]
   HC -->|"B2 fan port"| FAN["Exhaust fan<br>(own mains, or<br>fan tap)"]
   HC ===|"CAT6 #1"| N1["Node 1<br>(node-heat)"]
   N1 ===|"CAT6 #2"| N2["Node 2<br>(node-heat)"]
@@ -25,10 +25,10 @@ flowchart TB
   FU -->|"14 AWG ≤ 1.5 m"| N["Node heater supply<br>(internal XT60)"]
   SP -.-> BRK["24 V brick<br>(alternative, D22)"]
   BRK -.->|"HEATER DIN or barrel jack<br>(in place of the tap, D64)"| N
-  N -.->|"shunt (§6a)"| BUS["Bus injection"]
+  N -->|"ideal diode (§6a)"| BUS["Bus injection"]
 ```
 
-RJ45 IN/OUT on every carrier; a TERM jumper on every carrier, fitted at the two ends of the chain (§3). Every carrier can inject 24 V onto the bus through its eFuse, from whichever inputs its INJECT jumpers select (§6a).
+RJ45 IN/OUT on every carrier; a TERM jumper on every carrier, fitted at the two ends of the chain (§3). Every carrier injects 24 V onto the bus through its eFuse from whatever supply it has, with nothing to set (§6a, D94).
 
 - **The hub supply powers node logic only**, over CAT6.
 - **Each node heater runs from its printer's own 24 V supply or a brick on that printer's plug** (D12, doc 02 §3.1). The printer's smart plug removes both.
@@ -68,8 +68,8 @@ flowchart LR
 
 | Cable | From → to | Type | Conductors | Connectors | Length |
 |---|---|---|---|---|---|
-| **Local injection** (optional) | 24 V brick or PoE splitter → any node's POWER IN barrel, INJECT BAR fitted | Brick lead | +24 V, GND | 5.5 × 2.1 mm barrel (D66) | as needed |
-| **Wireless-only node** (optional, no CAT6) | 24 V brick on an ordinary outlet (not the printer's plug) → node POWER IN, INJECT BAR fitted (§6b) | Brick lead | +24 V, GND | 5.5 × 2.1 mm barrel (D66) | as needed |
+| **Local injection** (optional) | 24 V brick or PoE splitter → any node's POWER IN barrel | Brick lead | +24 V, GND | 5.5 × 2.1 mm barrel (D66) | as needed |
+| **Wireless-only node** (optional, no CAT6) | 24 V brick on an ordinary outlet (not the printer's plug) → node POWER IN (§6b) | Brick lead | +24 V, GND | 5.5 × 2.1 mm barrel (D66) | as needed |
 | **Bus** | Hub → node 1 → node 2 → node 3 | CAT6 patch, **distinct colour, labelled "24 V – NOT ETHERNET"** (R10) | 4 pairs (§3) | RJ45 | ~3 m, 1.5 m, 1.5 m |
 | **Heater feed** | Printer supply terminals → inline ATO 10 A (≤ 15 cm from the terminals) → strain relief → node-heat internal XT60 (inside the housing, D64) | 14 AWG 2-conductor | 24V_HEAT, GND | Supply terminal / XT60 | ≤ 1.5 m |
 | **External heater feed** (optional, D22) | 24 V DIN-4 brick, **plugged in on the printer's own smart plug** → node-heat **HEATER DIN** jack, in place of the printer tap (D52, D64) | Brick lead | +24 V, GND (2 pins each) | 4-pin DIN | brick lead |
@@ -162,7 +162,7 @@ Rules applied:
 | 2 | Heater-housing NTC (ADC) | – (fitted, spare) | **Anemometer heated NTC** (D32) | ADC1_CH1. RANGE 2 shunt as for GPIO 1 |
 | 3 | **Fan A high-side enable** (D68, was GPIO 18) | – | – (fan A spare, D85) | 10 kΩ pull-down, low at reset (strapping pin, above). The board identity moved to the carrier I/O controller (D68, below) |
 | 4 | Heater current, LM2904 out (ADC, D50) | – | – | ADC1_CH3; sampled at a fixed rate by ADC1 continuous mode with DMA (below) |
-| 5 | **Heater-rail voltage** (ADC, D75) | Same | Same; **hub supply** (D78) | ADC1_CH4. 100 kΩ / 9.1 kΩ divider, 100 nF at the pin. Back from the controller's PB0 (D75); AUX A moved to GPIO 36 |
+| 5 | **Jack-side heater voltage** (ADC, D75, D94) | Same | Same; **hub supply** (D78) | ADC1_CH4. 100 kΩ / 9.1 kΩ divider, 100 nF at the pin, on the HEATER jacks' side of the jack ideal diode (the heater rail until D94). Back from the controller's PB0 (D75); AUX A moved to GPIO 36 |
 | 6 | AUX B: spare, or **UART1 RX** from the printer (D48) | Same | **Acknowledge button** (edge interrupt, debounced; D49, was GPIO 5): the on-board tact switch, or a remote button on AUX B | Level shifter as GPIO 36; 5 V-tolerant at the connector. The on-board tact switch is on this line (D49). The external heater-input sense (D22) moved to the carrier I/O controller's ADC (D47) |
 | 7 | **Tap-side heater voltage or POWER IN voltage** (ADC, D64, D75, D93) | Same | Same | ADC1_CH6. The internal XT60's side of the tap ideal diode while GPIO 37 is low, POWER IN while it is high (D93): two 100 kΩ / 27 kΩ dividers with 100 nF, each through 47 kΩ, the unselected one grounded by a 2N7002. Back from the controller's PB1 (D75); the heater PWM moved to GPIO 35 |
 | 8 | I²C SDA | I²C SDA | I²C SDA | On-board XGZP, carrier I/O controller (I²C target), 8-channel I²C switch; behind it, one channel per external sensor header 1–8 (header 1 = sensor head; header 2 = node damper encoder, or hub trunk XGZP; header 3 = hub trunk-flow XGZP, D30/D33; header 4 = optional OLED on any role, on its own channel, D48; D45, D54, doc 09 §3). While the ESP32 programs an MCU, GPIO 8 carries UART2 RX instead (doc 09 §4.1) |
@@ -179,7 +179,7 @@ Rules applied:
 | 21 | **Servo PWM** (50 Hz) | Servo PWM | **Buzzer** (D85): 5 V active buzzer module on the servo header | Pull-down, held low at boot (was GPIO 12), so the buzzer is silent through a reset. LED chain 2 was dropped from the fixed map (D45) |
 | 35 | Heater low-side PWM (D75, was GPIO 7) | – | – | LEDC. 10 kΩ pull-down. N8R2 module only (rules above) |
 | 36 | AUX A: spare, or **UART1 TX** to the printer (D48, D75, was GPIO 5) | Same | **Smoke dry-contact input** (edge interrupt; D49) | Through a 2N7002 level shifter to the AUX header (below), so digital only. N8R2 module only |
-| 37 | **Tap ideal-diode disable** (D74, was the controller's PF1) | Same | Same | Output to the 2N7002 on the MX74700T's EN and, since D93, the GPIO 7 selector (high: diode off, GPIO 7 reads POWER IN); the 4.7 kΩ gate pull-down keeps the diode on and the tap side selected while the pin floats at reset. Driven by the two-supply check (doc 02 §2.2) and by ≈ 1 ms POWER IN samples, never while heating (D93). N8R2 module only (rules above) |
+| 37 | **GPIO 7 selector** (D93, D94; the tap ideal-diode disable from D74 to D94, the controller's PF1 before) | Same | Same | Output to the GPIO 7 selector (high: GPIO 7 reads POWER IN); a 4.7 kΩ pull-down keeps the tap side selected while the pin floats at reset. Driven by ≈ 1 ms POWER IN samples (D93). It no longer switches the tap ideal diode, which is always on (D94). N8R2 module only (rules above) |
 | 38 | **LAN interrupt** (W5500 INTn, D72) | Same | Same | Input, 10 kΩ pull-up, active low, falling-edge interrupt; idle high with no module fitted. Was a DevKitC RGB LED pin |
 | 39 | **JTAG TCK** (MTCK, D68) | Same | Same | To the 1 × 6 JTAG header only. Output B1 moved to the carrier I/O controller (PA8) |
 | 40 | **JTAG TDO** (MTDO, D68) | Same | Same | JTAG header only. Output B2 moved to GPIO 45 |
@@ -289,46 +289,31 @@ Each printer pack names its printer end and any fallback (doc 12 §3.2).
 
 | Item | Rule |
 |---|---|
-| Sources | Selected per board by the **INJECT jumpers** (INT, BAR), each through its own diode (INT has two, one on each side of the tap ideal diode, D64; since D80 the heater-rail one is an ideal diode, since D91 BAR's too, and the internal XT60's an SS56 Schottky), then the input guard, into the eFuse. Hub: INT for a brick in the HEATER barrel or a supply on the internal XT60, or BAR for a brick on POWER IN (D92, D93). Node-heat: INT (the printer supply tap or an upgraded internal supply), or a DIN-4 or barrel heater brick in the HEATER DIN or HEATER barrel jack (D52, D64). Any node: BAR with a 24 V brick or PoE splitter. |
+| Sources | Whatever the board has, with nothing to set (D94): the **heater rail** (the internal XT60 or a brick in a HEATER jack) and **POWER IN**, each through its own ideal diode, then the input guard, into the eFuse. While POWER IN is above ≈ 20 V, a P-FET takes the heater rail out, so **a live POWER IN powers the board and otherwise the heater rail does** (doc 02 §2.2). Hub: a brick in either barrel or a supply on the internal XT60 (D92, D93). Node-heat: the printer supply tap or an upgraded internal supply, or a DIN-4 or barrel heater brick (D52, D64), or a logic brick on POWER IN if one is fitted. Any node: a 24 V brick or PoE splitter on POWER IN. (Until D94 the INJECT INT and BAR jumpers chose the sources.) |
 | Protection | Each source enters the bus through an eFuse with reverse-current blocking, so no supply is back-fed by another, and a short is current-limited at the source. |
 | Load sharing | Diode-OR by voltage. Every source runs at its factory 24 V (no trim, D79), so at each point the highest one carries its stretch of the chain, up to its eFuse limit, and cable drop under load shifts load toward local sources. No sharing controller is needed. |
 | Printer supply protection | If a printer's rail sags (bed + heater load), it falls below the bus voltage and its injection stops by itself, so the bus never takes power from a printer that needs it (R12). The ~1.5 A limit caps the most it can ever add to the printer supply at ~36 W (D81). |
 | Printers off | Their injection disappears. Idle nodes draw ~1–2 W each, which the hub covers alone, so nodes can still purge powered-off printers. |
 | Sizing rule (D35) | Size for the worst moment: **every printer off (a power cut, or all cut in a fire) with the busiest node at its alarm peak** (servo moving, LEDs flashing). Hub supply ≥ idle load of the whole chain + that peak + the peak of nodes on their own bricks only if they share the hub's outlet. Any single CAT6 segment ≤ ~1.5 A (two +24 V conductors, D17; deliberately not raised, D21). Three nodes: ~2 W idle each plus ~10 W for one alarm peak [E], well inside both. Checked by commissioning test 16 (doc 05 §9). |
-| Bus voltage (D64) [E] | Since D80 the INT injection path drops ≈ 0.12–0.17 V at 1 A and ≈ 0.25 V at 1.5 A (ideal diode ≈ 0.02–0.03 V, guard, eFuse and its blocking FET; ≈ 0.7 V and ≈ 0.95 V with the Schottky before), and BAR about the same through its ideal diode (D91; ≈ 0.4 V more through an SS56 before). So the bus sits at ≈ 23.5–24.1 V at the hub on a ±1 % supply (LRS-100-24 class; wider on a ±2–5 % brick), ≈ 23.75–23.9 V at a node injecting from its own 24.0 V supply on INT, and ≥ ≈ 22.7 V at a far node fed by the hub alone at an alarm peak (≥ ≈ 22.2 V on a ±3 % brick, ≥ ≈ 21.75 V on ±5 %), after ≈ 0.8 V of cable and per-node IN/OUT losses (≈ 1.1 V before D80's OUT switch FETs). INT sources lose the same drop, so sharing among them follows the supplies' own voltages; BAR sources share with them the same way (D91). Every board measures its own bus voltage (doc 02 §2.2) and reports it with its injected current. The bucks run down to 4 V and the eFuse and buck turn-on points sit at ≤ ≈ 18 V, so only the bus-fed fans notice (B2, and fan A and B1 on the bus leg, D78): they run ≈ 1–9 % slower than at 24 V, which the characterise run measures as installed (doc 05 §3.2). |
+| Bus voltage (D64) [E] | Since D80 the heater-rail injection path drops ≈ 0.15–0.2 V at 1 A and ≈ 0.3 V at 1.5 A (ideal diode ≈ 0.02–0.03 V, the D94 preference P-FET ≈ 0.03 V, guard, eFuse and its blocking FET; ≈ 0.7 V and ≈ 0.95 V with the Schottky before), and POWER IN about the same through its ideal diode (D91; ≈ 0.4 V more through an SS56 before). So the bus sits at ≈ 23.5–24.1 V at the hub on a ±1 % supply (LRS-100-24 class; wider on a ±2–5 % brick), ≈ 23.75–23.9 V at a node injecting from its own 24.0 V heater supply, and ≥ ≈ 22.7 V at a far node fed by the hub alone at an alarm peak (≥ ≈ 22.2 V on a ±3 % brick, ≥ ≈ 21.75 V on ±5 %), after ≈ 0.8 V of cable and per-node IN/OUT losses (≈ 1.1 V before D80's OUT switch FETs). Every board's source loses about the same drop, so sharing along the chain follows the supplies' own voltages (D91); on one board POWER IN wins outright (D94). Every board measures its own bus voltage (doc 02 §2.2) and reports it with its injected current. The bucks run down to 4 V and the eFuse and buck turn-on points sit at ≤ ≈ 18 V, so only the bus-fed fans notice (fan A and B1, D94): they run ≈ 1–9 % slower than at 24 V, which the characterise run measures as installed (doc 05 §3.2). |
 | Hub supply lost (D35) | The hub's injection eFuse blocks reverse current, so its dead supply is never back-fed. The nodes whose printers are on carry the whole chain and the hub through the OUT switches (§3a); the hub enters back-fed mode (doc 07 §11.7). Load then: ~0.35 A idle, up to ~0.85 A in an alarm [E], against ~1.5 A per injecting node (D81). A board-powered exhaust fan (on the fan tap, D85, D92) stops with the hub supply: the fan tap is on the supply's side of the eFuse, and back-fed power reaches only the bus. A fan on its own mains keeps running (FAN V's BUS position, which kept a ≤ 0.75 A fan running, went in D92). |
-| Fan tap (D85, D87) | A second branch after the INJECT diodes and the input guard, ahead of the bus eFuse, through its own tap eFuse limited to ≈ 2.7 A (D91), to B2's pin 2 (D92). It carries only the board's own exhaust fan, so that current never counts against the eFuse limit or the CAT6 segment limit. |
+| Fan tap (D85, D87) | A second branch after the input ideal diodes and the input guard, ahead of the bus eFuse, through its own tap eFuse limited to ≈ 2.7 A (D91), to B2's pin 2 (D92). It carries only the board's own exhaust fan, so that current never counts against the eFuse limit or the CAT6 segment limit. |
 
 ## 6b. Power configurations (D35)
 
-Jumpers only choose what **feeds** the bus; every board's logic runs from the bus. Only the heater inputs (internal XT60, HEATER DIN, HEATER barrel; one at a time) feed the heater; the POWER IN barrel never does (D64). Whenever the heater rail is live it also feeds fan A and B1; otherwise they run from the bus (D78). The rule that matters: **a node must have some source that survives its own printer's cut**: the CAT6 bus from the hub, or a brick on an ordinary outlet.
+There are no power jumpers (D94): every board's logic runs from the bus, and whatever supply a board has feeds it. Only the heater inputs (internal XT60, HEATER DIN, HEATER barrel; one at a time) feed the heater; the POWER IN barrel never does (D64). A live POWER IN powers the board in place of the heater rail, so a logic brick, where there is one, carries the logic and any board-powered exhaust fan, and the heater supply only heats. Fan A and B1 run from the bus (D94). The rule that matters: **a node must have some source that survives its own printer's cut**: the CAT6 bus from the hub, or a brick on an ordinary outlet.
 
-| Setup | INJECT | Outlet rules |
+| Setup | Supplies | Outlet rules |
 |---|---|---|
-| Hub | INT for a brick in the HEATER barrel (D92) or a PSU on the internal XT60 (D78); BAR for a brick on POWER IN (D93). ≥ 4 A with a board-powered exhaust fan, ≥ 2 A without | Hub supply and the fan on ordinary outlets, **never on a printer's plug** |
-| Wired node-heat, printer supply | INT | Logic survives the cut through the bus |
-| Wired node-heat, heater brick (HEATER DIN or HEATER barrel jack) | INT | Heater brick **on that printer's plug** (doc 05 §9 test 23) |
-| Wired node-lite | none, or BAR with a brick | Any brick on an ordinary outlet |
-| Wireless-only node-heat | BAR (logic brick) + INT | **Two supplies:** logic brick in POWER IN on an ordinary outlet, heater supply on INT. The logic brick is never on the printer's plug |
-| Wireless-only node-lite | BAR | Logic brick on an ordinary outlet |
-| Combined-heat or combined-lite (D84, D85, D91) | **BAR only**: a ≥ 24 V, 2 A brick in POWER IN (≥ 4 A with a board-powered exhaust fan) | Brick on an ordinary outlet, **never on the printer's plug**. INT stays out, so the exhaust fan never loads the printer's supply and keeps running through its cut. The heater still runs from the heater rail |
+| Hub | One 24 V brick in the HEATER barrel (D92) or on POWER IN (D93), or a PSU on the internal XT60. ≥ 4 A with a board-powered exhaust fan, ≥ 2 A without | Hub supply and the fan on ordinary outlets, **never on a printer's plug** |
+| Wired node-heat, printer supply | The tap on the internal XT60 | Logic survives the cut through the bus |
+| Wired node-heat, heater brick (HEATER DIN or HEATER barrel jack) | The brick | Heater brick **on that printer's plug** (doc 05 §9 test 23) |
+| Wired node-lite | None, or a brick on POWER IN | Any brick on an ordinary outlet |
+| Wireless-only node-heat | Logic brick on POWER IN + the heater supply | **Two supplies:** the logic brick on an ordinary outlet, the heater supply on the printer's plug or tap. The logic brick is never on the printer's plug |
+| Wireless-only node-lite | Logic brick on POWER IN | Logic brick on an ordinary outlet |
+| Combined-heat or combined-lite (D84, D85, D91) | A **≥ 24 V, 2 A brick on POWER IN** (≥ 4 A with a board-powered exhaust fan), plus the heater supply on combined-heat | Brick on an ordinary outlet, **never on the printer's plug**. While it is live it carries the logic and the exhaust fan, so the fan never loads the printer's supply and keeps running through its cut (D94). The heater still runs from the heater rail |
 
 A node that stays up when its heater supply drops out (on the bus or a barrel logic brick) sees the drop directly and doesn't reset with it (doc 05 §3.3).
-
-Choosing the INJECT jumpers and the brick, by setup (the table above is the rule; this is the same rule as a decision tree):
-
-```mermaid
-flowchart LR
-  R{"Role?"} -->|"hub"| H{"Supply?"}
-  H -->|"brick<br>2.5 mm"| H1["HEATER barrel,<br>INT"]
-  H -->|"brick<br>2.1 mm"| H2["POWER IN,<br>BAR"]
-  H -->|"internal"| H3["XT60, INT"]
-  R -->|"combined"| C1["POWER IN,<br>BAR only"]
-  R -->|"node"| W{"CAT6 to<br>the hub?"}
-  W -->|"node-heat"| N1["INT (tap or<br>heater brick)"]
-  W -->|"node-lite"| N2["None, or BAR<br>with a brick"]
-  W -->|"no"| N3["BAR brick<br>(+ INT if heat)"]
-```
 
 Bricks: hub and combined boards ≥ 4 A with a board-powered exhaust fan, ≥ 2 A without. Every logic brick goes on an ordinary outlet, never on a printer's plug; only a node-heat's heater brick goes on its printer's plug.
 
@@ -338,8 +323,8 @@ Checked at commissioning (doc 05 §9 test 29) and continuously by the hub: when 
 
 | Connection | From | To |
 |---|---|---|
-| 24 V logic | 24 V brick on an ordinary outlet (D92, D93): ≥ 4 A with a board-powered exhaust fan, ≥ 2 A without | Carrier HEATER barrel (INJECT INT) or POWER IN (INJECT BAR), CAT6 power via carrier |
-| Mains (alternative) | With an internal PSU instead: IEC inlet (fused, switched) → LRS-100-24 L/N/PE (PE to the PSU case and the inlet earth only), PSU +V/−V by an XT60 lead | Carrier internal XT60 (INJECT INT fitted) |
+| 24 V logic | 24 V brick on an ordinary outlet (D92, D93): ≥ 4 A with a board-powered exhaust fan, ≥ 2 A without | Carrier HEATER barrel or POWER IN, CAT6 power via carrier |
+| Mains (alternative) | With an internal PSU instead: IEC inlet (fused, switched) → LRS-100-24 L/N/PE (PE to the PSU case and the inlet earth only), PSU +V/−V by an XT60 lead | Carrier internal XT60 |
 | Buzzer | Carrier servo header (GPIO 21, D85) | 5 V active buzzer module (3-pin, active high) |
 | Panel | LED1 → WS2812 ×2; acknowledge = the carrier's on-board tact switch (GPIO 6, AUX B) through the C9 ACK plunger, SERVICE plunger over the carrier's BOOT button (D49); sensor header 4 (switch channel 3) → optional OLED (D48) | Panel |
 | Trunk ΔP | Sensor header 2 (switch channel 1) | Sensor board P (XGZP6897D), tubes to the trunk tap and room |
@@ -383,7 +368,7 @@ A one-printer system can run its hub and its node on one carrier: the role shunt
 | Filter ΔP | Sensor board P on a free sensor header (≤ 1 m Qwiic cable, or tubes run back to the board) | Same | Hub (on-board XGZP) |
 | Duct vacuum, low-flow anemometer | Not fitted (the chamber ΔP takes their place) | Same | – |
 | Venturi trunk flow, room head, OLED | Optional, each on a free sensor header | Same | Hub |
-| Logic power | **≥ 24 V, 2 A barrel brick on POWER IN, INJECT BAR only** (D85; ≥ 4 A with a board-powered exhaust fan, D91), **on an outlet that is not the printer's smart plug** (§6b), so the board and a board-powered exhaust fan outlive a mains cut | Same | – |
+| Logic power | **≥ 24 V, 2 A barrel brick on POWER IN** (D85; ≥ 4 A with a board-powered exhaust fan, D91), **on an outlet that is not the printer's smart plug** (§6b), so the board and a board-powered exhaust fan outlive a mains cut. While it is live the printer's supply only heats (D94) | Same | – |
 | RANGE 1 and RANGE 2 shunts (D47) | **Both on** (chamber-air and heater-housing NTCs, as node-heat) | Off (the NTC inputs are spare) | Node |
 | RJ45 IN/OUT, TERM | Unused; OUT stays dark (§3a) | Same | – |
 

@@ -80,7 +80,7 @@ flowchart TD
   ID -->|"yes"| Z["Zero the heater current<br>(both switches off)"]
   Z --> RG{"NTCs agree with<br>the SHT40? (RANGE)"}
   RG -->|"no"| SH
-  RG -->|"yes"| PD["Power-input diagnostics,<br>two-supply check"]
+  RG -->|"yes"| PD["Power-input diagnostics;<br>two-supply check<br>runs from here on"]
   PD --> ST["Safety task starts the<br>charge pump; role tasks run"]
 ```
 
@@ -306,7 +306,7 @@ ESP-NOW is ESP32 peer-to-peer radio. It runs on every carrier alongside the norm
 
 | Requirement | Why |
 |---|---|
-| A **24 V supply into the node's POWER IN barrel** with INJECT BAR fitted (the barrel never feeds the heater, doc 02 §2.2, D64), e.g. a 24 V brick on an ordinary outlet, **not** on that printer's mains-cut plug. A wireless-only node-heat therefore has **two supplies**: this logic brick, and heater power from the printer (doc 04 §6b) | The node must stay up when its printer is off or cut, to purge it and report. The hub checks this every time the plug is switched off (§11.7) |
+| A **24 V supply into the node's POWER IN barrel** (the barrel never feeds the heater, doc 02 §2.2, D64; nothing to set, D94), e.g. a 24 V brick on an ordinary outlet, **not** on that printer's mains-cut plug. A wireless-only node-heat therefore has **two supplies**: this logic brick, and heater power from the printer (doc 04 §6b) | The node must stay up when its printer is off or cut, to purge it and report. The hub checks this every time the plug is switched off (§11.7) |
 | Node-heat: the heater still runs from the printer's own supply (doc 02 §3.1) | Unchanged |
 | Accept that the hub link is radio only | Interference or a router channel change can drop it for a few seconds. The 30 s heater rule rides through that; a longer outage costs chamber heat, not safety |
 | The node-local safety layers and the `shelly_node` cut don't depend on the hub link | A wireless node keeps its full local protection |
@@ -546,34 +546,19 @@ Each node-heat keeps a small first-order model of its chamber: predicted tempera
 | Check | How |
 |---|---|
 | **Plug-off survival** | Whenever a printer's plug reads off in normal use (a user switch-off, not a cut), its node must still be online 10 s later. If it drops, the hub raises a **High** alert "node powered from the printer's plug": its purge and fire response would fail at a real cut. Costs nothing: the plug read-back and node heartbeat already exist |
-| **Hub supply lost** | The hub reads its own supply input: the heater rail on ESP32 GPIO 5 (D78), so an internal PSU on the XT60 and a brick in either HEATER jack all read. Before D78 it read the tap side of the ideal diode on GPIO 7, which saw only the XT60. Since D93 it also reads POWER IN on GPIO 7, sampled for ≈ 1 ms about once a second through the GPIO 37 selector, so a brick in either barrel reads. If both drop below ~20 V while the hub stays up on the bus, its supply has failed and the chain is feeding it (D52; the OUT-port current direction this used is gone with the INA190). A live POWER IN while the hub injects nothing alerts "fit INJECT BAR", and a live heater rail while it injects nothing "fit INJECT INT" (D93). The hub sends a **High** "hub supply lost, running on printer power" push and enters back-fed mode. **A reading that stops counts as back-fed** (D64): in a fire the siren and push must go before the cut, so the hub assumes the safe order. Since D75 the reading is the ESP32's own, so a silent carrier I/O controller no longer forces back-fed mode. Back-fed mode ends only when the supply reads healthy again |
-| **Fan power feed** (D78) | Fan A and B1 run from the heater rail whenever it is above ≈ 15.5 V, and from the bus otherwise (doc 02 §2.2). The ESP32 reads the heater rail on GPIO 5 and treats it as down below 20 V. **Node-heat on the bus leg:** both fans off, their tach ignored and the stall counter not advanced. **Hub or node-lite:** the fans run normally on either leg. **Over-voltage:** from 30 to 34 V on the rail the firmware turns both off; above that the D57 comparator holds them off in hardware. |
+| **Hub supply lost** | The hub reads its own supply inputs (D78, D93, D94): the tap side on GPIO 7 (an internal PSU on the XT60), the jack side on GPIO 5 (a brick in either HEATER jack), and POWER IN on GPIO 7, sampled for ≈ 1 ms about once a second through the GPIO 37 selector. If all three drop below ~20 V while the hub stays up on the bus, its supply has failed and the chain is feeding it (D52; the OUT-port current direction this used is gone with the INA190). With no jumpers, a live input always injects, so D93's "fit INJECT" alerts went in D94. The hub sends a **High** "hub supply lost, running on printer power" push and enters back-fed mode. **A reading that stops counts as back-fed** (D64): in a fire the siren and push must go before the cut, so the hub assumes the safe order. Since D75 the reading is the ESP32's own, so a silent carrier I/O controller no longer forces back-fed mode. Back-fed mode ends only when the supply reads healthy again |
+| **Fan A and B1** (D78, D94) | Both run from the bus (doc 02 §2.2). **Node-heat with no heater supply live** (tap side and jack side both below 20 V): both fans off, their tach ignored and the stall counter not advanced. **Hub or node-lite:** the fans run normally. **Over-voltage:** from 30 to 34 V on the bus sense the firmware turns both off; the input guard keeps a wrong supply above ≈ 34 V off the bus. |
 | **Back-fed mode** | While back-fed: LED brightness capped and **one damper servo moving at a time**, so a single injecting node's ~1.5 A limit (D81) carries the whole chain even in an alarm; in a fire or runaway, **siren and push go before the cut** (doc 05 §3.4, §5), since the cut printer may be the hub's only power; the dashboard shows the mode and the hub's measured bus voltage (D64), and anemometer readings are flagged as degraded (doc 06 §4.4). It ends when the hub's supply input returns |
 
-Hub supply check, about once a second (D35, D64, D93):
+Hub supply check, about once a second (D35, D64, D93, D94):
 
 ```mermaid
 flowchart TD
-  A["About once a second"] --> B["GPIO 5: heater rail"]
+  A["About once a second"] --> B["GPIO 7: tap side,<br>GPIO 5: jack side"]
   B --> C["GPIO 37 high ≈ 1 ms:<br>GPIO 7 reads POWER IN"]
-  C --> D{"Either input<br>above ≈ 20 V?"}
+  C --> D{"Any input<br>above ≈ 20 V?"}
   D -->|"no, or<br>no reading"| BF["Back-fed mode:<br>High push, LEDs capped,<br>one servo at a time,<br>siren before a cut"]
-  D -->|"yes"| E{"Live input,<br>nothing injected?"}
-  E -->|"POWER IN"| F1["Alert: fit<br>INJECT BAR"]
-  E -->|"heater rail"| F2["Alert: fit<br>INJECT INT"]
-  E -->|"no"| OK["Healthy;<br>back-fed ends"]
-```
-
-Fan power feed (D78), on every role:
-
-```mermaid
-%%{init: {'flowchart': {'nodeSpacing': 20, 'padding': 8}}}%%
-flowchart TD
-  R["Heater rail, GPIO 5"] --> V{"Rail voltage"}
-  V -->|"above 34 V"| HW["Comparator:<br>fan A, B1 off"]
-  V -->|"30–34 V"| FW["Firmware:<br>fan A, B1 off"]
-  V -->|"20–30 V"| HL["Fans on the<br>heater leg"]
-  V -->|"below 20 V"| RL["Node-heat: fans off,<br>tach ignored. Hub,<br>node-lite: bus leg"]
+  D -->|"yes"| OK["Healthy;<br>back-fed ends"]
 ```
 
 ### 11.8 Debugging (D65, D68, D72)
