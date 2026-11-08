@@ -12,7 +12,7 @@ flowchart TB
   RA --> A1["Printer 1"] --> D1["Damper"]
   RA --> A2["Printer 2"] --> D2["Damper"]
   RA --> P3["Printer 3"] --> D3["Damper"]
-  D1 --> TR["4″ trunk, high<br>(all negative)"]
+  D1 --> TR["4″ or 6″ trunk, high<br>(all negative)"]
   D2 --> TR
   D3 --> TR
   TR -.- TT["Trunk ΔP tap"]
@@ -20,7 +20,7 @@ flowchart TB
   FI -.- FT["Filter ΔP taps"]
   FI --> VE["Flow venturi"]
   VE -.- VT["Venturi taps"]
-  VE --> FAN["Exhaust fan<br>(inline or in-wall)"]
+  VE --> FAN["Exhaust fan<br>(a second in series<br>from ≈ 9 printers)"]
   FAN --> HOOD["Wall hood<br>backdraft flap"]
 ```
 
@@ -62,15 +62,23 @@ One unsealed trunk joint leaks about as much as one printer's bleed, so:
 
 ## 2. Duct sizing
 
-4″ (100 mm) throughout.
+Branches are always 4″ (100 mm). The trunk, filter, venturi and outlet are sized by fleet (D95):
+
+| Printers | Trunk and outlet | Fan | Cooling during a 20 CFM purge [E] |
+|---|---|---|---|
+| **1–4** | 4″ throughout | One fan meeting doc 02 §6 FN-2 | All the others (3 of 4) |
+| **5–8** | **6″ kit:** 6″ trunk with 6 × 4″ reducing Ys, a 6″ filter canister with **two cartridges stacked end to end**, the venturi with a **65 mm throat** (§4.3), a 6″ hood | Same fan, on a 6″ adapter | 6–7 of 8 |
+| **9–15** | 6″ kit | **Second fan in series** on the hub's fan A, on its own brick (doc 02 §6 FN-10), or a 6″ mains EC fan | 10–13 of 15 |
+
+The cooling counts assume ≈ 10 CFM to cool a printer, the far branch purging at the 20 CFM floor (§4.5), the filter at its +60 % alert, a typical fan, and 1–3 CFM of leakage per printer [E: pressure model: branch 65·(q/50)² Pa, filter 74·(q/50)^1.24 Pa new, venturi, hood and duct friction scaled by diameter, fan from its published curve]. A printer that needs 15–25 CFM to cool divides them by 1.5–2.5. On 4″ duct, friction caps what a bigger fan adds past ≈ 8 printers, and the 4″ venturi reads only to ≈ 120 CFM. Two cartridges stacked end to end halve the face velocity and so roughly halve the filter loss; the canister is printed (C11) for two. The 6″ parts are semi-rigid aluminium duct and metal 6 × 4″ reducing Ys, with printed adapters and foil tape where no 6″ bayonet part exists [U: a 6″ bayonet family].
 
 | Flow | Velocity in 4″ [E] | Comment |
 |---|---|---|
 | Bleed, 1–3 CFM per printer | < 35 fpm | Negligible loss and noise |
-| Purge, ~40–60 CFM (one branch) | ~460–690 fpm | Quiet range for residential duct |
+| Purge, ~20–60 CFM (one branch) | ~230–690 fpm | Quiet range for residential duct |
 | A ~200 CFM fan's free-air rating | ~2 300 fpm | Never reached in practice; the filter and duct restrict it |
 
-In a three-printer fleet the branches join the trunk through **two chained ModulAir 2:1 Ys** (D34, doc 08 §3c; two metal 4″ wyes as the fallback, P13). Purges are serialised (§5), so the trunk never has to carry three purge flows at once.
+In a three-printer fleet on 4″ duct the branches join the trunk through **two chained ModulAir 2:1 Ys** (D34, doc 08 §3c; two metal 4″ wyes as the fallback, P13). Purges are serialised (§5), so the trunk never has to carry three purge flows at once.
 
 **Materials:**
 - Semi-rigid aluminium duct (not plastic flex) for low resistance and fire resistance.
@@ -199,7 +207,7 @@ A rejected zero usually means a leak, a kinked tube or a failed sensor. Z1–Z5 
 
 ### 4.2 Loop coupling
 
-**Coupling:** when one printer purges, the trunk loop holds vacuum. Any small disturbance at the other branches is corrected by their own chamber loops. This is what keeps *every* chamber negative during another printer's purge (your Q20).
+**Coupling:** when one printer purges, the trunk loop holds vacuum. Any small disturbance at the other branches is corrected by their own chamber loops. This is what keeps *every* chamber negative during another printer's purge.
 
 ### 4.3 Trunk flow (D30)
 
@@ -207,10 +215,10 @@ A printed **venturi** between the filter and the fan measures total exhaust flow
 
 | Item | Value |
 |---|---|
-| Geometry | 100 mm inlet, **50 mm throat** (β = 0.5), ~21° included converging cone, 7–15° included diffuser, ~350 mm long; a ring of 4 taps at the inlet and at the throat (doc 08 C17). An ISA-style nozzle is the fallback if the wall run is too short; it loses more pressure. |
+| Geometry | 100 mm inlet, **50 mm throat** (β = 0.5) on 4″ duct; **150 mm inlet, 65 mm throat** (β ≈ 0.43) in the 6″ kit (D95), ~21° included converging cone, 7–15° included diffuser, ~350 mm long; a ring of 4 taps at the inlet and at the throat (doc 08 C17). An ISA-style nozzle is the fallback if the wall run is too short; it loses more pressure. |
 | Sensor | **XGZP6897D ±500 Pa class** on the hub's I²C header 3 (D33). Auto-zeroed in the static window (§4.1); assumed ~1 Pa residual plus ~2 % of the reading after that [E: M4]. Readings averaged over 10 s. **Upgrade:** a Sensirion SDP31 (~0.2 Pa zero error, ~$20) on the same header if M4 shows more than ~1 Pa residual. |
-| Signal [E] | ΔP ≈ ½ρ(Q/A_throat)²(1 − β⁴)/C², with C ≈ 0.97 for a smooth print: **~8 Pa at 15 CFM, ~14 Pa at 20 CFM, ~87 Pa at 50 CFM, ~350 Pa at 100 CFM**. |
-| Useful range [E] | **~15–100+ CFM**: about ±7 % at 15 CFM, ±5 % at 20 CFM, ±3 % at 30 CFM, ~±2 % at purge flows. Flow goes as √ΔP, so bleed flows (< 1 Pa here) are **below range**; the low-flow anemometer (§4.4) covers them. |
+| Signal [E] | ΔP ≈ ½ρ(Q/A_throat)²(1 − β⁴)/C², with C ≈ 0.97 for a smooth print. 50 mm throat: **~8 Pa at 15 CFM, ~14 Pa at 20 CFM, ~87 Pa at 50 CFM, ~350 Pa at 100 CFM**, the sensor's 500 Pa near 120 CFM. 65 mm throat: **~5 Pa at 20 CFM, ~30 Pa at 50 CFM, ~125 Pa at 100 CFM**, 500 Pa near 200 CFM, which covers two fans in series (≈ 160–185 CFM; a 60 mm throat would reach full scale at ≈ 170 CFM) (D95). |
+| Useful range [E] | 65 mm throat: **~25–200 CFM**. 50 mm throat: **~15–120 CFM**: about ±7 % at 15 CFM, ±5 % at 20 CFM, ±3 % at 30 CFM, ~±2 % at purge flows. Flow goes as √ΔP, so bleed flows (< 1 Pa here) are **below range**; the low-flow anemometer (§4.4) covers them. |
 | Pressure cost [E] | ~10–15 % of the venturi ΔP is lost for good: ~10–13 Pa at 50 CFM, against ~100–250 Pa for the filter. Check in M1. |
 | Calibration | C from the printed geometry; spot-check at commissioning with a handheld vane anemometer at the outlet if one is available (M8). |
 
@@ -231,7 +239,7 @@ Bleed flows (≈ 0.5–9 CFM in total) are too small for any pressure-based mete
 | Loop | Firmware holds the element at air + **20 K** (reference NTC). Heater power P = duty × V²/R, with V the voltage on B1's feed: the measured bus voltage (D64, ≈ 22.5–24 V) minus the 0.75 A fuse's drop (≈ 0.02 V [E]), since fan A and B1 run from the bus (D94; from the heater rail through a Schottky from D78 to D94). Assuming 24 V would be a power error of up to −12 %. Readings taken in back-fed mode are flagged as degraded (a hub on POWER IN isn't back-fed, D93); conductance **G = P/ΔT** rises with flow, roughly G = G₀ + B·Q^n with n ≈ 0.4–0.5 (King's law). |
 | Temperature compensation | Air conductivity rises ~0.3 %/K; G is corrected to 25 °C using the reference NTC, and the residual is fitted against temperature from the overlap points (calibration 2). |
 | Limits | Element ≤ 80 °C and ΔT ≤ 30 K in firmware; a heater with no rise, or an open or shorted NTC, turns B1 off (doc 05). Even at full duty in still air the element stays below ~140 °C, far below any fume ignition point, and the probe holds it on its leads clear of the plastic. |
-| Readings | 10 s averages, reported as CFM with its validity band. Above ~20 CFM the venturi takes over, with a blend between 10 and 20 CFM. |
+| Readings | 10 s averages, reported as CFM with its validity band. Above ~20 CFM the venturi takes over, with a blend between 10 and 20 CFM. In the 65 mm throat the air runs ≈ 0.6× as fast, so the anemometer reaches ≈ 25 CFM and the blend moves to ≈ 15–30 CFM [E: M9] (D95). |
 
 **Estimated accuracy vs the venturi** [E: model; confirm in M9]:
 
@@ -255,6 +263,18 @@ The anemometer's figures assume calibration 3 below; without it, the gap between
 
    Step the fan through its lowest speeds with one branch open and record both. The 10 mm one drops a few hundred pascals near 3–4 CFM, which the fan may not reach at low speed, so it's used only up to where it holds a steady flow. Remove each afterwards: at purge flow they would choke the trunk.
 4. **Plausibility.** When a single printer bleeds alone, its anemometer reading should agree with the damper angle–flow curve (§3) and the heater step test (doc 07 §11.6) to within their bands. Persistent disagreement flags a recalibration.
+
+### 4.5 Airflow budget (D95)
+
+The trunk loop holds its setpoint by raising fan speed, so it only runs short once the fan is at full speed. Then the branches compete: a purge opening wide takes what the cooling branches needed, or the reverse. While the fan is at full speed and the trunk is short of its setpoint, the hub shares the flow it has in this order:
+
+1. **Every chamber's −3 Pa floor** (bleed and leakage). Never capped: it is containment.
+2. **The purge**, at its target, or lowered toward the **purge floor**, a hub setting with a default of **20 CFM**, before any cooling branch is capped.
+3. **Cooling**, sharing what is left. Below the purge floor, the hub caps the cooling branches instead, and they hold their −3 Pa floor.
+
+The hub sends each node its allowance in its heartbeat (doc 07 §6.2); a node holds its branch flow, from its angle–flow curve (§3), under it. A slower purge runs longer, since its end condition counts air changes from measured flow (§5.2). When the fan is below full speed nothing is capped. If even the purge floor can't be held, the hub alerts and the purge runs at what it gets.
+
+Why 20 CFM: 5 air changes of a ≈ 0.1 m³ chamber take about a minute at 20 CFM, and a heated purge is set by its cooldown ramp anyway (§5.2). On 4″ duct with four printers and a filter at its alert, a 50 CFM purge leaves ≈ 10–16 CFM for cooling the other three; at 20 CFM it leaves ≈ 43–49 CFM [E: §2 model].
 
 ## 5. Purge
 
@@ -288,6 +308,7 @@ CAN IDs: node 1 requests and releases on 0x131 and gets its token on 0x141; node
 |---|---|
 | Trigger | `FLEET_PURGE …` from end G-code, **or** `print_stats` → `complete` / `cancelled` / `error` (whichever comes first) |
 | Parameters | `RAMP` (°C/min), `MIN_TIME` (min), `SAFE_TEMP` (°C), `VOC_MARGIN`, from G-code or the material defaults (§6) |
+| Flow | Up to the hub's purge allowance, which can fall to the purge floor (20 CFM by default) while cooling branches need the fan (§4.5, D95) |
 | Ramp | On a printer with a makeup flap (`enclosure.makeup_flap: true`), a **crack test** first (D90): the damper steps 1° at a time from its hold angle while chamber ΔP is sampled at ≥ 10 Hz, and the deepest suction before it collapses is logged as the makeup flap's opening point. Then the damper opens progressively. If the chamber falls faster than `RAMP`, the damper eases off and, for heated materials, the heater holds a falling floor (target = start − RAMP × t) |
 | End condition | **All of:** chamber ≤ `SAFE_TEMP`; elapsed ≥ `MIN_TIME`; ≥ 5 chamber air changes (from the branch's angle–flow curve and encoder angle, D30; time-based estimate if the encoder is unavailable); chamber VOC within `VOC_MARGIN` of the hub room VOC (R3) |
 | Done | Bed LED **green breathing** ("safe to open"); push notification; damper closes; token released |
@@ -354,16 +375,16 @@ Assumptions [E]: enclosure surface ~1.7 m²; worst case room 15.5 °C (60 °F) a
 
 | Item | Specification |
 |---|---|
-| Cartridge | Standard cylindrical **HEPA (H13) + thin activated-carbon combo**, Levoit Core 300 class (~$15) |
+| Cartridge | Standard cylindrical **HEPA (H13) + thin activated-carbon combo**, Levoit Core 300 class (~$15). The 6″ kit stacks **two** end to end in one canister (D95) |
 | Housing | Printed airtight canister with ModulAir L bayonet ports (D34), bayonet lid and TPU gasket; two barbed taps for the filter ΔP sensor (doc 08) |
 | Purpose | Odour courtesy for neighbours (carbon, ~6–12 months of life for styrene), particles out of the outdoor air, and a clean duct and fan (HEPA) |
 | Outlet concentration [E] | Bleed: ~0.5 ppm styrene, smellable within ~1 m until the carbon saturates. Purge: below the odour threshold |
 | Loading alert | Filter ΔP vs fan-speed curve recorded new at commissioning; digest alert at +60 %, high at +120 % *(commission)* |
-| Static pressure | Combo cartridge ~100–250 Pa at 100 CFM [E]. If the fan can't make purge flow through it (R2), use a HEPA-only cartridge in the same housing |
+| Static pressure | Combo cartridge ~100–250 Pa at 100 CFM [E], kept as the design figure until M2. The purifier it comes from moves ≈ 140 CFM through it on ≈ 35 W, which bounds it nearer ≈ 35–95 Pa at 100 CFM [E] (D95). Two stacked roughly halve it. If the fan can't make purge flow through it (R2), use a HEPA-only cartridge in the same housing |
 
 ## 9. Outlet
 
-- **4″ through-wall dryer-vent hood with a gravity backdraft flap**.
+- **4″ through-wall dryer-vent hood with a gravity backdraft flap**; **6″** with the 6″ kit (§2, D95).
 - Locate it away from windows, doors, patios and neighbours' openings.
 - The fan sits indoors, immediately inside the wall sleeve.
 - Winter: the system is idle (fan off, flap closed) except while printing.
@@ -384,3 +405,4 @@ Assumptions [E]: enclosure surface ~1.7 m²; worst case room 15.5 °C (60 °F) a
 | M9 | Low-flow anemometer (D32): static zero, then the 10 mm and 15 mm reference venturis in turn, fan stepped through its lowest speeds with one branch open; record reference flow vs element conductance from ~0.5 to 5 CFM. M4's residual decides whether the venturi keeps the XGZP or gets an SDP31 | Low end of the anemometer curve (§4.4) |
 | M10 | Duct leak test (D34): all dampers closed, trunk at its setpoint, read the low-flow anemometer; repeat after any joint is disturbed | Leakage baseline (< 0.5 CFM target), subtracted in M8 (§1.1) |
 | M11 | Makeup inlet (D89, D90): one branch at purge flow (venturi ≥ 40 CFM), read that chamber's ΔP; and the first crack test's opening point | Confirms the inlet: ≤ ≈ 25 Pa at 50 CFM, scaled by flow²; opening point ≈ 8–16 Pa. Nothing to adjust: out of range means a wrong part |
+| M12 | Second fan in series (D95, 9–15 printers): trunk flow at full speed with both fans, then with each stopped in turn | Flow left with one fan down, for the fan-fault alert; confirms the stopped fan passes air |

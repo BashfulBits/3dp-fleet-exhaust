@@ -75,9 +75,10 @@ flowchart LR
 | **External heater feed** (optional, D22) | 24 V DIN-4 brick, **plugged in on the printer's own smart plug** → node-heat **HEATER DIN** jack, in place of the printer tap (D52, D64) | Brick lead | +24 V, GND (2 pins each) | 4-pin DIN | brick lead |
 | **Barrel heater feed** (optional, D22, D64, D66) | 24 V barrel brick, ≥ 160 W and ≤ 10 A for full power (a 120 W brick at `heater_power` ≤ 95 W), **on the printer's own smart plug** → node-heat **HEATER barrel** jack (15 A), in place of the printer tap | Brick lead | +24 V, GND | 5.5 × 2.5 mm barrel | brick lead |
 | **Heater element** | Node XT60 out (inside the housing, through a strain relief, D64) → PTC (via TCO) | Element leads + TCO in series on the + lead | 2 | XT60 | ≤0.5 m |
-| **Heater fan** (separate leads, C8) or 5015 blower (fallback) | Node fan A → fan | 22–24 AWG | 24 V, GND, (tach), (PWM) | JST-XH 4 | ≤0.5 m |
+| **Heater fan** (separate leads, C8) or 5015 blower (fallback) | Node fan A → fan | 22–24 AWG | 24 V, GND, (tach), (PWM) | JST-XH 6, pins 1–4 (D95) | ≤0.5 m |
 | **Recirculation-duct blower** (where the pack fits one) | Node B1 → 5015 blower | 22–24 AWG | 24 V, switched GND (PWM and tach leads unused) | JST-XH 2 | ≤1 m |
-| **Fan on B2** (D84) | Carrier B2 fan port → a spare fan, or the exhaust fan on a combined board (§7a) | 22–24 AWG | GND, 24 V, tach, B2 (switched GND or open-drain PWM) | JST-XH 4 | as needed |
+| **Fan on B2** (D84, D95) | Carrier B2 fan port → a spare fan, or the exhaust fan on the hub or a combined board (§7a) | 22–24 AWG, or the fan's own control cable | GND, 24 V, tach, B2 (switched GND or open-drain PWM), REF, CTRL | JST-XH 6, or B2's USB-C, TRRS or terminal-header jack (§7a) | as needed |
+| **Second exhaust fan** (D95, 9–15 printers) | Hub fan A → passive adapter (barrel jack + fan header) ← its own 24 V brick → 4-wire fan | 22–24 AWG | GND, tach, PWM to the hub; 24 V from the brick (pin 2 not connected) | JST-XH 6 / fan plug | as needed |
 | **KSD301 loop** | Node → heater-housing KSD301 → chamber-air KSD301 (in series) → node | 22–24 AWG, high-temp silicone | 2 | JST-XH 2 | ≤1 m |
 | **NTCs** | Node → chamber air NTC, heater housing NTC | NTC leads | 2 each | JST-XH 2 | ≤0.5 m |
 | **Sensor head** | Node sensor header 1 (switch channel 0) → sensor board S in chamber | Pre-made Qwiic cable (4-core 28 AWG, D69), ≤0.5 m (I²C at 100 kHz) | GND, 3.3 V, SDA, SCL | JST-SH 4, Qwiic pinout (D69) | ≤0.5 m |
@@ -160,7 +161,7 @@ Rules applied:
 | 0 | **Service button** (the carrier's BOOT tact switch, D46, D72) | Same | Same | Input; 10 kΩ pull-up per Espressif's module reference. Held at power-up, it enters download mode as usual |
 | 1 | Chamber-air NTC (ADC) | – (fitted, spare) | **Anemometer reference NTC** (D32) | ADC1_CH0. 47 kΩ pull-up, ≈ 4.6 kΩ with the RANGE 1 shunt on (node-heat, D47) |
 | 2 | Heater-housing NTC (ADC) | – (fitted, spare) | **Anemometer heated NTC** (D32) | ADC1_CH1. RANGE 2 shunt as for GPIO 1 |
-| 3 | **Fan A high-side enable** (D68, was GPIO 18) | – | – (fan A spare, D85) | 10 kΩ pull-down, low at reset (strapping pin, above). The board identity moved to the carrier I/O controller (D68, below) |
+| 3 | **Fan A high-side enable** (D68, was GPIO 18) | – | – (held off: the second exhaust fan on fan A takes 24 V from its own brick, D95) | 10 kΩ pull-down, low at reset (strapping pin, above). The board identity moved to the carrier I/O controller (D68, below) |
 | 4 | Heater current, LM2904 out (ADC, D50) | – | – | ADC1_CH3; sampled at a fixed rate by ADC1 continuous mode with DMA (below) |
 | 5 | **Jack-side heater voltage** (ADC, D75, D94) | Same | Same; **hub supply** (D78) | ADC1_CH4. 100 kΩ / 9.1 kΩ divider, 100 nF at the pin, on the HEATER jacks' side of the jack ideal diode (the heater rail until D94). Back from the controller's PB0 (D75); AUX A moved to GPIO 36 |
 | 6 | AUX B: spare, or **UART1 RX** from the printer (D48) | Same | **Acknowledge button** (edge interrupt, debounced; D49, was GPIO 5): the on-board tact switch, or a remote button on AUX B | Level shifter as GPIO 36; 5 V-tolerant at the connector. The on-board tact switch is on this line (D49). The external heater-input sense (D22) moved to the carrier I/O controller's ADC (D47) |
@@ -171,10 +172,10 @@ Rules applied:
 | 11 | **LAN MOSI** (D45) | LAN MOSI | LAN MOSI | SPI2 IO MUX pin |
 | 12 | **LAN SCK** (D45) | LAN SCK | LAN SCK | SPI2 IO MUX pin |
 | 13 | **LAN MISO** (D45) | LAN MISO | LAN MISO | SPI2 IO MUX pin. The door input is read through the carrier I/O controller (doc 02 §2.4) |
-| 14 | **Fan A PWM** (open-drain, D70) | – | – (fan A spare, D85) | LEDC. Floats while the ESP32 is in reset, so a 4-wire fan runs at full speed. LED chain 1 moved to the carrier I/O controller (PA5, D70, D71) |
+| 14 | **Fan A PWM** (D70, D95) | – | **Second exhaust fan PWM** when fitted (D95) | LEDC, ≈ 25 kHz, inverted: drives the gates of two 2N7002s (fan port pins 4 and 6, §7a), each with a gate pull-down, so the pin never sees the fan's 5–10 V and both float to full speed while the ESP32 is in reset (D95; a bare open drain from D70). LED chain 1 moved to the carrier I/O controller (PA5, D70, D71) |
 | 15 | Heater enable charge-pump drive (square wave) | – | – | No wave → high-side off. **A plain GPIO toggled by the safety task, deliberately not a PWM peripheral** (doc 07 §2): a peripheral would keep the wave running if the safety task hung |
 | 16 | **CAN TX** (D68, was GPIO 41) | CAN TX | CAN TX | TWAI, routed through the GPIO matrix; pull-up on the transceiver's TXD so the bus stays recessive while the pin floats at reset. Fan A's PWM moved to GPIO 14 (D70) |
-| 17 | Fan A tach in | – | – (fan A spare, D85) | Pull-up + clamp |
+| 17 | Fan A tach in | – | Second exhaust fan tach (D95) | Through a 1N4148WS (cathode at the connector) with a 100 kΩ pull-up to 3.3 V, as B2's (D95; a pull-up and clamp before) |
 | 18 | **CAN RX** (D68, was GPIO 42) | CAN RX | CAN RX | TWAI. Fan A enable moved to GPIO 3 |
 | 21 | **Servo PWM** (50 Hz) | Servo PWM | **Buzzer** (D85): 5 V active buzzer module on the servo header | Pull-down, held low at boot (was GPIO 12), so the buzzer is silent through a reset. LED chain 2 was dropped from the fixed map (D45) |
 | 35 | Heater low-side PWM (D75, was GPIO 7) | – | – | LEDC. 10 kΩ pull-down. N8R2 module only (rules above) |
@@ -185,7 +186,7 @@ Rules applied:
 | 40 | **JTAG TDO** (MTDO, D68) | Same | Same | JTAG header only. Output B2 moved to GPIO 45 |
 | 41 | **JTAG TDI** (MTDI, D68) | Same | Same | JTAG header only. CAN TX moved to GPIO 16 |
 | 42 | **JTAG TMS** (MTMS, D68) | Same | Same | JTAG header only. CAN RX moved to GPIO 18 |
-| 45 | Output B2: spare (D68, was GPIO 40) | – | **Exhaust fan** (D85) | Pull-down, low at reset (strapping pin, above). LEDC when B2 drives a fan; the fan port and its tach (through the carrier I/O controller's PA9) are in §7a (D84). On the hub and the combined boards B2 is the exhaust fan (D85, §7a) |
+| 45 | Output B2: spare (D68, was GPIO 40) | – | **Exhaust fan** (D85) | Pull-down, low at reset (strapping pin, above). LEDC when B2 drives a fan; it drives the B2 N-FET (pin 4) and the CTRL 2N7002 (pin 6) together. The fan port and its tach (through the carrier I/O controller's PA9) are in §7a (D84, D95). On the hub and the combined boards B2 is the exhaust fan (D85, §7a) |
 | 46 | **High-side output sense** (`24V_HEAT` through a divider and clamp, D64) | Same | Same | Digital input, strapping pin used as an input only (above). Low whenever the high side is off. Moved here from the carrier I/O controller by D64 so a welded high-side FET is seen directly by the safety task |
 | 43 | **UART0 TX** (console header, D72) | Same | Same | 1 × 3 header with GPIO 44 and GND; the ROM bootloader and the ESP-IDF console use it |
 | 44 | **UART0 RX** (console header, D72) | Same | Same | |
@@ -386,18 +387,30 @@ flowchart LR
 ```
 
 - **Printer link:** combined roles need a printer on the USB link, because AUX carries the smoke contact and the button. A printer on the UART link (`marlin_serial`, doc 12) keeps the two-board layout.
-- **Exhaust fan:** it must be a 4-wire PWM fan, or a fan with the same open-collector PWM input, so that it runs at full speed while the board is silent (F3, doc 02 §6). A plain on/off fan on B2 stops with the board and is not allowed as the exhaust, on a combined board or on the hub. A fan with a proprietary control port needs an adapter, proven on the bench, first (doc 02 §6). Supported fans are in doc 02 §6 (D85).
+- **Exhaust fan:** it must be a 4-wire PWM fan, or an EC fan whose 0–10 V or 10 V PWM input is pulled up from its own +10 V reference (CTRL, D95), so that it runs at full speed while the board is silent (F3, doc 02 §6). A plain on/off fan on B2 stops with the board and is not allowed as the exhaust, on a combined board or on the hub. A fan with a proprietary control port uses one of B2's jacks, or an adapter, once its pinout and F3 are proven on the bench (doc 02 §6). Supported fans are in doc 02 §6 (D85).
 
-**B2 fan port (D84, D85).** JST-XH 4 on every carrier, in fan order. It is the exhaust fan port on the hub too (D85):
+**Fan ports, fan A and B2 (D84, D85, D95).** JST-XH 6 on every carrier, the same pinout on both. B2 is the exhaust fan port on the hub too (D85); fan A carries the hub's second exhaust fan from ≈ 9 printers (D95):
 
-| Pin | Signal | 2- or 3-wire 24 V fan, switched | 4-wire PWM fan |
-|---|---|---|---|
-| 1 | GND | – | Fan GND |
-| 2 | **Fan tap**, 24 V (D92, doc 02 §2.2; ≤ ≈ 2.2 A at full speed, D91) | Fan + | Fan + of a 24 V fan; not connected for a fan on its own supply |
-| 3 | Tach | Tach (valid only while B2 is fully on) | Tach |
-| 4 | B2: the N-FET's drain | Fan − (low-side switched) | PWM input: the N-FET pulls it low as an open-drain output, so the firmware inverts the duty; ≈ 25 kHz on LEDC |
+| Pin | Signal | 2- or 3-wire 24 V fan, switched (B2) | 4-wire PWM fan | EC fan, 0–10 V or 10 V PWM input |
+|---|---|---|---|---|
+| 1 | GND | – | Fan GND | Control GND |
+| 2 | V+: B2 the **fan tap**, 24 V (D92, doc 02 §2.2; ≤ ≈ 2.2 A at full speed, D91); fan A the bus through its high-side switch (0.75 A fuse) | Fan + | Fan + of a 24 V fan; not connected for a fan on its own supply | Not connected |
+| 3 | Tach | Tach (valid only while B2 is fully on) | Tach | Tach, where the fan has one |
+| 4 | PWM: B2 the N-FET's drain; fan A a 2N7002's drain (D95) | Fan − (low-side switched, B2 only) | PWM input, pulled low as an open-drain output, so the firmware inverts the duty; ≈ 25 kHz on LEDC | Not connected |
+| 5 | REF: the fan's own +10 V, in | – | – | Fan +10 V reference out |
+| 6 | CTRL: 10 kΩ to REF, pulled down by a 2N7002 on the same GPIO as pin 4 | – | – | Fan speed input |
 
-- **Tach:** pin 3 runs through a **1N4148WS** (C2128, basic; cathode at the connector) to the expansion port's **D1** net (PA9, 100 kΩ pull-up, 1 kΩ series and ESD, doc 09 §2.5). The fan's open collector pulls D1 to ≈ 0.4 V through the diode; a fan ground floating at 24 V while B2 is off only reverse-biases it. The carrier I/O controller counts edges on EXTI 9 and reports RPM over I²C. PA9 is a bootloader transmit pin, so tach edges after a controller reset can't be taken for a sync byte (doc 09 §2.1). A builder who uses D1 on the expansion port can't also use the B2 tach.
+- **Jumpers (D95):** **DC** (RC filter in the CTRL line, for a fan that reads 0–10 V but not PWM; off by default) and **STRONG** (1.5 kΩ to REF, ≈ 7 mA; off by default, and never with a reference rated ≈ 1 mA).
+- **At reset or unpowered:** both FETs are off, so pin 4 floats to a 4-wire fan's own pull-up and CTRL sits at the fan's 10 V: either fan runs at full speed (Intel 4-wire behaviour [E]; the EC reference, D95).
+- **B2 external jacks (D95, doc 02 §2.2.7):** in parallel with pins 1, 3, 5 and 6, one fan at a time:
+
+| Jack | GND | REF | CTRL | TACH |
+|---|---|---|---|---|
+| USB-C "FAN 10 V" (5.1 kΩ on CC1 and CC2) | GND | VBUS | D+ | D− |
+| 3.5 mm TRRS | neutral | +10 V | 0–10 V | – |
+| 4-pole pluggable terminal header | GND | REF | CTRL | TACH |
+
+- **Tach (B2):** pin 3 runs through a **1N4148WS** (C2128, basic; cathode at the connector) to the expansion port's **D1** net (PA9, 100 kΩ pull-up, 1 kΩ series and ESD, doc 09 §2.5). The fan's open collector pulls D1 to ≈ 0.4 V through the diode; a fan ground floating at 24 V while B2 is off only reverse-biases it. The carrier I/O controller counts edges on EXTI 9 and reports RPM over I²C. PA9 is a bootloader transmit pin, so tach edges after a controller reset can't be taken for a sync byte (doc 09 §2.1). A builder who uses D1 on the expansion port can't also use the B2 tach.
 - **Pin 2 (D92):** the fan tap's 24 V, live whenever the board injects; no jumper (FAN V, D85, D86, went in D92). A 12 V fan needs an inline 24 → 12 V adapter (doc 02 §6). A fan or adapter on its own supply (an EC inline fan, a proprietary-port fan) leaves pin 2 unconnected.
-- **At reset:** GPIO 45's pull-down holds the FET off, so pin 4 floats and a 4-wire fan's own pull-up runs it at full speed (Intel 4-wire behaviour [E], as for fan A).
+- **Fan A:** pin 3 reaches GPIO 17 through its own 1N4148WS and 100 kΩ pull-up (§4); pins 4 and 6 are GPIO 14's two 2N7002s (D95). For the second exhaust fan, pin 2 is left unconnected and the fan takes 24 V from its own brick through a passive adapter (doc 02 §6, FN-10).
 

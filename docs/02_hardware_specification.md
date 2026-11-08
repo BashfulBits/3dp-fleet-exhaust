@@ -82,7 +82,7 @@ flowchart TB
 | 4 Logic rails | ✓ | ✓ | ✓ |
 | 5 Controllers, ports | LAN socket empty unless the link is wired | Same | W5500 module fitted |
 | 6 Heater stage | ✓ | Fitted, held off | Fitted, held off |
-| 7 Outputs | Fan A: recirculation fan if not built in; B1: recirculation blower where the pack fits one; B2 spare; servo: damper | Fan A, B1, B2 spare; servo: damper | Fan A spare; B1: anemometer heater (D32); B2: **exhaust fan** (D85); servo header: **buzzer** |
+| 7 Outputs | Fan A: recirculation fan if not built in; B1: recirculation blower where the pack fits one; B2 spare; servo: damper | Fan A, B1, B2 spare; servo: damper | Fan A: second exhaust fan from ≈ 9 printers (D95), otherwise spare; B1: anemometer heater (D32); B2: **exhaust fan** (D85); servo header: **buzzer** |
 | 8 Sensing | NTCs: chamber air and heater housing, both RANGE shunts on; headers 1 sensor head, 2 damper encoder, 4 optional OLED; door reed; AUX spare or UART link | NTCs spare; headers 1, 2, 4; door optional; AUX spare or UART link | NTCs: low-flow anemometer, RANGE shunts off; headers 1 room sensor head, 2 trunk pressure, 3 trunk flow, 4 optional OLED; AUX A smoke contact, B acknowledge button |
 | 9 Identity, indicators | Role shunt HEAT | LITE | HUB |
 
@@ -335,14 +335,15 @@ flowchart TB
 - **Heater current sense (D50):** a 5 mΩ low-side shunt (LRAM25EJER005 class, 2512, ±5 %) and an LM2904 at gain 40 with a ~10 mV input pedestal into the ADC, zeroed in firmware at boot (doc 04 §4). It catches an open element, a welded FET, inrush, and the C8 stall.
 - **Roles:** used on node-heat; fitted on every role since D47 and held off elsewhere, with the KSD301 loop open (§2.2.10, one population).
 
-#### 2.2.7 Outputs: fans, servo and LEDs (D51, D57, D70, D75, D84, D85, D92, D94)
+#### 2.2.7 Outputs: fans, servo and LEDs (D51, D57, D70, D75, D84, D85, D92, D94, D95)
 
 **Goal.** Drive the fans and other loads so that the fans run at full speed whenever the firmware or controller is down, a shorted lead takes out only its own output, and the exhaust fan gets its full current without loading the bus.
 
 **How it works.**
 - **Fan A** is switched on the high side, so its tach stays valid, and its PWM output floats to full speed in reset.
+- Fan A and B2 are the same **6-pin fan port** (D95): GND, V+, tach, PWM, and a REF/CTRL pair that drives a mains EC fan's 0–10 V or 10 V PWM input from the fan's own 10 V, so that fan also runs at full speed whenever the board is down or unpowered.
 - **B1** is a low-side switch whose gate is pulled on, so it runs at full duty whenever its controller isn't driving it.
-- **B2** is the **fan port**: it switches a 2- or 3-wire fan or drives a 4-wire fan's PWM, and takes the fan's supply from the fan tap (§2.2.2).
+- **B2** is the **exhaust fan port**: it switches a 2- or 3-wire fan, drives a 4-wire fan's PWM or an EC fan's CTRL input, takes a board-powered fan's supply from the fan tap (§2.2.2), and adds three external jacks for bought fans (D95).
 - Fan A and B1 share one resettable fuse from the bus.
 - The servo header and the LED chain run from `+5V_PWR`, the LED chain behind a current-limit switch.
 
@@ -358,12 +359,27 @@ flowchart TB
   P5 --> LSW["LED switch<br>≈ 0.75 A"] --> LED["LED chain"]
 ```
 
-**Fan channel A (D51, D70).** 24 V switched on the high side (60 V P-FET, D51; the heater stage's S40P06F since D82; the XR20P10D in D80), with a tach input (pull-up and clamp) and an open-drain PWM output on ESP32 GPIO 14 (D70), which floats to full speed while the ESP32 is in reset [E: the Intel 4-wire fan specification, as Noctua's PWM white paper quotes it, has the fan pull PWM up and run at full speed with no signal; a fan without that pull-up won't, so check the fitted fan]. High-side switching keeps the tach valid (F5). The footprint-only 0–10 V output stage moved to B2 (D85).
+**Fan channel A (D51, D70).** 24 V switched on the high side (60 V P-FET, D51; the heater stage's S40P06F since D82; the XR20P10D in D80), on the 6-pin fan port below (D95). ESP32 GPIO 14 (D70) drives the PWM pin through a **2N7002** (60 V, gate pull-down), not directly, since a 4-wire fan may pull PWM up to 5.25 V and a 10 V EC input higher, both above the pin's 3.3 V rating; the FET is off in reset, so the pin floats to full speed [E: the Intel 4-wire fan specification, as Noctua's PWM white paper quotes it, has the fan pull PWM up and run at full speed with no signal; a fan without that pull-up won't, so check the fitted fan], and the firmware inverts the duty. Its tach (GPIO 17) comes in through a 1N4148WS with a pull-up to 3.3 V, as B2's does, so a fan's 10 V push-pull tach can't reach the pin. High-side switching keeps the tach valid (F5). On the hub fan A drives the **second exhaust fan** of a large fleet (D95, §6.1 FN-10), with pin 2 not connected.
 
 **Low-side outputs B1, B2 (D51, D68, D75, D80, D84).** Switched 24 V (60 V N-FET, D51; SP60N12GNJ since D80), with a flyback diode each.
 - B1 is driven by the carrier I/O controller (PA8, D68), with a **10 kΩ gate pull-up** so it runs at full duty while the controller is in reset, in its bootloader or blank (D75).
-- B2 is driven by ESP32 GPIO 45 (gate pull-down). **B2 is a fan port (D84):** JST-XH 4 (GND, fan-tap supply, tach, B2; D85, D92). It switches a 2- or 3-wire fan low-side or drives a 4-wire fan's PWM input as an open-drain output, and its tach reaches the carrier I/O controller's PA9 through a 1N4148WS (doc 04 §7a). On the hub and the combined roles B2 is the exhaust fan (D84, D85).
-- A footprint-only **0–10 V output stage** (D85, moved from fan A) filters GPIO 45's PWM into 0–10 V for a fan with an analogue input; it stays unpopulated until a fan, or R1, needs it.
+- B2 is driven by ESP32 GPIO 45 (gate pull-down). **B2 is a fan port (D84, D95):** the 6-pin port below, with the fan tap on pin 2 (D92). It switches a 2- or 3-wire fan low-side or drives a 4-wire fan's PWM input as an open-drain output, and its tach reaches the carrier I/O controller's PA9 through a 1N4148WS (doc 04 §7a). On the hub and the combined roles B2 is the exhaust fan (D84, D85). The footprint-only 0–10 V output stage (D85) is gone: it output 0 V, and so stopped the fan, whenever the hub was down (D95).
+
+**6-pin fan port (D95).** Fan A and B2 share one pinout (JST-XH 6, doc 04 §7a): **1 GND, 2 V+** (fan A: the bus through its high-side switch; B2: the fan tap), **3 TACH** (open-collector input, as above), **4 PWM** (open drain on a 60 V FET, ≈ 25 kHz, for a 4-wire fan), **5 REF** (the fan's own +10 V, in) and **6 CTRL** (10 kΩ pull-up to REF, pulled down by its own 2N7002 on the same GPIO as pin 4).
+- **Fails to full speed:** both FETs are off at reset and with the board unpowered, so CTRL sits at the fan's 10 V (100 % duty) and pin 4 floats to a 4-wire fan's pull-up. A mains EC fan on CTRL keeps running at full speed through a hub-supply failure too (F3).
+- **Jumpers:** **DC** puts an RC filter in the CTRL line for a fan that takes 0–10 V but not PWM; **STRONG** adds 1.5 kΩ to REF for an input that needs a stiffer pull-up [U: whether any fan needs it; it draws ≈ 7 mA, so leave it off a fan whose reference is rated ≈ 1 mA, such as the prioAir EC's]. PWM mode is the default: a 10 kΩ pull-up into a ≈ 100 kΩ input reaches only ≈ 9 V in DC mode [E], and a fan that accepts PWM on its 0–10 V line reads the duty, not the level.
+- **CTRL is not pin 4:** on B2, pin 4's flyback diode to the fan tap would drag a pulled-up line low with the board off.
+- **REF** feeds only the pull-ups, never the board.
+
+**B2 external jacks (D95).** In parallel with B2's XH 6, on the carrier edge, for one bought fan at a time:
+
+| Jack | Part | Wiring | For |
+|---|---|---|---|
+| USB-C receptacle, labelled **"FAN 10 V"** | TYPE-C-31-M-12 class (C165948, 20 V rated) | VBUS → REF, D+ → CTRL, D− → TACH, GND; 5.1 kΩ on CC1 and CC2 | USB-C-shaped control ports: AC Infinity UIS (older 4-pin Molex ones through the maker's AC-ADP3 dongle), Vivosun [U: pinout from hobby projects, not from either maker] |
+| 3.5 mm TRRS | PJ-320A class (C2884926 or C3038674) | +10 V → REF, 0–10 V → CTRL, neutral → GND; no tach | TerraBloom ECMF series, on a plain male-to-male TRRS cable [U: contact mapping] |
+| 4-pole 3.5 mm pluggable terminal header | 15EDGRC class, push-in plug of the 15EDGKNH class (no screw terminal) | REF, CTRL, GND, TACH | Bare-lead EC fans (Fantech, ebm-papst: +10 V, 0–10 V, GND, tach) |
+
+A laptop or charger in the USB-C jack sees only Rd and supplies 5 V, which feeds just the pull-up. The ESD diodes on REF, CTRL and TACH at these jacks are rated above 10 V, not the 5 V class used elsewhere. The housing has an opening per jack with a printed snap-in blank and a label, and the fan USB-C sits well apart from the printer-link USB-C. **No RJ12:** brands' pinouts are unpublished and differ, and an RJ12 plug fits the RJ45 bus jack. Fan A has only its XH 6.
 
 **Output feeds (D57, D94).** Fan A and B1 take their 24 V from the bus through a **0.75 A hold, 1.5 A trip, 60 V** resettable fuse (2018L075/60GR class, C33977642), so a shorted lead opens it before the segment or injection limit trips and the rest of the chain stays up. A 5015 blower draws 0.18 A [V]; the PTC module's fan is [U] until R8. From D78 to D94 fan A and B1 had a two-leg feed, from the heater rail while it was live and from the bus otherwise; D94 put them back on the bus, since B2 no longer shares their fuse and a heating node's own supply feeds its bus. When every output on one fuse stops at once, the firmware raises an output-fault alert. On a node-heat the firmware keeps fan A and B1 off while no heater supply is live (D78, D94), and both off while the bus reads 30–34 V.
 
@@ -460,7 +476,8 @@ flowchart TB
 - AUX: JST-XH 5, smoke contact and an optional remote acknowledge button on the hub, or a UART printer link on a node (D48, D49).
 - Acknowledge button: on-board SMD tact switch on AUX B, pressed through a printed plunger (D49).
 - Bus: RJ45.
-- Signals: JST-XH 2.54 mm. Use **pre-crimped pigtails**, so no crimp tool is needed.
+- Signals: JST-XH 2.54 mm. Use **pre-crimped pigtails**, so no crimp tool is needed. Fan A and B2 are JST-XH 6 (D95).
+- B2 external fan jacks: USB-C "FAN 10 V", 3.5 mm TRRS and a 4-pole 3.5 mm pluggable terminal header with a push-in plug (D95, §2.2.7).
 - Sensor headers: JST-SH 1.0 mm 4-pin (Qwiic / STEMMA QT, D69), with bought pre-made cables.
 - USB: USB-C receptacle, data only (D72).
 - LAN: 2 × 5 2.54 mm female socket for a W5500 module (D72).
@@ -573,7 +590,7 @@ By default the heater runs from **its own printer's internal 24 V supply**. An *
 | Low flow (D32) | **Printed thermistor anemometer** in the venturi throat (doc 06 §4.4, doc 08 C18): a heated NTC on a small resistor heater (output B1) and a reference NTC at the venturi inlet, on the hub's NTC inputs. Covers ~0.5–15 CFM, where the venturi can't |
 | Pressure calibration | Static auto-zero of all six pressure sensors, coordinated by the hub (doc 06 §4.1) |
 | Room air | Sensor head (SHT40 + ENS160) |
-| Fan | Exhaust on the **B2 fan port** (D85, doc 04 §7a), powered from the fan tap (D92). A fan on its own mains uses only B2's control pins. Supported fans in §6 |
+| Fan | Exhaust on the **B2 fan port** (D85, doc 04 §7a), powered from the fan tap (D92). A fan on its own mains uses only B2's control pins, or one of B2's external jacks (D95). From ≈ 9 printers, a second fan in series on **fan A**, on its own brick (D95). Supported fans in §6 |
 | Panel | 1–2 WS2812 behind a printed light pipe (LED1), a **5 V active buzzer module** on the servo header (D85), an **acknowledge button** (the carrier's on-board tact switch on AUX B, pressed through a captive plunger in the C9 front panel, D49), and an optional 0.96″ I²C OLED on its own sensor header (header 4, D48) |
 | Smoke input | Dry-contact input for an optional relay-output smoke detector |
 | Enclosure | Printed, wall-mounted, holding the carrier, with the brick outside it (D92). With an internal supply it also holds the supply and inlet, with vents (doc 08 C9) |
@@ -589,15 +606,22 @@ The framework sets what an exhaust fan must do and lists products known to quali
 | FN-1 | Placement | At the outlet end of the run, downstream of the filter, so all indoor duct is below room pressure | D6 |
 | FN-2 | Operating point | **≥ 50 CFM at ≥ ≈ 250 Pa (1.0 inH₂O)** at full speed, read off the maker's P–Q curve. Long or bendy runs (≈ 330 Pa budget): **≥ 50 CFM at ≥ ≈ 330 Pa (1.33 inH₂O)** | D88 |
 | FN-3 | Screening without a P–Q curve | Shut-off pressure **≥ ≈ 1.4 inH₂O (≈ 350 Pa)** for a 120 × 38 mm axial fan (it keeps only ≈ 70–77 % of shut-off at 50 CFM [V: two maker P–Q curves]); otherwise measure before relying on it. Speed and current alone don't predict it | D88 |
-| FN-4 | Duct connection | 4″ (100 mm), directly or through a printed adapter | doc 06 §2 |
-| FN-5 | Control input | **4-wire PWM** (PWM on pin 4 of B2) or **0–10 V** (B2's 0–10 V stage). On/off-only fans are not supported | D85 |
-| FN-6 | No-signal behaviour | **Runs at full speed with the control signal absent or the hub silent** (a 4-wire PWM fan does this by its standard) | F3 |
-| FN-7 | Feedback | Tach or a health output, read on B2 (doc 04 §7a), where the fan has one | D84 |
+| FN-4 | Duct connection | 4″ (100 mm) on 4″ duct (1–4 printers); 6″ (150 mm) on the 6″ kit (5–15 printers); directly or through a printed adapter | doc 06 §2, D95 |
+| FN-5 | Control input | **4-wire PWM** (pin 4 of the fan port), or a **0–10 V or 10 V PWM input with the fan's own +10 V reference** (pins 5 and 6, or one of B2's external jacks). On/off-only fans, and 0–10 V inputs with no reference output, are not supported | D85, D95 |
+| FN-6 | No-signal behaviour | **Runs at full speed with the control signal absent or the hub silent** (a 4-wire PWM fan does this by its standard; an EC fan on CTRL does it from its own reference, even with the hub unpowered) | F3, D95 |
+| FN-7 | Feedback | Tach or a health output, open collector or push-pull up to its reference voltage, read on pin 3 (doc 04 §7a), where the fan has one; pulses per revolution set in config | D84, D95 |
 | FN-8a | Power, board-powered | **24 V** from the fan tap: running current **≤ ≈ 2.2 A (≈ 50 W) at full speed**, starting current inside the tap eFuse's **≈ 2.7 A** limit. A 12 V fan runs only through an inline 24 → 12 V adapter that passes PWM and tach and limits a short | D86, D87, D91 |
 | FN-8b | Power, own supply | Any mains or separate supply, with B2 pin 2 not connected. Keeps running through a hub-supply failure | D85, doc 05 §2 |
 | FN-9 | Noise | Should run at or below the printers' own noise at bleed speed; full speed is used only during a purge | P-6 |
+| FN-10 | Second fan (9–15 printers) | A 4-wire PWM fan meeting FN-2, in series with the main fan downstream of the filter, on **fan A** of the hub, from its **own 24 V brick** through a passive adapter (pin 2 not connected); or a 6″ mains EC fan in place of the pair | D95, doc 06 §2 |
 
-A fan with a proprietary controller qualifies only once its control port is mapped to FN-5 through an adapter on B2 and FN-6 is shown on the bench.
+A fan with a proprietary controller qualifies only once its control port is mapped to FN-5, through one of B2's jacks or an adapter, and FN-6 is shown on the bench.
+
+**How bought fans connect (D95).** Three wiring families cover the fans checked:
+- **4-wire PWM** (120 mm and similar): GND, V+, tach (open collector, 2 pulses/rev), PWM (21–28 kHz, pulled up in the fan to ≤ 5.25 V, full speed when open) [V: Intel 4-wire specification as quoted in Noctua's PWM white paper]. Pins 1–4.
+- **HVAC EC with a 0–10 V input** (Fantech prioAir EC and FG EC; ebm-papst uses the same colours): red +10 V out (1.1 mA, isolated), yellow "0…10V or PWM" in (isolated), blue GND, white tach (open collector, 1 pulse/rev, 10 mA) [V: Fantech prioAir IOM]. Red joined to yellow is the maker's maximum-speed hookup. Bare leads to B2's 4-pole terminal header, or to pins 1, 3, 5 and 6.
+- **Grow-room EC with a USB-C-shaped port** (AC Infinity UIS, Vivosun): VBUS +10 V from the fan, D+ PWM (pulled down against the fan's 10 V), D− tach (2–3 pulses/rev) [U: two hobby projects, not the makers]. B2's USB-C jack. TerraBloom's ECMF series uses a TRRS socket (+10 V, 0–10 V, neutral) and runs at 100 % with its controller unplugged [V: maker listing; U: contact mapping]. RJ12-port fans (Spider Farmer, Mars Hydro, TrolMaster controllers) have unpublished pinouts and need an adapter proven on the bench.
+- **Shared ground:** pin 1 ties the fan's control GND to the board's, so the control side must be isolated from mains (SELV) [V: isolated on the prioAir EC; U: grow-room fans, to check on the bench with the mains plug in before connecting].
 
 ### 6.2 Qualifying examples
 
@@ -609,11 +633,13 @@ These products were checked against §6.1, with the evidence shown; only a **Yes
 | Industrial | [U] running current, P–Q curve | 24 V 120 × 38 mm 4-wire PWM fan: Delta PFB1224SE / PFB1224HE class (≈ $46–51) [U: running current] | Fan tap (≤ ≈ 2.2 A) | More pressure than the budget class; the same adapter |
 | High pressure | **Yes** on paper, with margin; measure the starting current (FN-8a) | 24 V 120 × 38 mm 4-wire PWM fan: Jentech JC12038B24UC2 class (270 CFM, 1.97 inH₂O shut-off, ≈ 380 Pa at 50 CFM, 1.63 A typ, 1.80 A max) [V: maker datasheet and P–Q curve; U: starting current, sourcing] | Fan tap | Meets the requirement with margin (≈ 55–85 CFM delivered, D88 [E]), so it runs well below full speed and quieter in normal use. **Measure** its starting and full-speed current on samples (D87) |
 | 12 V | [U] no P–Q curve; below the FN-3 screen | 12 V 120 × 38 mm 4-wire PWM fan meeting the same operating point (Wathai 12038 class, 1.17 inH₂O shut-off, 2.0 A, below the 1.4 inH₂O screen) [U: retailer listing, no P–Q curve], through an **inline 24 → 12 V adapter** | Fan tap | Off the board (D86). The adapter passes PWM and tach through and limits a short on its output |
-| Quiet | [U] 334 Pa and FN-6 to bench-check | 4″ EC inline fan on its own mains with an external PWM or 0–10 V input: TerraBloom ECMF-100 class (≈ $78) [U: 334 Pa, and its speed with no signal] | Pin 2 not connected | PWM on pin 4, or the 0–10 V stage. **Bench-check F3** (full speed with the signal removed) before relying on it |
+| 6″ mains EC (quiet, own mains) | **Yes** on paper, with margin; 6″ kit (FN-4) | Fantech **prioAir 6 EC** (published curve to 1.0″: 261 CFM at 249 Pa; ≈ 434 / 395 / 355 Pa at 50 / 100 / 150 CFM; ≈ $274 list) [V: maker catalogue]; Fantech **FG 6M EC** / FGC 6M EC with a cord (1.92 inH₂O shut-off; ≈ 432 / 386 / 326 Pa) [V: maker catalogue] | Pin 2 not connected | CTRL from the fan's own +10 V, through B2's terminal header; full speed with the hub down (FN-6) [V: IOM wiring]. Alone in the 6″ kit it beats one high-pressure 120 mm fan by ≈ 25–30 CFM; with one in series it is the strongest pair modelled (D95 [E]) |
+| 6″ grow EC | [U] curve shape, port pinout, FN-6 | AC Infinity **Cloudline T6** class (503 Pa rated; ≈ 459 / 415 / 362 Pa at 50 / 100 / 150 CFM with the FG curve shape assumed) [U] | Pin 2 not connected | B2's USB-C jack. Bench-check the pinout and F3 (full speed with the cable at the jack and the hub off) before relying on it |
+| 4″ EC inline (bleed and cooling only) | Marginal: ≈ 250 Pa at 50 CFM [E] leaves nothing for leakage at a loaded filter | TerraBloom **ECMF-100** class (≈ 150 CFM, 334 Pa rated, ≈ $78; ≈ 254 / 136 Pa at 50 / 100 CFM, FG curve shape assumed) [U]; AC Infinity **Cloudline S4** class (205 CFM, 223 Pa rated; ≈ 185 / 135 Pa) [U], below FN-2 | Pin 2 not connected | B2's TRRS or USB-C jack. Neither holds a 50 CFM purge through a filter at its alert, even at four printers (D95 [E]); the airflow budget's 20 CFM purge floor helps, but a high-pressure 120 mm fan does better for a fraction of the cost |
 
 FN-2 covers a typical run (≈ 15 ft of 4″ semi-rigid duct, five bends, the makeup inlet, the filter at its +60 % alert, the venturi and the hood) [E].
 
-Not suitable: 120 × 25 mm case fans (well under 1 inH₂O [E]), and on/off fans with no PWM input, which stop when the board goes silent. On the hub, a fan on 24V stops if the hub supply fails (doc 05 §4); one on its own mains doesn't.
+Not suitable: 120 × 25 mm case fans (well under 1 inH₂O [E]), on/off fans with no PWM input, which stop when the board goes silent, and a 0–10 V input with no reference output, which reads 0 V when the hub is down. On the hub, a fan on 24V stops if the hub supply fails (doc 05 §4); one on its own mains doesn't.
 
 ## 7. Mains-cut smart plugs (D14)
 

@@ -86,7 +86,7 @@
 | ID | Requirement | From | Met by | Verified by |
 |---|---|---|---|---|
 | M-1 | Duct 4″ throughout; every joint gasketed; total duct leakage < 0.5 CFM | — | D34; doc 06 §1.1, §2 | Duct leak test M10 |
-| M-2 | The exhaust fan shall meet doc 02 §6.1 (FN-1…FN-9): ≥ 50 CFM at ≥ ≈ 250 Pa at full speed (≥ ≈ 330 Pa on long runs), 4″ connection, 4-wire PWM or 0–10 V control, full speed with no signal, and on the board's fan tap 24 V at ≤ ≈ 2.2 A running and a start inside ≈ 2.7 A. The framework lists qualifying products; each build chooses one | — | D85–D88, D91; doc 02 §6 | Flow measurement (doc 06 §10); test 7 |
+| M-2 | The exhaust fan shall meet doc 02 §6.1 (FN-1…FN-10): ≥ 50 CFM at ≥ ≈ 250 Pa at full speed (≥ ≈ 330 Pa on long runs), 4″ connection (6″ with the 6″ kit), 4-wire PWM control or a 0–10 V / 10 V PWM input pulled up from the fan's own +10 V reference, full speed with no signal, a second fan in series from ≈ 9 printers (FN-10), and on the board's fan tap 24 V at ≤ ≈ 2.2 A running and a start inside ≈ 2.7 A. The framework lists qualifying products; each build chooses one | — | D85–D88, D91, D95; doc 02 §6 | Flow measurement (doc 06 §10); test 7 |
 | M-3 | Bleed shall cost little heat and noise: 1–3 CFM per printer at −3 Pa | P-6 | D7; doc 06 §2, §7 | Commissioning ΔP and flow |
 | M-4 | Each printer shall meet the core at one standard interface: a port adapter to the damper's bayonet port, with the node housing on the damper outside the frame | — | D19, D34; doc 12 §5 | Pack review |
 | M-5 | A chamber with a makeup inlet shall take its makeup air low and exhaust high; a gravity or spring flap shall close the inlet when the chamber isn't drawn | — | D89, D90; doc 06 §1 | Crack test where fitted (doc 06 §5.2) |

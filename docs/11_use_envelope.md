@@ -19,8 +19,8 @@
 | Node heater power | 150 W PTC | doc 02 §3 | A chamber that loses more than ≈ 150 W + bed heat at the cap won't reach it: seal and insulate (D7, doc 06 §7) |
 | Printer USB lead | ≤ 1.5 m, no VBUS | doc 04 §5 | Use the network link instead |
 | Heater lead | 14 AWG ≤ 1.5 m when the heater shares the USB ground | R11 | Fit a USB isolator, or keep the ground share under test 9's 0.3 A |
-| Duct | 4″ throughout, fan at the outlet | D6, doc 06 §2 | A fan inside the room would put duct above room pressure: not supported |
-| Exhaust fan | ≥ 50 CFM at ≥ ≈ 250 Pa; PWM or 0–10 V; full speed with no signal; ≤ ≈ 2.2 A at 24 V on the fan tap, or its own supply | D88, D91, F3 | Not a supported exhaust fan (doc 02 §6.1) |
+| Duct | 4″ branches; 4″ trunk for 1–4 printers, the 6″ kit (6″ trunk, two stacked cartridges, 65 mm venturi throat, 6″ hood) for 5–15; fan at the outlet | D6, D95, doc 06 §2 | A fan inside the room would put duct above room pressure: not supported |
+| Exhaust fan | ≥ 50 CFM at ≥ ≈ 250 Pa; 4-wire PWM, or a 0–10 V / 10 V PWM input with the fan's own +10 V reference; full speed with no signal; ≤ ≈ 2.2 A at 24 V on the fan tap, or its own supply. From ≈ 9 printers, a second fan in series on fan A, or a 6″ mains EC fan | D88, D91, D95, F3 | Not a supported exhaust fan (doc 02 §6.1) |
 | Indoor recirculation | None; the exhaust always leaves the building | D6 | Not supported |
 | Printer enclosure | Built in, or a kit that can be sealed to ≈ 2 cm² of open gap | D7, doc 06 §7 | An open-frame printer has no chamber to hold at −3 Pa: not supported |
 | Mains cut | One metering smart plug per printer, alone on that plug | D14 | A shared plug cuts every printer on it and blurs Tier 0 print detection |
@@ -59,9 +59,9 @@ flowchart TB
 **Edge shown:** at ≈ 2 W idle per node [E] plus ≈ 10 W for one node's alarm peak [E], the hub's first segment reaches its ≈ 36 W at about 13 nodes. A 24 V brick on an ordinary outlet at a mid-chain node (BAR injection, D13) splits the chain into two halves that each stay well inside the limit. Test 16 confirms the shares (doc 05 §9).
 
 Other edges at fifteen printers [E]:
-- **Bleed adds up:** 15 × 1–3 CFM is 15–45 CFM of bleed, plus one purge of 40–60 CFM, so the fan works at up to ≈ 100 CFM against the filter. Check the fan's P–Q curve at that flow, not only at D88's single-purge point.
+- **Bleed adds up:** 15 × 1–3 CFM is 15–45 CFM of bleed, plus one purge of 20–60 CFM and any cooling, so the fans work at ≈ 100–180 CFM against the filter. That is why this size takes the 6″ kit and a second fan (doc 06 §2, D95), and the airflow budget lowers the purge toward 20 CFM before it caps cooling (doc 06 §4.5).
 - **Purges queue:** if many long purges end together (10–30 min each for ABS), the last one may wait hours. Containment holds while it waits (−3 Pa), but "safe to open" is late.
-- **Duct:** 100 CFM in a 4″ trunk is ≈ 1 150 fpm, louder than the residential range of doc 06 §2.
+- **Duct:** 100 CFM in a 4″ trunk would be ≈ 1 150 fpm; in the 6″ kit's trunk it is ≈ 510 fpm, and ≈ 940 fpm at two fans' ≈ 185 CFM, which is reached only while cooling and a purge overlap.
 
 ### 2.3 A node with no cable
 

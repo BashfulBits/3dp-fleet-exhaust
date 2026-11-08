@@ -263,7 +263,7 @@ CAN 2.0A, 125 kbit/s. `n` = node ID 1–15: each message type has a block of 16 
 | ID | Direction | Rate | Content |
 |---|---|---|---|
 | 0x080 | Hub → all | On event | **Fire / emergency**: affected node, action (close damper, heater off) |
-| 0x100 | Hub → all | 1 Hz | Hub heartbeat: trunk-active flag, trunk ΔP, fan state, purge-token holder, **`ZERO_WINDOW_OPEN` flag** (doc 06 §4.1), hub fault flags |
+| 0x100 | Hub → all | 1 Hz | Hub heartbeat: trunk-active flag, trunk ΔP, fan state, purge-token holder, **airflow budget** (purge allowance and cooling cap, only while the fan is at full speed; doc 06 §4.5, D95), **`ZERO_WINDOW_OPEN` flag** (doc 06 §4.1), hub fault flags |
 | 0x110+n | Node → hub | 1 Hz | Node heartbeat: role, state, chamber temp, ΔP, damper (commanded and measured), heater %, door, zero status (accepted / rejected / stale), fault flags |
 | 0x120+n | Node → hub | On change | Detail: RH, VOC raw, mode, purge state, link state, **plug state / power / health** (`shelly_node` or `tasmota_node` backend) |
 | 0x130+n | Node → hub | On event | Requests: trunk on/off, `PURGE_REQUEST`/`PURGE_RELEASE`, **`HEATER_RUNAWAY`** (RW-a, doc 05 §3.4: the hub cuts that printer's Shelly) |
