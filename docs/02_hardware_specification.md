@@ -50,38 +50,110 @@ Quantities are for a fleet of **N printers**, H of them node-heat (one heater ea
 
 ### 2.2 Functional blocks and role population
 
-Power and signal flow on the carrier (all roles). **Since D47 every carrier is assembled with the same parts**; the columns below say what each role *uses*, and the only per-board differences are shunt positions (the role, TERM and the NTC ranges; the INJECT jumpers went in D94).
+**Since D47 every carrier is assembled with the same parts**, so one board serves any role and the spare stands in for any of them. The only per-board settings are shunts: the role header, TERM and the two RANGE shunts. There are no power jumpers (D94). This section shows how the blocks connect, which blocks each role uses, and then each block in turn: what it is for, how it works, and the parts and ratings that implement it.
 
-**Power path:**
+**Top level.** Solid arrows carry power; dashed arrows carry signals. Numbers are the subsections below.
+
+```mermaid
+%%{init: {'flowchart': {'nodeSpacing': 15, 'rankSpacing': 35, 'padding': 6}}}%%
+flowchart TB
+  P1["1 · Power<br>inputs"] --> P2["2 · Bus injection<br>+ fan tap"]
+  P1 --> H["6 · Heater<br>stage"]
+  P2 --> BUS(("24 V<br>bus"))
+  J["3 · Fleet jacks"] <--> BUS
+  BUS --> R["4 · Logic<br>rails"]
+  BUS --> O["7 · Outputs"]
+  P2 -->|"fan tap"| O
+  R --> C["5 · ESP32 +<br>I/O controller"]
+  C -.-> H
+  C -.-> O
+  C <-.-> J
+  S["8 · Sensing"] -.-> C
+  I["9 · Identity,<br>indicators"] <-.-> C
+```
+
+**What each role uses.** The combined roles (C-HEAT, C-LITE) use their node column, plus the hub's exhaust fan on B2 and the buzzer on the servo header (D84, D85).
+
+| Block | Node-heat | Node-lite | Hub |
+|---|---|---|---|
+| 1 Power inputs | Heater supply: the printer's supply tap or a brick; a logic brick on POWER IN is optional | POWER IN brick, or none if the bus powers it; **required on a wireless-only node** (doc 07 §6.4) | A brick in either barrel, or an internal supply on the XT60 |
+| 2 Bus injection | Injects from its heater supply | Injects from POWER IN, if fitted | **The hub's only path onto the bus** |
+| 3 Fleet jacks | IN and OUT | IN and OUT | OUT only (IN fitted, unused) |
+| 4 Logic rails | ✓ | ✓ | ✓ |
+| 5 Controllers, ports | LAN socket empty unless the link is wired | Same | W5500 module fitted |
+| 6 Heater stage | ✓ | Fitted, held off | Fitted, held off |
+| 7 Outputs | Fan A: recirculation fan if not built in; B1: recirculation blower where the pack fits one; B2 spare; servo: damper | Fan A, B1, B2 spare; servo: damper | Fan A spare; B1: anemometer heater (D32); B2: **exhaust fan** (D85); servo header: **buzzer** |
+| 8 Sensing | NTCs: chamber air and heater housing, both RANGE shunts on; headers 1 sensor head, 2 damper encoder, 4 optional OLED; door reed; AUX spare or UART link | NTCs spare; headers 1, 2, 4; door optional; AUX spare or UART link | NTCs: low-flow anemometer, RANGE shunts off; headers 1 room sensor head, 2 trunk pressure, 3 trunk flow, 4 optional OLED; AUX A smoke contact, B acknowledge button |
+| 9 Identity, indicators | Role shunt HEAT | LITE | HUB |
+
+#### 2.2.1 Power inputs and supply selection (D22, D64, D66, D94)
+
+**Goal.** Accept whatever supplies a role needs, a heater supply and a logic supply, with nothing to configure. No supply may ever feed another; in particular a brick must never keep the printer's supply or the heater live after the printer's mains cut. When a logic supply is present it, not the printer's supply, carries the board and the exhaust fan.
+
+**How it works.** The board has two power nodes:
+- The **heater rail** feeds the heater stage. It is fed by one of three heater sockets: the internal XT60 (the printer's supply tap, or an internal supply) or a brick in the HEATER DIN or HEATER barrel jack.
+- The **board supply** feeds everything else through bus injection (§2.2.2). It is fed by POWER IN and, as a fallback, by the heater rail.
+
+Every input enters through its own **ideal diode**: a MOSFET that a controller turns on for forward current and off for reverse current, dropping ≈ 0.02–0.03 V where a Schottky diode would drop ≈ 0.5 V. So any mix of supplies can be connected and none back-feeds another. A **preference switch** takes the heater rail off the board supply while POWER IN is live. The rule on every board is: **a live POWER IN powers the board; otherwise the heater rail does.** POWER IN never reaches the heater rail, so a logic brick can sit on an ordinary outlet and keep the node up when its printer's plug is cut. Voltage senses on the tap side, the jack side and POWER IN let the firmware catch two heater supplies at once and a wrong supply voltage.
 
 ```mermaid
 %%{init: {'flowchart': {'nodeSpacing': 20, 'padding': 8}}}%%
 flowchart TB
-  XT["Internal XT60:<br>printer tap or<br>internal supply"]
-  HJ["HEATER DIN or<br>barrel (one open)"]
-  PIN["POWER IN<br>5.5 × 2.1 mm"]
-  XT -->|"ideal diode"| HR(("Heater rail<br>→ heater<br>stage"))
-  HJ -->|"ideal diode"| HR
-  HR -->|"P-FET (off while<br>POWER IN is live)<br>+ ideal diode"| SUP(("Board<br>supply"))
-  PIN -->|"ideal diode"| SUP
-  SUP --> GD["Input guard<br>off above 34 V"]
-  GD --> EF["Bus eFuse 1.5 A,<br>OVP ≈ 30 V,<br>reverse blocking"]
-  GD --> TE["Fan-tap eFuse<br>≈ 2.7 A (D91)"]
-  TE --> B2P["B2 pin 2:<br>exhaust fan"]
-  PROT["IN RJ45: polyfuse,<br>TVS, guard ≈ 34 V"] --> BUS(("24 V<br>bus"))
-  EF --> BUS
-  BUS --> OUTS["Detect-before-<br>power → OUT"]
-  BUS --> BK["Bucks: +5V_PWR,<br>+3V3"]
-  BUS -->|"0.75 A fuse"| FP["Fan A, B1"]
+  XT["Internal XT60:<br>printer tap or<br>internal supply"] -->|"tap ideal diode"| HR(("Heater<br>rail"))
+  HJ["HEATER DIN or<br>barrel (one open)"] -->|"jack ideal diode"| HR
+  HR --> HS["Heater stage<br>(§2.2.6)"]
+  HR --> PF["Preference P-FET:<br>off while POWER IN<br>is above ≈ 20 V"]
+  PF -->|"ideal diode"| SUP(("Board<br>supply"))
+  PIN["POWER IN<br>5.5 × 2.1 mm"] -->|"ideal diode"| SUP
+  PIN -.->|"CJ431 sense"| PF
+  SUP --> NX["Bus injection<br>(§2.2.2)"]
 ```
 
-**Every line is copper that is always connected: there are no jumpers on the power path (D94).** Each label names the part the power passes through. Every ideal diode blocks reverse current, so any mix of supplies can be connected and none back-feeds another; the highest supply on each node carries it.
-- **Heater rail:** three inputs, normally one in use: the internal XT60, the HEATER DIN jack or the HEATER barrel jack (D64; a shutter on the housing leaves one jack open). The XT60 and the jacks each pass through their own ideal diode, so a brick in a jack can never feed the printer's supply, and the tap and jack sides are each read directly, which is the two-supply check (below). Only the heater rail feeds the heater.
-- **Board supply:** the heater rail and POWER IN each feed it through their own ideal diode. A P-FET in the heater-rail leg turns off while POWER IN is above ≈ 20 V, so **a live POWER IN powers the board, and otherwise the heater rail does** (D94). On a combined board the logic brick on POWER IN then carries the logic and the exhaust fan, and the printer's supply only heats. The board's logic always runs from the bus rail.
-- **Fan tap:** leaves the board supply after the input guard, ahead of the bus eFuse, so the exhaust fan on B2 (D92) never counts against the eFuse or the CAT6 segment.
-- **Fan A and B1:** from the bus through one 0.75 A fuse (D94; a two-leg feed from the heater rail and the bus in D78).
+**Which supply carries what, by setup (D94):**
+- **Hub:** a brick in either barrel (HEATER or POWER IN), or a supply on the XT60. Whichever is live powers the board; the hub's heater stage stays off.
+- **Combined-heat or combined-lite board:** its POWER IN brick carries the logic and the exhaust fan; the heater rail only heats.
+- **Wired node-heat:** its heater supply powers the board, or a logic brick does if one is fitted.
+- **Wireless node-heat:** its logic brick powers the board.
 
-**Supply senses (D64, D93, D94):** what the ESP32 and the carrier I/O controller read on the power path. GPIO 37 low (its reset state) grounds the POWER IN divider through Q2 and lets GPIO 7 read the XT60 side; high grounds the XT60 divider through Q1 and lets GPIO 7 read POWER IN. So POWER IN is sampled for ≈ 1 ms at a time (D93). GPIO 37 no longer switches the tap ideal diode, which is always on (D94). GPIO 5 reads the jack side of the jack ideal diode.
+Apart from the two-supply check, the board doesn't need to know which supply feeds the heater: the heater is limited by the node's `heater_power` and a learned supply cap (doc 05 §3.3, D64). This makes the supply a choice at install time, not a design change.
+
+**Heater sockets (D64, D66).** Three sockets, one in use, joined to the heater rail by copper pours:
+- **Internal XT60**, inside the housing: the printer's supply tap or an upgraded internal supply on a node, or an internal hub supply in the hub enclosure. Plugged in with the cover off.
+- **HEATER DIN:** a board-mount right-angle 4-pin power DIN jack (*GlobTek JACKPWRDIN4LS*, ≈ $1.15 at DigiKey, −20 to 50 °C; or *Kycon KPJX-4S-S*, C2875467, −40 to 75 °C). Both are rated 7.5 A and mate the KPPX-4P plug of the Mean Well -R7B bricks [V] [V: Mean Well GST160A spec, R7B plug: pins 1 and 4 +V, pins 2 and 3 −V]. The footprint is on every board; the jack is hand-soldered only where a DIN brick is used, since JLC stocks neither part.
+- **HEATER barrel:** board-mount right-angle 5.5 × 2.5 mm, 15 A, 30 V (*G-Switch DC-S007B-D025-15A*, C7464909, D66), mid-mount in a 9.8 mm notch at the board edge. JLC-fitted on every board, for a full-power barrel brick.
+- The two HEATER jacks sit side by side on the outside face under a printed **shutter** (doc 08 C21) that leaves only one open and covers both when the tap is used. Unused openings take a printed blanking plug (doc 08 C15).
+
+**POWER IN** (labelled LOGIC 24 V): a **5.5 × 2.1 mm** barrel jack (*XKB DC-005-5A-2.0*, C381116, 5 A, D66) on the outside face, so a logic plug can't enter the HEATER barrel. It takes a logic brick or a PoE splitter (D18), for **logic and bus injection only**.
+
+**Tap and jack ideal diodes (D64, D94).**
+- The internal XT60 reaches the heater rail through one ideal diode (*MX74700T* controller + *SP40N05GNJ* N-FET, ≈ $0.62, ≈ 20–30 mV at the heater current [E]). If a tap and a brick in an open jack are ever connected together, the brick can't back-feed the printer's 24 V rail after its plug is cut, which would defeat the mains cut.
+- The MX74700T's EN is tied to its anode, so the diode is always on (D94). From D64 to D94 a 2N7002 on GPIO 37 could turn it off, but a disabled ideal diode still conducts forward through its FET's body diode.
+- The two jacks reach the rail through a second ideal diode (the same MX74700T + SP40N05GNJ, D94; direct before). Its FET only ever sees the tap's voltage in reverse.
+
+**Board-supply ideal diodes (D80, D91, D94).** The heater rail (since D80; through the INJECT INT jumper until D94) and POWER IN (since D91; INJECT BAR until D94) each reach the board supply through an ideal diode (MX74700T + SP60N12GNJ, ≈ 0.02–0.03 V at 1 A [E]), always connected. The MX74700T's 75 V cathode–anode rating covers a wrong 48–57 V brick on one input reverse-biasing the other. Until D94 the XT60 side of the tap diode also had an SS56 leg into INJECT INT; it went because the tap diode is now never switched off.
+
+**Preference switch (D94).** Without it, the higher of the two supplies would carry the board, its share of the chain and the board-powered exhaust fan, by a few tens of millivolts, and bricks aren't trimmed (D79). On a combined-heat board that could put the fan (35–50 W) and the logic on the printer's supply or the heater brick, depending on tolerances.
+- An **S40P06F** P-FET sits in series with the heater-rail leg, source on the heater rail, so its body diode opposes the ideal diode FET's and the pair blocks both ways.
+- Its gate is pulled down through 47 kΩ with a 12 V gate–source zener, so it is on by default.
+- A **CJ431** reads POWER IN, ahead of its ideal diode, through a divider set for **≈ 20 V** [E: values at schematic time]. Above that it sinks an **MMBT3906**'s base, and the PNP pulls the gate to the source, turning the FET off. These are the IN guard's parts (D56, D57).
+- 20 V sits above the eFuse turn-on point (≤ ≈ 18 V), so if a logic brick fails the heater rail takes over before the bus drops [U: bench check with the fan at full, test 35].
+- The FET drops ≈ 0.03 V at 1 A and dissipates ≈ 0.6 W at 4.2 A hot (34 mΩ at 85 °C [E]), so its drain pad gets copper.
+- Faults: stuck off, and a board fed only from a heater input doesn't start (seen at commissioning; a node on the bus still runs and heats). Stuck on, and the board is back to sharing by voltage, an equipment risk only.
+
+**Two-supply check (D94).** The tap side and the jack side both reading above ≈ 18 V means a tap and a brick are connected together, at any voltages: the node refuses to heat, or stops, and alerts "two heater supplies connected, remove one". It is a continuous reading, with no heater pulse and nothing switched off. The heater rail is live when either side reads live. (From D64 to D94 the check turned the tap diode off and pulsed the heater, which missed a brick more than ≈ 1 V below the tap, since the tap kept feeding the rail through the body diode.)
+
+**Wrong supply on a heater input (D57).** A wrong brick (48–57 V) on any heater input reaches the heater rail.
+- A second copy of the guard comparator (CJ431, 33 V cathode zener, MMBT3906) on the rail breaks the hardware enable chain above **≈ 34 V** (§2.2.6), and the high-side switch is rated 60 V. With it off, the heater and the low-side FET see only leakage current, so their 40 V ratings hold.
+- The tap ideal diode's 40 V N-FET sees at most ≈ 33 V in reverse (a 57 V brick in a jack against a live tap), and the jack diode's FET the tap's voltage [V: MX74700T datasheet: CATHODE to ANODE −5 to 75 V, ANODE to GND ±100 V]. [U: a 57 V brick in a jack with no tap puts ≈ 57 V across the tap FET in reverse, above its 40 V; check at schematic time whether that needs a 60 V FET there.]
+- Heater-rail capacitors are rated ≥ 63 V, and the tap- and jack-side dividers' top resistors are ≥ 100 kΩ, so 57 V stays inside the ADC pin's injection limit.
+- The firmware alerts "wrong supply on heater input" whenever either side reads above 30 V.
+- Fan A and B1 run from the bus, behind the input guard, so the comparator no longer has to hold them off (D94; it did from D78).
+
+**Supply senses (D64, D75, D93, D94).** What the ESP32 reads on the power path, all on its **ADC1** (D75):
+- **GPIO 5: the jack side** of the jack ideal diode (D94; the heater rail before), through a **100 kΩ / 9.1 kΩ** divider with 100 nF at the pin, ≈ 2.8 V at 34 V, inside the 12 dB range [E].
+- **GPIO 7: the tap side (D64) or POWER IN (D93)**, selected by GPIO 37. Each has its own **100 kΩ / 27 kΩ** divider with 100 nF and 47 kΩ to the pin (≈ 2.9 V at 34 V [E]). A 2N7002 grounds the one not selected, and a third inverts GPIO 37 for the POWER IN one. GPIO 37 low (its reset state) grounds the POWER IN divider through Q2 and reads the tap side; high grounds the tap divider through Q1 and reads POWER IN, so POWER IN is sampled for ≈ 1 ms at a time (D93). GPIO 37 no longer switches the tap ideal diode (D94).
+- The **bus voltage** and the **injection current** are read by the carrier I/O controller (§2.2.2).
+- These senses were on the controller from D47 to D75 and are back on the ESP32 since D75, so the rail throttle, the two-supply check and the supply-drop detection behind the learned supply cap (doc 05 §3.3, D64) keep working while the controller is silent. The tap- and jack-side readings are trimmed once against a meter at commissioning (doc 05 §9 test 8). The barrel heater-input sense went in D64.
 
 ```mermaid
 %%{init: {'flowchart': {'nodeSpacing': 20, 'padding': 8}}}%%
@@ -97,7 +169,127 @@ flowchart TB
   O["Also: jack side → 100 k / 9.1 k → GPIO 5<br>bus divider → PY32 PB0; eFuse IMON → PB1"]
 ```
 
-**Controller and I/O:**
+#### 2.2.2 Bus injection and fan tap (D13, D52, D61, D81, D91)
+
+**Goal.** Let the board's own supply power the board and feed the fleet bus for the nodes downstream, without letting one board's fault take down the chain. Each board's injection is limited to what a CAT6 segment can carry, never feeds back into its source, and refuses a wrong supply. The exhaust fan gets its own current path, so its ≈ 2 A never counts against the bus or the cable.
+
+**How it works.** The board supply passes an **input guard** that opens above ≈ 34 V, then splits:
+- the **bus eFuse** limits the current to ≈ 1.5 A, turns on above ≈ 18 V, cuts off above ≈ 30 V, and with its external FET blocks reverse current, so the bus (also fed from the IN jack, §2.2.3) can't back-feed the supply;
+- the **fan-tap eFuse** limits the exhaust fan's feed on B2 to ≈ 2.7 A.
+
+The eFuse's current monitor lets the firmware report each board's injected current and alert on an overloaded segment. Whatever supply is connected powers the board and feeds downstream nodes, with nothing to set (D94). See doc 04 §6a for how injection shares the chain.
+
+```mermaid
+%%{init: {'flowchart': {'nodeSpacing': 20, 'padding': 8}}}%%
+flowchart TB
+  SUP(("Board supply<br>(§2.2.1)")) --> GD["Input guard: P-FET,<br>off above ≈ 34 V"]
+  GD --> EF["Bus eFuse: ≈ 1.5 A,<br>on ≤ 18 V, off ≈ 30 V"]
+  EF --> RB["60 V reverse-<br>blocking N-FET"]
+  RB --> BUS(("24 V<br>bus"))
+  INJ["IN jack (§2.2.3)"] --> BUS
+  GD --> TE["Fan-tap eFuse<br>≈ 2.7 A"]
+  TE --> B2["B2 pin 2:<br>exhaust fan"]
+  EF -.->|"IMON"| PY["I/O controller<br>PB1"]
+  BUS -.->|"divider"| PY0["I/O controller<br>PB0"]
+```
+
+**Input guard (D52).** A 100 V P-FET between the input ideal diodes and the eFuse (the IN guard's XR20P10D since D60, so one part serves both; the XR15P06D from D56, RC3P06 class before), turned off by a CJ431 comparator above ≈ 34 V, with the IN guard's 33 V cathode zener (since D56; the threshold was ≈ 36 V, at the CJ431's 36 V cathode limit). A wrong supply on either input (a 48 V brick or passive PoE) therefore never holds the eFuse above its 40 V operating range. It carries the injection current and the fan tap: ≤ 1.5 A (≈ 0.4 W) without a board-powered fan, up to ≈ 4.2 A (≈ 1.1–1.3 W) on the hub at full fan and an alarm peak (D91), so its drain pad gets ≈ 1 in² of copper on both layers [E].
+
+**Bus eFuse.**
+- **MX26631DL** (C18197523, D52): TPS26631-compatible, 60 V absolute maximum, 40 V operating; the TI TPS26630/31 fit the same footprint. The TPS26632 is not a substitute: it has a fixed 35 V clamp in place of the adjustable cut-off.
+- **Reverse blocking:** an external **60 V N-FET** on its B_GATE/DRV pins (SP60N12GNJ since D80, HL2310A class before). With the input at 0 V it sees the full bus voltage, which the IN guard and the bus TVS hold at ≤ ≈ 40 V since D56, so 40 V would do; the 60 V part stays because it is the B1/B2 switch FET and adds no line (D58).
+- **Current limit:** one resistor sets **~1.5 A on every board** (D81; the value the hub's old ILIM pair gave, D47). That is the CAT6 segment allowance since D17, kept at 1.5 A so cheap CCA or Cat5 patch cables stay inside their rating (D21).
+- **Under-voltage turn-on ≤ ≈ 18 V** (D64): the EN/UVLO divider sits well below the lowest bus (≈ 22.4 V at a far node [E], doc 04 §6a), so injection doesn't cycle as a printer's rail sags.
+- **Over-voltage cut-off ≈ 30 V**, set by a divider on the OVP pin (1.21 V threshold; the part has no internal default).
+
+**Current monitor (D61).** The eFuse's IMON pin sources 27.9 µA per amp of output current (25.7–30.1 µA/A over 0.6–2 A [V]; not specified below 0.6 A [U]) into a **47 kΩ** resistor with a 100 nF filter capacitor: ≈ 1.3 V per amp, ≈ 2 V at 1.5 A, inside the pin's 4 V limit. The carrier I/O controller's ADC reads it (§2.4). The firmware reports each board's injected current in the bus telemetry (on the hub, the whole chain's draw from the hub supply) and alerts when it stays ≥ 90 % of the limit for 10 s, a partial short or an overloaded segment. A divider with a ≥ 100 kΩ top resistor on the bus rail gives the **bus voltage** on the same ADC (D64). It sets the drive voltage for fan A, B1 and the anemometer (doc 06 §4.4), each node's bus voltage and injected power (V × I) in the telemetry, and the hub's voltage in back-fed mode.
+
+**Fan tap (D85, D87, D91, D92).** A second branch after the input ideal diodes and the input guard, ahead of the bus eFuse, through its own **tap eFuse**, a second MX26631DL limited to **≈ 2.7 A** (D91; ≈ 2.3 A in D87, a 2 A polyfuse in D85), wired direct to B2's pin 2 (a FAN V jumper chose it or the bus in D85 and D86). The fan's current never crosses the bus eFuse or the CAT6, and a fan short stays on the tap. A 24 V fan here may draw up to ≈ 2.2 A, ≈ 50 W, at full speed. Pin 2 is live whenever the board has a supply of its own, so a fan or adapter with its own supply leaves it unconnected.
+
+#### 2.2.3 Fleet jacks: IN, OUT and CAN (D17, D52, D56, D57, D62, D63)
+
+**Goal.** Chain carriers with ordinary RJ45 patch cables that carry 24 V and CAN, and survive anything a person might plug into those jacks by mistake: Ethernet, a PoE switch or injector, a 48–57 V passive injector of either polarity. Each end of a cable should show whether it is connected the right way round.
+
+**How it works.**
+- **IN** takes power from upstream. A polyfuse, a TVS and a reverse clamp absorb faults. The **IN guard**, two P-FETs back to back, conducts both ways while the voltage is normal and blocks both ways above ≈ 34 V. It turns on slowly, so plugging a supply into IN charges the bus gently.
+- **OUT** stays at 0 V until it detects a fleet node on the far end (**detect-before-power**). It then switches the bus onto the jack through a current-limited switch that conducts both ways. A **presence loop** on pair 3 holds it on while the cable stays connected.
+- The **CAN transceiver** sits on pins 1/2 of both jacks, with bus pins rated ±58 V.
+- An LED beside each jack shows its state: IN link (the far end is an OUT) and OUT port-live.
+
+```mermaid
+%%{init: {'flowchart': {'nodeSpacing': 20, 'padding': 8}}}%%
+flowchart TB
+  INJ["IN RJ45"] --> PF["2 A polyfuse,<br>60 V"]
+  PF --> TV["SMBJ58CA TVS,<br>SS510B reverse clamp,<br>10 k signature"]
+  TV --> G["IN guard: back-to-back<br>P-FETs, off above ≈ 34 V,<br>slow turn-on"]
+  G --> BUS(("24 V bus<br>+ SMBJ33A"))
+  BUS --> SW["OUT switch: back-to-back<br>N-FETs, current limited"]
+  SW --> OUTJ["OUT RJ45"]
+  OUTJ -.->|"signature,<br>presence loop"| DET["Window comparator<br>+ latch"]
+  DET -.-> SW
+  CAN["CAN transceiver"] <-.->|"pins 1/2"| INJ
+  CAN <-.->|"pins 1/2"| OUTJ
+```
+
+**IN protection, in order from the jack (D51, D56):**
+- **2 A polyfuse rated 60 V** (2920L200/60GR class; 4 A trip).
+- **SMBJ58CA** bidirectional TVS (C19077592, Preferred): 58 V stand-off, breakdown ≥ 64.4 V, 93.6 V clamp at 6.41 A [V], so it stays off at a steady 48–57 V passive injector of either polarity.
+- **SS510B** reverse clamp to GND (C7420368, Preferred; 100 V, 5 A), so a negative spike stops at about −1 V.
+- The 10 kΩ node signature, as **two 4.99 kΩ 1206 resistors in series** (≤ 0.2 W each at 58 V).
+- The **IN guard**: two 100 V P-FETs back to back, sources joined (**XR20P10D** class, C50314136, PDFN 3 × 3, 60 mΩ typ / 75 mΩ max at V_GS −10 V, 20 A, since D60; the 60 V XR15P06D before), so it conducts both ways when on (D35) and blocks both ways when off. A CJ431 comparator on the joined sources turns it off above **≈ 34 V** (the D52 guard circuit): the divider feeds REF, and the cathode pulls the base of a PNP that shorts the gate to the source. The CJ431's cathode is rated only 36 V [V: VKA 36 V absolute maximum], and while it is off it sits near the rail, so a **33 V zener** across it (BZT52C33, C19077419, Preferred, 31.35–34.65 V, since D59; the MMSZ5257B is out of stock) holds it below 35 V. The zener also trips the guard on its own at ≈ 32–35 V. The 22 kΩ 1206 base resistor limits the current at a 93.6 V clamp to ≈ 3 mA. A 12 V gate–source zener holds V_GS inside its ±20 V rating.
+- **Slow turn-on:** a gate–drain capacitor on the bus-side FET sets a ramp of **≥ 20 ms per 470 µF** of bus capacitance, which keeps the charging current near **0.5 A** (≈ 12 W peak in the FET, inside its 10–100 ms SOA with margin for a board-mounted case [E: the XR20P10D SOA chart is at T_C = 25 °C]). A ramp of a few ms would put 4–8 A and 100–200 W into the FET.
+- On the bus side, the **SMBJ33A** (C19077586, Preferred) is the second stage.
+- Ratings: polyfuse 60 V, FETs and reverse clamp 100 V. The FETs' 100 V rating covers the TVS's 93.6 V clamp, so a spike up to the clamp no longer drives the bus-side FET into avalanche (D60; surge scope in §2.2.10).
+- Fitted on the hub too since D47, so its IN jack is never an unprotected path onto CAN, and a spare board can be any role. Before D56 nothing cut over-voltage on IN: a passive 48 V injector held the SMBJ33A in breakdown, a small brick never reached the polyfuse's 4 A trip, and the bus sat at the TVS's 42–45 V until the TVS failed. See doc 04 §3a.
+
+**OUT with detect-before-power (D17, D52, D57).** A window comparator and latch drive a bidirectional current-limited switch on +24 V, held on by the **presence loop** on pair 3: pins 3/6 are pulled up at the OUT jack and tied to GND through a resistor by the next node's IN jack (D63). The loop works whichever way current flows. OUT powers the jack only for a fleet node signature or a powered fleet segment, so a switch, laptop or PoE port sees 0 V. **Ratings (D57):** an **SMBJ58CA** on the jack's +24 V pins (as on IN); the switch's back-to-back N-FETs rated 60 V (SP60N12GNJ, C22466779, 16 mΩ max, ≈ 0.05 W each at 1.5 A hot, D80; HL2310A class before); the prober and window comparator reach the pins through a series resistor and clamp rated for 60 V. So a 48–57 V injector plugged into OUT is refused and damages nothing.
+
+**CAN transceiver (D17).** Fault-tolerant bus pins ±58 V (*candidate: TJA1051T/3 with 3.3 V VIO*), on the IN and OUT jacks for the daisy chain, so it survives Ethernet or PoE on pins 1/2. A **TERM jumper** (120 Ω 1 % in series with a 2-pin shunt) is fitted at the two chain ends (doc 04 §3).
+
+**Jack LEDs (D62, D63).**
+- **OUT port-live LED (D62):** one **blue side-view LED** (XL-1606UBC class, C965865, 120°, ≈ 260 mcd at 20 mA per its listing [E: confirm V_F on the datasheet]) at the board edge beside the OUT jack, lit whenever the port's +24 V switch is on. A 2N7002-class FET driven by the port-on latch pulls the LED's 1 kΩ to GND from `+5V_PWR` (D72), ≈ 2 mA (≈ 1.6–2.6 mA over the V_F range). It is logic-side, so it never loads the 5 V / 1 mA prober or the 10 kΩ signature and sees no bus voltage [U: circuit in Phase 2]. It faces the housing wall, so a 2.5–3 mm window in the wall lights it with no light pipe (doc 08 C5, C9, C20). Blue, so it can't be mistaken for an Ethernet jack's green and amber link lights.
+- **IN link LED (D62, D63):** a second blue side-view LED beside the IN jack, lit when the far end of the cable is an OUT jack. The IN jack ties pins 3/6 to GND through a resistor equal to the OUT pull-up, so with an OUT on the far end the pair sits at ≈ half of 3.3 V (≈ 1.6 V), and with another IN, an Ethernet or LAN jack, or nothing, at ≈ 0 V. The cable's ground offset, ≈ 0.3 V at full load, stays below the NPN's turn-on. An NPN with a 10 kΩ base resistor on that node switches the LED's 1 kΩ from `+5V_PWR` (D72; `+5V_LOGIC` before), so it needs no firmware, and the OUT jack's presence loop reads ≈ 1.6 V as closed [U: values in Phase 2]. It lights as soon as the cable is seated, before power arrives, and on a node with no supply of its own once the upstream OUT has powered it. With the OUT LED, both ends confirm a correct IN-to-OUT connection.
+
+#### 2.2.4 Logic rails (D56, D60, D72)
+
+**Goal.** Make the board's 5 V and 3.3 V rails from the bus so that a load fault (a servo stall, a shorted LED strip, a shorted sensor cable) can't brown out the ESP32, and every part stays inside its rating up to the bus's over-voltage cut-off.
+
+**How it works.** Two identical bucks run from the bus. The **power buck** (5 V) feeds the noisy and high-current loads; the **3.3 V buck** feeds the logic alone. The LED chain and the eight sensor headers each sit behind their own current-limit switch, so a short there sags only that group. The IN guard (≈ 34 V) and the eFuse cut-off (≈ 30 V) keep the bus inside the bucks' 40 V rating, which is why no 60 V buck is needed.
+
+```mermaid
+%%{init: {'flowchart': {'nodeSpacing': 15, 'rankSpacing': 35, 'padding': 6}}}%%
+flowchart TB
+  BUS(("24 V bus")) --> B5["Power buck<br>5.0 V"]
+  BUS --> B3["3.3 V buck"]
+  B5 --> P5(("+5V_PWR"))
+  P5 --> SV["Servo"]
+  P5 --> LS["LED switch<br>≈ 0.75 A"] --> LED["+5V_LED"]
+  P5 --> MISC["CAN VCC,<br>LM2904, LEDs"]
+  B3 --> FB["Ferrite<br>+ 22 µF"] --> P3(("+3V3"))
+  P3 --> MCU["ESP32, LAN,<br>I/O ctrl, I²C sw"]
+  P3 --> HSW["Header switch<br>≈ 1 A"] --> HDR["8 headers,<br>AUX 3.3 V"]
+```
+
+**Bucks (D56, D60, D72).** Two **LMR14030SDDAR** (C182078, since D60; XL1509 before) from the 24 V bus; there were three before D72, and D85's 12 V fan buck was dropped in D86.
+- The LMR14030 is rated 4–40 V operating, 44 V absolute maximum on VIN and EN, 3.5 A, 90 mΩ typ high-side switch, cycle-by-cycle current limit 4.4–6.6 A, 170 °C thermal shutdown, R_θJA 43.2 °C/W in the SO PowerPAD-8 package [V].
+- Each runs at **500 kHz** (RT 49.9 kΩ [V]) with a 0.1 µF boot capacitor, a soft-start capacitor, a feedback divider, one **15 µH shielded inductor** (HCMA-0630-150-M-K class, C54431704, 7.3 × 6.6 mm, 3 A rated, 4.5 A saturation, 110 mΩ) and one **SS56** catch diode (60 V, 5 A, C18199169, Preferred; SS36 from D58 to D80). The 15 µH part gives ≈ 0.5 A p-p ripple on the 5 V rail and ≈ 0.4 A on 3.3 V from 24 V [E].
+- **Power buck** (5.0 V) → `+5V_PWR`: the servo, the LED chain through its switch (§2.2.7), and since D72 the CAN transceiver's VCC and the LM2904, each through 10 Ω and 10 µF [E], and the three blue indicator LEDs. ≤ ≈ 2 A worst case, a stall with the LED limit reached.
+- **3.3 V buck** (34.0 kΩ over 10 kΩ from the 0.75 V reference) → `+3V3`. The 5 V logic buck (`+5V_LOGIC`, the dev board's feed) was removed by D72.
+- Bus-side capacitors are rated ≥ 50 V, the bulk electrolytic included (63 V before D58). EN is tied to VIN through a pull-up only, or, if a divider is fitted, set to turn on at ≤ ≈ 18 V (D64).
+- **Thermal:** at the power rail's 1.9 A worst case the LMR14030 dissipates ≈ 0.25–0.3 W [E], ≈ +12 °C over ambient through its exposed pad and a GND pour. The XL1509 it replaced (D60) dissipated ≈ 0.65 W at ≈ 100 °C/W and ran near its thermal shutdown at that load.
+- **Faults:** the inductor saturates (4.5 A) below the switch's worst-case current limit (6.6 A), so a hard output short pushes it into saturation for a few cycles before the frequency fold-back takes over [E]. The rails' loads sit behind their own current-limit switches, so only a board fault reaches that. A servo stall can't be sustained: the encoder's stuck-damper check stops the servo pulses within ≈ 5 s (doc 06 §3). ARG-08, ARG-11.
+- The earlier candidates (TPS54331, 28 V; MP2315, 24 V) were rated below the bus's ~30 V over-voltage cut-off (D51).
+
+**3.3 V rail `+3V3`** (`+3V3_SENS` before D72), from the 3.3 V buck (D56). It replaces D51's XC6206 200 mA LDO, whose ≈ 140 mA thermal limit was below the eight headers' worst case of ≈ 0.4 A average and ≈ 0.6 A peak [E].
+- It feeds the ESP32 module and a LAN module (D72; ≈ 1.7 A peak in all [E]), the carrier I/O controller, the I²C switch and the eight header P-FETs. A ferrite bead and 22 µF after the buck keep the 500 kHz ripple ≲ 10 mV [E].
+- The **header P-FETs are fed as a group through a current-limit switch** (the LED switch's part, set to **≈ 1 A** with 6.8 kΩ, 0.75–1.25 A over tolerance, so its low end clears the headers' ≈ 0.6 A peak), so a shorted header cable can't pull the controller or the switch down with it. The **AUX 3.3 V pin** also comes from this group rail (D57), since it leaves the board too. The controller reads the group rail on PF3 through a divider (D68), and the firmware finds the shorted header by powering them one at a time (doc 09 §2.2).
+- The controller's ADC is referenced to this rail (≈ ±3 %: the LMR14030's 0.735–0.765 V feedback reference over temperature [V], plus the 1 % divider), so the firmware calibrates it against the PY32's internal reference before trusting a reading (doc 09 §2.4). The NTC pull-ups use this rail since D72 (§2.2.8).
+
+#### 2.2.5 Controllers and data ports (D9, D18, D45, D54, D72)
+
+**Goal.** One controller runs every role; slow and per-header I/O is offloaded so the main controller's pins and timing go to what needs them; and the board connects to its printer, to a wired network where wanted, and to debug tools.
+
+**How it works.** The **ESP32-S3 module** (§2.1) runs the firmware, the CAN bus, the printer link on its native USB, and Wi-Fi / ESP-NOW. The **carrier I/O controller**, a PY32F030 (§2.4), handles per-header power, the slow carrier I/O (door, B1, board status LED, LED chain data) and the ADC for the bus voltage and injection current; the ESP32 programs it, and any sensor-board MCU, through its ROM bootloader (D45, D54, doc 09). A **W5500 LAN module** plugs into a socket where a wired network link is wanted.
 
 ```mermaid
 flowchart LR
@@ -109,32 +301,147 @@ flowchart LR
   DEV --> FANS["Fan A, B1/B2,<br>servo, LEDs, door"]
   DEV <-->|"SPI, 2 × 5"| LANM["W5500 LAN module<br>(plug-in, optional)"]
 ```
-| Block | Node-heat | Node-lite | Hub | Notes |
-|---|:-:|:-:|:-:|---|
-| Input: 24 V logic from the **IN** RJ45 (D56), in order from the jack: **2 A polyfuse rated 60 V** (2920L200/60GR class, D51; 4 A trip); **SMBJ58CA** bidirectional TVS (C19077592, Preferred; 58 V stand-off, breakdown ≥ 64.4 V, 93.6 V clamp at 6.41 A [V], so it stays off at a steady 48–57 V passive injector of either polarity); an **SS510B** reverse clamp to GND (C7420368, Preferred; 100 V, 5 A), so a negative spike stops at about −1 V; the 10 kΩ node signature as **two 4.99 kΩ 1206 resistors in series** (≤ 0.2 W each at 58 V); then the **IN guard**: two 100 V P-FETs back to back, sources joined (**XR20P10D** class, C50314136, PDFN 3 × 3, 60 mΩ typ / 75 mΩ max at V_GS −10 V, 20 A, since D60; the 60 V XR15P06D before), so it conducts both ways when on (D35) and blocks both ways when off. A CJ431 comparator on the joined sources turns it off above **≈ 34 V** (the D52 guard circuit): the divider feeds REF, and the cathode pulls the base of a PNP that shorts the gate to the source. The CJ431's cathode is rated only 36 V [V: VKA 36 V absolute maximum], and while it is off it sits near the rail, so a **33 V zener** across it (BZT52C33, C19077419, Preferred, 31.35–34.65 V, since D59; the MMSZ5257B is out of stock) holds it below 35 V. The zener also trips the guard on its own at ≈ 32–35 V. The 22 kΩ 1206 base resistor limits the current at a 93.6 V clamp to ≈ 3 mA. Then the gate turns on slowly, so a raw supply plugged into IN charges the bus gently: a gate–drain capacitor on the bus-side FET sets a ramp of **≥ 20 ms per 470 µF** of bus capacitance, which keeps the charging current near **0.5 A** (≈ 12 W peak in the FET, inside its 10–100 ms SOA with margin for a board-mounted case [E: the XR20P10D SOA chart is at T_C = 25 °C]). A ramp of a few ms would put 4–8 A and 100–200 W into the FET. A 12 V gate–source zener holds V_GS inside its ±20 V rating. On the bus side, the **SMBJ33A** (C19077586, Preferred) stays as the second stage. Polyfuse rated 60 V, the FETs and the reverse clamp 100 V. The FETs' 100 V rating covers the TVS's 93.6 V clamp, so a spike up to the clamp no longer drives the bus-side FET into avalanche (D60; below). **IN link LED (D62, D63):** a second blue side-view LED beside the IN jack, lit when the far end of the cable is an OUT jack. The IN jack ties pins 3/6 to GND through a resistor equal to the OUT pull-up, so with an OUT on the far end the pair sits at ≈ half of 3.3 V (≈ 1.6 V), and with another IN, an Ethernet or LAN jack, or nothing, at ≈ 0 V (the cable's ground offset, ≈ 0.3 V at full load, stays below the NPN's turn-on). An NPN with a 10 kΩ base resistor on that node switches the LED's 1 kΩ from `+5V_PWR` (D72; `+5V_LOGIC` before), so it needs no firmware, and the OUT jack's presence loop reads ≈ 1.6 V as closed [U: values in Phase 2]. It lights as soon as the cable is seated, before power arrives, and on a node with no supply of its own, once the upstream OUT has powered it. Together with the OUT jack's LED (below) both ends confirm a correct IN-to-OUT connection. | ✓ | ✓ | Fitted, not used (the hub is a chain end; nothing plugs into IN) | D17, D56, doc 04 §3a. Fitted on the hub too since D47, so its IN jack is never an unprotected path onto CAN, and a spare board can be any role. Before D56 nothing cut over-voltage on IN: a passive 48 V injector held the SMBJ33A in breakdown, a small brick never reached the polyfuse's 4 A trip, and the bus sat at the TVS's 42–45 V until the TVS failed. |
-| **OUT RJ45 with detect-before-power:** window comparator + latch → bidirectional current-limited switch on +24 V, held on by the **presence loop** on pair 3 (D52: pins 3/6 pulled up at the OUT jack, tied to GND through a resistor by the next node's IN jack, D63), which works whichever way current flows; powers the OUT jack only for a fleet node signature or a powered fleet segment | ✓ | ✓ | ✓ (the hub's only jack) | D17. Plugging into a switch, laptop or PoE port puts 0 V on it. **OUT jack ratings (D57):** an **SMBJ58CA** on the jack's +24 V pins (as on IN), the switch's back-to-back N-FETs rated 60 V (SP60N12GNJ, C22466779, 16 mΩ max, ≈ 0.05 W each at 1.5 A hot, D80; HL2310A class before), and the prober and window comparator reaching the pins through a series resistor and clamp rated for 60 V, so a 48–57 V injector plugged into OUT is refused and damages nothing. **Port-live LED (D62):** one **blue side-view LED** (XL-1606UBC class, C965865, 120°, ≈ 260 mcd at 20 mA per its listing [E: confirm V_F on the datasheet]) at the board edge beside the OUT jack, lit whenever the port's +24 V switch is on. A 2N7002-class FET driven by the OUT circuit's port-on latch pulls the LED's 1 kΩ resistor to GND from `+5V_PWR` (D72) (≈ 2 mA, so ≈ 1.6–2.6 mA over the V_F range). It is logic-side, so it never loads the 5 V / 1 mA prober or the 10 kΩ signature and sees no bus voltage [U: circuit in Phase 2]. It faces the housing wall, so a 2.5–3 mm window in the wall lights it with no light pipe (doc 08 C5, C9, C20). Blue, so it can't be mistaken for an Ethernet jack's green and amber link lights. |
-| **24 V board supply → bus injection (D94):** two inputs, always connected, each through its own **ideal diode** (MX74700T + SP60N12GNJ, ≈ 0.02–0.03 V at 1 A [E]): the **heater rail** (since D80; the INJECT INT jumper until D94) and **POWER IN** (since D91; INJECT BAR until D94). The heater-rail leg also has the **POWER IN preference switch**: an **S40P06F** P-FET in series, source on the heater rail so its body diode opposes the ideal diode FET's, gate pulled down through 47 kΩ with a 12 V gate–source zener (on by default), and turned off by an **MMBT3906** pulling the gate to the source when a **CJ431** sees POWER IN, ahead of its ideal diode, above **≈ 20 V** [E: divider at schematic time]. So a live POWER IN powers the board and the heater rail otherwise. 20 V sits above the eFuse turn-on (≤ ≈ 18 V), so a failing logic brick hands over before the bus drops [U: test 35]. The FET drops ≈ 0.03 V at 1 A and dissipates ≈ 0.6 W at 4.2 A hot [E], so its drain pad gets copper. The MX74700T's 75 V cathode–anode rating covers a wrong 48–57 V brick on one input reverse-biasing the other. Until D94 the internal XT60's side of the tap ideal diode also had an SS56 leg into INJECT INT; it went because the tap diode is now never switched off) → **input guard** → **eFuse with reverse-current blocking** *(MX26631DL, C18197523, D52: TPS26631-compatible, 60 V absolute maximum, 40 V operating; the TI TPS26630/31 fit the same footprint)* with an external **60 V reverse-blocking N-FET** on its B_GATE/DRV pins (SP60N12GNJ since D80, HL2310A class before; with the input at 0 V it sees the full bus voltage, which the IN guard and the bus TVS hold at ≤ ≈ 40 V since D56, so 40 V would do; the 60 V part stays because it is the B1/B2 switch FET and adds no line, D58) → the RJ45 bus rail. **Input guard (D52):** a 100 V P-FET (the IN guard's XR20P10D since D60, so one part serves both; the XR15P06D from D56, RC3P06 class before) between the input ideal diodes and the eFuse, turned off by a CJ431 comparator above ≈ 34 V (with the IN guard's 33 V cathode zener since D56; it was ≈ 36 V, which was at the CJ431's 36 V cathode limit), so a wrong supply on either input (a 48 V brick or passive PoE) never holds the eFuse above its 40 V operating range. It carries the injection current and the fan tap: ≤ 1.5 A (≈ 0.4 W) without a board-powered fan, up to ≈ 4.2 A (≈ 1.1–1.3 W) on the hub at full fan and an alarm peak (D91), so its drain pad gets ≈ 1 in² of copper on both layers [E]. Current limit set by one resistor to **~1.5 A on every board** (D81; the value the hub's old ILIM pair gave, D47; the CAT6 segment allowance since D17, kept at 1.5 A so cheap CCA or Cat5 patch cables stay inside their rating, D21). **Current monitor (D61):** the eFuse's IMON pin sources 27.9 µA per amp of output current (25.7–30.1 µA/A over 0.6–2 A [V]; not specified below 0.6 A [U]) into a **47 kΩ** resistor with a 100 nF filter capacitor, ≈ 1.3 V per amp (≈ 2 V at 1.5 A, inside the pin's 4 V limit), read by the carrier I/O controller's ADC (§2.4). The firmware reports each board's injected current (on the hub, the whole chain's draw from the hub supply), alerts when it stays ≥ 90 % of the limit for 10 s (a partial short or an overloaded segment), reported in the bus telemetry (D61). **Under-voltage turn-on ≤ ≈ 18 V** (D64): the EN/UVLO divider sits well below the lowest bus (≈ 22.4 V at a far node [E], doc 04 §6a), so injection doesn't cycle as a printer's rail sags. **Over-voltage cut-off ≈ 30 V**, set by a divider on the OVP pin (1.21 V threshold; the part has no internal default). The TPS26632 is not a substitute: it has a fixed 35 V clamp in place of the adjustable cut-off. Whatever supply is connected powers the board and feeds downstream nodes, with nothing to set (D94) | ✓ (fed from the printer's supply tap or a heater brick) | Optional (a 24 V brick on POWER IN; **required on a wireless-only node**, doc 07 §6.4) | ✓ (**the hub's supply, a brick in either barrel or an internal PSU on the XT60, is the hub's only path onto the bus**) | D13, doc 04 §6a. Blocks back-feed into any source and current-limits a short. |
-| **Two bucks, both LMR14030SDDAR** (C182078, since D60; XL1509 before), from the 24 V bus (D56, D72; three before D72; D85's 12 V fan buck was dropped in D86). The LMR14030 is rated 4–40 V operating, 44 V absolute maximum on VIN and EN, 3.5 A, 90 mΩ typ high-side switch, cycle-by-cycle current limit 4.4–6.6 A, 170 °C thermal shutdown, R_θJA 43.2 °C/W in the SO PowerPAD-8 package [V]. Each runs at **500 kHz** (RT 49.9 kΩ [V]) with a 0.1 µF boot capacitor, a soft-start capacitor, a feedback divider, one **15 µH shielded inductor** (HCMA-0630-150-M-K class, C54431704, 7.3 × 6.6 mm, 3 A rated, 4.5 A saturation, 110 mΩ) and one **SS56** catch diode (60 V, 5 A, C18199169, Preferred; SS36 from D58 to D80). The 15 µH part gives ≈ 0.5 A p-p ripple on the 5 V rails and ≈ 0.4 A on 3.3 V from 24 V [E]. **power buck** (set to 5.0 V) → `+5V_PWR` (servo, LED chain through its switch below, and since D72 the CAN transceiver's VCC and the LM2904, each through 10 Ω and 10 µF [E], and the three blue indicator LEDs; ≤ ≈ 2 A worst case, a stall with the LED limit reached); **3.3 V buck** (34.0 kΩ over 10 kΩ from the 0.75 V reference) → `+3V3` (below); The 5 V logic buck (`+5V_LOGIC`, the dev board's feed) was removed by D72. Bus-side capacitors rated ≥ 50 V, the bulk electrolytic included (63 V before D58). EN is tied to VIN through a pull-up only, or, if a divider is fitted, set to turn on at ≤ ≈ 18 V (D64) | ✓ | ✓ | ✓ | ARG-08, ARG-11. A servo stall or an LED fault can't brown out the ESP32, which is on the 3.3 V buck. The IN guard (≈ 34 V) and the eFuse cut-off (≈ 30 V) keep the bus inside the 40 V rating, which is why no 60 V buck is needed. At the power rail's 1.9 A worst case the LMR14030 dissipates ≈ 0.25–0.3 W [E], ≈ +12 °C over ambient through its exposed pad and a GND pour; the XL1509 it replaced (D60) dissipated ≈ 0.65 W at ≈ 100 °C/W and ran near its thermal shutdown at that load. The inductor saturates (4.5 A) below the switch's worst-case current limit (6.6 A), so a hard output short pushes it into saturation for a few cycles before the frequency fold-back takes over [E]; the rails' loads sit behind their own current-limit switches, so only a board fault reaches that. A servo stall can't be sustained: the encoder's stuck-damper check stops the servo pulses within ≈ 5 s (doc 06 §3). The earlier candidates (TPS54331, 28 V; MP2315, 24 V) were rated below the bus's ~30 V over-voltage cut-off (D51). |
-| **3.3 V rail `+3V3`** (`+3V3_SENS` before D72), from the 3.3 V buck (D56; replaces D51's XC6206 200 mA LDO, whose ≈ 140 mA thermal limit was below the eight headers' worst case of ≈ 0.4 A average and ≈ 0.6 A peak [E]). It feeds the ESP32 module and a LAN module (D72; ≈ 1.7 A peak in all [E]), the carrier I/O controller, the I²C switch and the eight header P-FETs. The **header P-FETs are fed as a group through a current-limit switch** (the LED switch's part, set to **≈ 1 A** with 6.8 kΩ, 0.75–1.25 A over tolerance, so its low end clears the headers' ≈ 0.6 A peak), so a shorted header cable can't pull the controller or the switch down with it. The **AUX 3.3 V pin** also comes from this group rail (D57), since it leaves the board too; the controller reads the group rail on PF3 (through a divider, D68), and the firmware finds the shorted header by powering them one at a time (doc 09 §2.2). A ferrite bead and 22 µF after the buck keep the 500 kHz ripple ≲ 10 mV [E] | ✓ | ✓ | ✓ | The controller's ADC is referenced to this rail (≈ ±3 %: the LMR14030's 0.735–0.765 V feedback reference over temperature [V], plus the 1 % divider), so the firmware calibrates it against the PY32's internal reference before trusting the heater-rail reading (doc 09 §2.4). The NTC pull-ups use this rail since D72 (below). |
-| **ESP32 support (D72):** data-only USB-C (VBUS unconnected, CC 5.1 kΩ to GND, ESD on D+/D−), EN RC, BOOT / service tact switch, UART0 console header (§2.1) | ✓ | ✓ | ✓ | Replaces the D36 reset hold and the D37 ideal-diode feed, which only a plug-in dev board needed. |
-| **CAN transceiver**, fault-tolerant bus pins ±58 V (*candidate: TJA1051T/3 with 3.3 V VIO*), IN + OUT RJ45 for the daisy chain, **TERM jumper** (120 Ω 1 % in series with a 2-pin shunt; fitted at the two chain ends, doc 04 §3) | ✓ | ✓ | ✓ | D17: survives Ethernet or PoE on pins 1/2. |
-| **LAN module socket (D18, D72):** a 2 × 5 2.54 mm female socket at the board edge on **GPIOs 10–13**, SPI2's IO MUX pins (D45, doc 04 §4), plus `+3V3` and GND, for a common **W5500 module** (ESP-IDF `esp_eth` W5500 driver). The module's interrupt goes to **GPIO 38** with a 10 kΩ pull-up (interrupt-driven, no polling), its own RC resets it, and the ESP32's eFuse Ethernet MAC is used, since the W5500 has none. Pin order follows the common 2 × 5 module [E: confirm on the purchased module before layout] | Socket only (module for a wired link) | Socket only (module for a wired link) | ✓ (module fitted) | A normal network port, separate from the fleet jacks, with no 24 V on it. The CH390D, MagJack and crystal were on every carrier from D47 to D72; now only a board that uses LAN pays for it. |
-| **Power inputs (D22, D52, D64, D66):** **Heater supply: three sockets, one in use.** The heater rail is fed by whichever is used, joined by copper pours: (a) the **internal XT60**, inside the housing, for the printer's supply tap or an upgraded internal supply on a node, or an internal hub supply in the hub enclosure, plugged in with the cover off; (b) the **HEATER DIN** jack, a board-mount right-angle 4-pin power DIN jack (*GlobTek JACKPWRDIN4LS*, ≈ $1.15 at DigiKey, −20 to 50 °C; or *Kycon KPJX-4S-S*, C2875467, −40 to 75 °C; both 7.5 A and mating the KPPX-4P plug of the Mean Well -R7B bricks [V]) [V: Mean Well GST160A spec, R7B plug: pins 1 and 4 +V, pins 2 and 3 −V], footprint on every board, hand-soldered only where a DIN brick is used (JLC doesn't stock either part); (c) the **HEATER barrel** jack, board-mount right-angle 5.5 × 2.5 mm, 15 A, 30 V (*G-Switch DC-S007B-D025-15A*, C7464909, D66; mid-mount in a 9.8 mm notch at the board edge), JLC-fitted on every board, for a full-power barrel brick. The two HEATER jacks sit side by side on the outside face under a printed **shutter** (doc 08 C21) that leaves only one open and covers both when the tap is used. **Tap and jack ideal diodes (D64, D94):** the internal XT60 reaches the heater rail through one ideal diode (*MX74700T* controller + *SP40N05GNJ* N-FET, ≈ $0.62, ≈ 20–30 mV at the heater current [E]), so if a tap and a brick in an open jack are ever connected together, the brick can't back-feed the printer's 24 V rail after its plug is cut, which would defeat the mains cut. A divider on the XT60 side of the diode (ESP32 GPIO 7, D75; the controller's PB1 before) shows whether the tap is live. The MX74700T's EN is tied to its anode, so the diode is always on (D94; a 2N7002 on GPIO 37 could turn it off from D64 to D94, but a disabled ideal diode still conducts through its FET's body diode). The two jacks reach the rail through a second ideal diode (the same MX74700T + SP40N05GNJ, D94; direct before), with a **100 kΩ / 9.1 kΩ** divider and 100 nF on the jack side read by **ESP32 GPIO 5**. **Two-supply check (D94):** the tap side and the jack side both reading above ≈ 18 V means a tap and a brick are connected together, at any voltages: the node refuses to heat, or stops, and alerts "two heater supplies connected, remove one". It is a continuous reading, with no heater pulse and nothing switched off. (From D64 to D94 the check turned the tap diode off and pulsed the heater, which missed a brick more than ≈ 1 V below the tap, since the tap kept feeding the rail through the body diode.) The heater rail is live when either side reads live, and it also powers the board and the bus through its ideal diode (above) whenever POWER IN is not live, so the hub powers itself from a brick in the HEATER barrel, one heater brick runs a whole node, and a node with an internal supply can power nodes downstream. **POWER IN (labelled LOGIC 24 V):** a **5.5 × 2.1 mm** barrel jack (*XKB DC-005-5A-2.0*, C381116, 5 A, D66) on the outside face, so a logic plug can't enter the HEATER barrel, for a logic brick or a PoE splitter (D18), **logic and bus injection only**: it never reaches the heater rail, so a brick here can sit on an ordinary outlet and keep the node up when its printer's plug is cut. While it is live it powers the board in place of the heater rail (D94). Apart from the two-supply check, the board doesn't need to know which supply feeds the heater: it is limited by the node's `heater_power` and a learned supply cap (doc 05 §3.3, D64). **Heater-rail over-voltage (D57):** a wrong brick (48–57 V) on any heater input reaches the heater rail, so a second copy of the guard comparator (CJ431, 33 V cathode zener, MMBT3906) on the rail breaks the hardware enable chain above **≈ 34 V**, and the high-side switch is rated 60 V (below). With it off, the heater and the low-side FET see only leakage current, so their 40 V ratings hold. The tap ideal diode's 40 V N-FET sees at most ≈ 33 V in reverse (a 57 V brick in a jack against a live tap), and the jack diode's the tap's voltage [V: MX74700T datasheet: CATHODE to ANODE −5 to 75 V, ANODE to GND ±100 V]. [U: a 57 V brick in a jack with no tap puts ≈ 57 V across the tap FET in reverse, above its 40 V; check at schematic time whether that needs a 60 V FET there.] Heater-rail capacitors are rated ≥ 63 V, and the tap- and jack-side dividers' top resistors are ≥ 100 kΩ so 57 V stays inside the ADC pin's injection limit. The firmware alerts "wrong supply on heater input" whenever either side reads above 30 V. Fan A and B1 run from the bus, behind the input guard, so the comparator no longer has to hold them off (D94; it did from D78) | ✓ | ✓ | ✓ | Makes the supply a choice at install time, not a design change. Unused openings take a printed blanking plug (doc 08 C15). |
-| **Heater stage:** ORed heater rail, **high-side P-FET enable** (driven by the hardware enable chain), **low-side logic-level N-FET PWM** (40 V, 5 mΩ class, PDFN 3×3, D51; the high-side P-FET is **60 V, ≈ 19/24 mΩ typ/max** (HL S40P06F, C41406794, PDFN 5 × 6, since D82; the XR30P06F before, D59; ≈ 0.5 W hot at 4.2 A, on a copper pour; 60 V since D57), with a **12 V gate–source zener**, since its gate is pulled toward GND and the rail alone exceeds its ±20 V V_GS rating), 10 kΩ gate pull-downs, 100 Ω series gate resistors, XT60 heater output. **High-side output sense (D64):** the switched `24V_HEAT` node feeds a divider (100 kΩ over 15 kΩ [E]: 24 V reads ≈ 3.1 V, high above ≈ 19 V; the top resistor ≥ 100 kΩ so a stuck-on high side at 57 V stays inside the clamp) with a 3.3 V clamp diode into **ESP32 GPIO 46**, a digital input. It reads low whenever the high side is off, including at reset, where the 15 kΩ overrides the strapping pin's weak internal pull-down | ✓ | Fitted, held off | Fitted, held off | Two independent switches in series (doc 05). ARG-09. Fitted on every role since D47; see the note below the table. The GPIO 46 sense is the only independent check on a high-side FET stuck on (current sensing can't see it while the low side is off): doc 05 L4 locks the heater out if it reads high with the charge pump stopped. |
-| **Hardware enable chain:** RC **charge-pump** fed by a toggling GPIO, in series with the **KSD301 loop** (off-board, normally closed: **heater-housing KSD301 + chamber-air KSD301 in series**) and the **heater-rail over-voltage comparator** (≈ 34 V, D57) → high-side gate driver | ✓ | Fitted, loop open | Fitted, loop open | A hung MCU (pin stuck high or low), either KSD301 opening, or a wrong supply on the heater rail turns the heater off. |
-| **Heater current sense (D50):** 5 mΩ low-side shunt (LRAM25EJER005 class, 2512, ±5 %) + LM2904 at gain 40 with a ~10 mV input pedestal → ADC; zeroed in firmware at boot (doc 04 §4) | ✓ | Fitted, unused | Fitted, unused | Open element, welded FET, inrush, and C8 stall detection. |
-| **Fan channel A:** 24 V high-side switched (60 V P-FET, D51; the heater stage's S40P06F since D82; the XR20P10D in D80), tach input (pull-up + clamp), plus open-drain PWM output on ESP32 GPIO 14 (D70), which floats to full speed while the ESP32 is in reset [E: the Intel 4-wire fan specification, as Noctua's PWM white paper quotes it, has the fan pull PWM up and run at full speed with no signal; a fan without that pull-up won't, so check the fitted fan] | ✓ (recirc fan if not integrated) | Fitted, spare | Fitted, spare (the exhaust moved to B2, D85) | High-side switching keeps the tach valid (F5). The footprint-only 0–10 V output stage moved to B2 (D85, below). Fan A and B1 take their 24 V from the bus through one fuse (D57, D94, below). |
-| **Low-side outputs B1, B2:** switched 24 V (60 V N-FET, D51; SP60N12GNJ since D80), flyback diode each. B1 is driven by the carrier I/O controller (PA8, D68), with a **10 kΩ gate pull-up** so it runs at full duty while the controller is in reset, in its bootloader or blank (D75), and B2 by ESP32 GPIO 45 (gate pull-down). **B2 is a fan port (D84):** JST-XH 4 (GND, fan-tap supply, tach, B2; D85, D92), so it switches a 2- or 3-wire fan low-side or drives a 4-wire fan's PWM input as an open-drain output, and its tach reaches the carrier I/O controller's PA9 through a 1N4148WS (doc 04 §7a). **Output feeds (D57, D94):** fan A and B1 take their 24 V from the bus through a **0.75 A hold, 1.5 A trip, 60 V** resettable fuse (2018L075/60GR class, C33977642), so a shorted lead opens it before the segment or injection limit trips and the rest of the chain stays up. A 5015 blower draws 0.18 A [V]; the PTC module's fan is [U] until R8. **B2 pin 2 (D92):** the **fan tap**, wired direct (a FAN V jumper chose it or the bus in D85, D86): after the input ideal diodes and the input guard, ahead of the bus eFuse, through its own **tap eFuse**, a second MX26631DL limited to **≈ 2.7 A** (D91; ≈ 2.3 A in D87, a 2 A polyfuse in D85), so the fan's current never crosses the bus eFuse or the CAT6 and a fan short stays on the tap; a 24 V fan here may draw up to ≈ 2.2 A, ≈ 50 W, at full speed. Pin 2 is live whenever the board has a supply of its own, so a fan or adapter on its own supply leaves it unconnected. A footprint-only **0–10 V output stage** (D85, moved from fan A) filters GPIO 45's PWM into 0–10 V for a fan with an analogue input; it stays unpopulated until a fan, or R1, needs it. From D78 to D94 fan A and B1 had a two-leg feed, from the heater rail while it was live and from the bus otherwise; D94 put them back on the bus, since B2 no longer shares their fuse and a heating node's own supply feeds its bus. When every output on one fuse stops at once, the firmware raises an output-fault alert. On a node-heat, the firmware keeps fan A and B1 off while no heater supply is live (D78, D94), and both off while the bus reads 30–34 V | ✓ (B1 a recirculation blower where the pack fits one; B2 spare) | Fitted, spare | ✓ (B1 **anemometer heater**, PWM, D32; B2 **exhaust fan**, D85) | On the hub and the combined roles B2 is the exhaust fan (D84, D85, doc 04 §7a). |
-| 2 × NTC 100k inputs (ADC1, RC filter): **47 kΩ** pull-up to **`+3V3`** (the ESP32's own supply, D56, D72) on every board, plus **5.1 kΩ through a RANGE shunt** per channel (≈ 4.6 kΩ with the shunt on, D47) | ✓ (chamber air, heater housing; **both RANGE shunts on**) | Fitted, spare | ✓ (**low-flow anemometer**: reference and heated NTC, D32; **RANGE shunts off**) | 47 kΩ gives resolution at 20–80 °C (anemometer); ≈ 4.6 kΩ covers the hot range of the heater housing. A wrong shunt is caught at boot (doc 04 §4). The ESP32's ADC isn't ratiometric, so the pull-up rail's error becomes a temperature error. Since D72 the rail is the 3.3 V buck (≈ ±3 %, against a dev board regulator's ±1–2 % before), so the firmware scales each reading by the rail voltage the carrier I/O controller measures against its internal reference (doc 09 §2.4) [E: residual error at layout]. Pulling the pins up to their own chip's supply means they can never sit above it while the rails come up. The pull-ups draw ≈ 60 µA in total; the anemometer's heater runs from B1 at 24 V, not from this rail. |
-| **On-board XGZP6897D** pressure sensor (I²C 0x6D), two barbs | ✓ (chamber vs room) | ✓ | ✓ (**across the filter**) | |
-| **Sensor headers 1–8** (JST-SH 4, Qwiic / STEMMA QT pinout: GND, 3.3 V, SDA, SCL; D68, D69) behind an **8-channel I²C switch** (TCA9548A-compatible; FCA9548T fitted, D51; one channel per header), with a **PY32F030 carrier I/O controller** for per-header power and the slow carrier I/O (§2.4); the ESP32 programs it, and any sensor-board MCU, through its ROM bootloader (D45, D54, doc 09). A **1 × 5 2.54 mm SWD header** (3.3 V, SWDIO, SWCLK, NRST, GND; D65, doc 09 §4.5) gives the controller full probe debugging, and a **1 × 6 2.54 mm JTAG header** (3.3 V, TMS, TCK, TDO, TDI, GND on ESP32 GPIOs 42, 39, 40, 41; D68, doc 07 §11.8) does the same for the ESP32 | Header 1: **sensor head**. Header 2: **AS5600 damper encoder** (sensor board E, D30). Header 3: unused (per-branch flow option). Header 4: optional OLED (D48) | Header 1: **sensor head**. Header 2: **AS5600 damper encoder**. Header 4: optional OLED (D48). Headers 3, 5–8: unused | Header 1: **room sensor head**. Header 2: **XGZP6897D trunk sensor** (sensor board P). Header 3: **XGZP6897D trunk-flow sensor** at the venturi (D30, D33). Header 4: optional 0.96″ OLED at 0x3C (D48) | Every XGZP6897D is fixed at 0x6D, so each off-board one sits on its own switch channel and can't clash with the on-board one (D11; supersedes C7). Each header being its own segment also keeps bus capacitance low. **A display never shares a channel with a sensor** (D48, doc 09 §3), so a locked-up OLED can't take a sensor reading with it. Headers 5–8 (and 3 on nodes) are free for further sensor boards. |
-| Servo header (`+5V_PWR`, signal held low at boot) | ✓ | ✓ | **Buzzer** (D85) | On the hub and the combined roles it drives a **5 V active buzzer module** (3-pin, transistor input, active high), silent through a reset because the signal is held low at boot (D85). The damper's **AS5600 angle encoder** (D30) reads the blade shaft and connects to I²C header 2, not here. |
-| Door input (reed switch, pull-up, RC + ESD), **read through the carrier I/O controller** (§2.4) | ✓ | Fitted, optional | Fitted, unused | A printer that reports its doors over its link can use them instead (`door.source: link`, doc 12 §4). With a reed fitted, the reed is primary and the link is the backup (doc 05 §4). |
-| LED chain 1: **current-limit switch** from `+5V_PWR` (SY6280AAAC class, C207620, SOT-23-5, 63 mΩ; limit = 6800 / R_SET, **≈ 0.75 A with 9.1 kΩ**, 0.56–0.93 A over tolerance [V: datasheet ±25 % at 1 A]; enable tied high) → `+5V_LED`; **2N7002 inverting level shifter** (1 kΩ pull-up to `+5V_LED`, so the data line never sits above a sagging LED supply; the carrier I/O controller's timer output runs with inverted polarity to match, D51, D70, D71; the ESP32's RMT drove it before D70), 330 Ω series, 1000 µF bulk on `+5V_LED` (chain 2 dropped, D45) | ✓ | ✓ | ✓ (LED1 = panel RGB) | LED 0 of the bed strip is the status pixel. The strip is ~48 LEDs per printer (D44), ≈ 2.9 A at full white. The firmware caps it at 0.5 A (doc 04 §3), below the switch's lowest limit; the switch is the hardware backstop (D56). In limit it holds the current and lets `+5V_LED` sag, so the LEDs dim, the servo and the power buck stay inside their ratings, and it soft-starts the 1000 µF. Loss ≈ 20 mW at 0.5 A. |
-| **AUX header** (D48): JST-XH 5 (3.3 V, GND, A = GPIO 36, B = GPIO 6, GND; A was GPIO 5 before D75), each line through a **2N7002 level shifter** (gate to 3.3 V; 10 kΩ pull-up to 3.3 V on the ESP32 side, 4.7 kΩ to 3.3 V on the connector side) and ESD-protected | Spare, or the **UART printer link** (A = TX, B = RX; doc 12 `marlin_serial`) | Spare, or the UART printer link | ✓ (A = smoke dry contact; B = acknowledge button; each with its own GND pin) | Replaces the two spare-input headers. An **on-board tact switch** (TS-1187A-B-A-B, LCSC C318884, a Basic part) sits on B's connector side, in parallel with the AUX pin, on every carrier (D49): the hub's front panel presses it through a printed plunger, and a builder can still cable a remote button to AUX B. It is on B, the UART **RX** line, so a press on a node using the UART link only garbles a received frame; on A, the TX line, it would short a driven output through the shifter. The shifter makes both lines **5 V-tolerant** and still passes a contact pulling low, so edge interrupts work. Both lines are digital only. Pinout in doc 04 §4. |
-| **Power senses:** the **jack-side heater voltage** (ESP32 GPIO 5, D94; the heater rail before, via a **100 kΩ / 9.1 kΩ** divider with 100 nF at the pin, ≈ 2.8 V at 34 V, inside the 12 dB range [E]) and, on **ESP32 GPIO 7**, either the **tap-side heater voltage** (D64) or the **POWER IN voltage** (D93), selected by GPIO 37 (low, the reset default, reads the tap side; it also switched the tap ideal diode off until D94): each through its own **100 kΩ / 27 kΩ** divider with 100 nF and 47 kΩ to the pin, with a 2N7002 grounding the one not selected and a third inverting GPIO 37 for the POWER IN one (≈ 2.9 V at 34 V [E]), all read by the **ESP32's ADC1** (D75); the **bus voltage** (D64), via a divider with a ≥ 100 kΩ top resistor on the RJ45 bus rail, and the **injection current** (the eFuse's IMON, D61), both read by the **carrier I/O controller's ADC** (§2.4) | ✓ | Fitted, read | Fitted, read | On the controller from D47 to D75. Back on the ESP32 since D75, so the rail throttle, the two-supply check and the supply-drop detection behind the learned supply cap (doc 05 §3.3, D64) keep working while the controller is silent. The tap- and jack-side readings are trimmed once against a meter at commissioning (doc 05 §9 test 8). The barrel heater-input sense went in D64. The bus voltage gives fan A, B1 and the anemometer's drive voltage (doc 06 §4.4), each node's bus voltage and injected power (V × I) in the bus telemetry, and the hub's voltage in back-fed mode. |
-| **Board identity header** (D46, D84): 2 × 5 pin header + shunt (HEAT, C-HEAT, LITE, C-LITE, HUB; 2 × 3 until D84) on a divider to the carrier I/O controller's PA0 (D68; GPIO 3 before), checked against the stored role at boot (doc 04 §4) | ✓ (HEAT) | ✓ (LITE) | ✓ (HUB) | Wrong or missing shunt → safe hold, nothing switches on. Since D47 it is the only part of the role set on the board. The carrier's BOOT switch doubles as a service button after boot (doc 04 §4, D72). |
-| Status LEDs (power, CAN activity) and a **board status LED** driven by the carrier I/O controller (§2.4). **The CAN activity LED is hardware-driven (D63):** a blue LED that blinks for ≈ 30 ms whenever another unit drives a dominant bit, detected as the transceiver's RXD low while its TXD is high (so the unit's own frames are excluded, and the ACK another unit gives to its frames is counted). A PNP on RXD in series with a small N-FET on TXD charges a 100 nF capacitor through a diode, a bleed resistor sets the ≈ 30 ms stretch, and an NPN drives the LED. **A minimum-off timer** (a second NPN with its own RC, started by the end of each on-pulse) blocks the charge path for another ≈ 30 ms, so a busy bus gives a fixed ≈ 30 ms on / ≈ 30 ms off blink (≤ ≈ 16 Hz) instead of a solid LED, as an Ethernet activity LED does [U: values tuned and simulated at bring-up]. No firmware or controller pin is involved. Every unit sends a 1 Hz heartbeat (doc 07 §6.2), so a connected neighbour makes it blink about once a second at the least. **Reading it:** ≈ 1 blink a second or a few more = healthy; a steady fast flicker (≈ 16 Hz) = heavy traffic or a unit holding the bus dominant [E]; **dark = this unit hears no other unit** (it is alone, its neighbours are off, or the cable's CAN pair, pins 1/2, is broken). It shows the bus, not one cable, since both jacks share the CAN pair on ≤ 50 mm stubs, so a break in the middle of a chain leaves both sides blinking from their own neighbours and shows on the hub's dashboard instead (doc 07 §6.2). **Suggested layout:** put the activity LED **between the IN and OUT jacks**, with the solid link LEDs on the outer sides, in the order *IN link LED, IN jack, activity LED, OUT jack, OUT port-live LED*, so the eye reads the solid LEDs as per-port link and the blinking one as the traffic between them [U: spacing set at layout]. On the hub, which uses only the OUT jack, the activity LED sits beside it. | ✓ | ✓ | ✓ | D63 |
+
+- **ESP32 support (D72):** data-only USB-C (VBUS unconnected, CC 5.1 kΩ to GND, ESD on D+/D−), EN RC, BOOT / service tact switch and the UART0 console header (§2.1). They replace the D36 reset hold and the D37 ideal-diode feed, which only a plug-in dev board needed.
+- **LAN module socket (D18, D72):** a 2 × 5 2.54 mm female socket at the board edge on **GPIOs 10–13**, SPI2's IO MUX pins (D45, doc 04 §4), plus `+3V3` and GND, for a common **W5500 module** (ESP-IDF `esp_eth` W5500 driver). The module's interrupt goes to **GPIO 38** with a 10 kΩ pull-up (interrupt-driven, no polling), its own RC resets it, and the ESP32's eFuse Ethernet MAC is used, since the W5500 has none. Pin order follows the common 2 × 5 module [E: confirm on the purchased module before layout]. It is a normal network port, separate from the fleet jacks, with no 24 V on it. The CH390D, MagJack and crystal were on every carrier from D47 to D72; now only a board that uses LAN pays for it.
+- **Debug headers:** a **1 × 5 2.54 mm SWD header** (3.3 V, SWDIO, SWCLK, NRST, GND; D65, doc 09 §4.5) gives the I/O controller full probe debugging, and a **1 × 6 2.54 mm JTAG header** (3.3 V, TMS, TCK, TDO, TDI, GND on ESP32 GPIOs 42, 39, 40, 41; D68, doc 07 §11.8) does the same for the ESP32.
+- **Expansion port:** a 2 × 5 2.54 mm pin header on the I/O controller's spare pins, with SPI, UART and four analog inputs (D77, doc 09 §2.5).
+
+#### 2.2.6 Heater stage (D50, D51, D57, D64, D82)
+
+**Goal.** Switch the 150 W PTC heater so that no single failure keeps it on. A firmware hang, a thermostat opening or a wrong supply must each turn it off in hardware; a failed switch must be caught; and the firmware must see the heater current to find an open element, a welded FET, inrush and a stalled fan.
+
+**How it works.** Two **independent switches in series** (doc 05, ARG-09):
+- a **high-side P-FET**, the enable, driven only by the **hardware enable chain**: an RC charge pump that produces gate drive only while a GPIO keeps toggling, in series with the **KSD301 loop** (the heater-housing and chamber-air thermostats, normally closed) and the **heater-rail over-voltage comparator** (≈ 34 V, §2.2.1). A hung MCU (pin stuck high or low), either KSD301 opening, or a wrong supply on the heater rail turns the heater off.
+- a **low-side N-FET**, the PWM, driven by the firmware.
+
+A low-side shunt and amplifier measure the heater current, and a sense on the switched high-side node reads whether the enable is really off.
+
+```mermaid
+%%{init: {'flowchart': {'nodeSpacing': 20, 'padding': 8}}}%%
+flowchart TB
+  HR(("Heater rail")) --> HS["High-side P-FET<br>S40P06F, 60 V"]
+  HS --> HN["24V_HEAT"] --> XT["XT60 out →<br>PTC heater"]
+  XT --> LS["Low-side N-FET,<br>PWM"] --> SH["5 mΩ shunt"] --> G(("GND"))
+  T["Toggling GPIO"] -.-> CP["RC charge<br>pump"] -.-> K["KSD301 loop:<br>housing + chamber"]
+  K -.-> OV["Rail over-voltage<br>comparator ≈ 34 V"] -.->|"gate drive"| HS
+  PWM["ESP32 PWM"] -.-> LS
+  SH -.-> AMP["LM2904 × 40<br>→ ADC"]
+  HN -.->|"divider"| G46["GPIO 46"]
+```
+
+- **Switches:** the low side is a logic-level N-FET (40 V, 5 mΩ class, PDFN 3 × 3, SP40N05GNJ class, D51; see §2.2.10 for its gate drive). The high side is **60 V, ≈ 19/24 mΩ typ/max** (HL S40P06F, C41406794, PDFN 5 × 6, since D82; the XR30P06F before, D59; 60 V since D57), ≈ 0.5 W hot at 4.2 A on a copper pour, with a **12 V gate–source zener**, since its gate is pulled toward GND and the rail alone exceeds its ±20 V V_GS rating. 10 kΩ gate pull-downs, 100 Ω series gate resistors, XT60 heater output.
+- **High-side output sense (D64):** the switched `24V_HEAT` node feeds a divider (100 kΩ over 15 kΩ [E]: 24 V reads ≈ 3.1 V, high above ≈ 19 V; the top resistor ≥ 100 kΩ so a stuck-on high side at 57 V stays inside the clamp) with a 3.3 V clamp diode into **ESP32 GPIO 46**, a digital input. It reads low whenever the high side is off, including at reset, where the 15 kΩ overrides the strapping pin's weak internal pull-down. It is the only independent check on a high-side FET stuck on (current sensing can't see it while the low side is off): doc 05 L4 locks the heater out if it reads high with the charge pump stopped.
+- **Heater current sense (D50):** a 5 mΩ low-side shunt (LRAM25EJER005 class, 2512, ±5 %) and an LM2904 at gain 40 with a ~10 mV input pedestal into the ADC, zeroed in firmware at boot (doc 04 §4). It catches an open element, a welded FET, inrush, and the C8 stall.
+- **Roles:** used on node-heat; fitted on every role since D47 and held off elsewhere, with the KSD301 loop open (§2.2.10, one population).
+
+#### 2.2.7 Outputs: fans, servo and LEDs (D51, D57, D70, D75, D84, D85, D92, D94)
+
+**Goal.** Drive the fans and other loads so that the fans run at full speed whenever the firmware or controller is down, a shorted lead takes out only its own output, and the exhaust fan gets its full current without loading the bus.
+
+**How it works.**
+- **Fan A** is switched on the high side, so its tach stays valid, and its PWM output floats to full speed in reset.
+- **B1** is a low-side switch whose gate is pulled on, so it runs at full duty whenever its controller isn't driving it.
+- **B2** is the **fan port**: it switches a 2- or 3-wire fan or drives a 4-wire fan's PWM, and takes the fan's supply from the fan tap (§2.2.2).
+- Fan A and B1 share one resettable fuse from the bus.
+- The servo header and the LED chain run from `+5V_PWR`, the LED chain behind a current-limit switch.
+
+```mermaid
+%%{init: {'flowchart': {'nodeSpacing': 15, 'rankSpacing': 35, 'padding': 6}}}%%
+flowchart TB
+  BUS(("24 V bus")) --> F["0.75 A fuse"]
+  F --> FA["Fan A: high-side<br>P-FET, PWM, tach"]
+  F --> B1["B1 load"] --> B1S["B1 low-side,<br>gate pulled on"]
+  TAP["Fan tap"] --> FAN["B2 pin 2:<br>exhaust fan"]
+  FAN --> B2S["B2 low-side or<br>open-drain PWM"]
+  P5(("+5V_PWR")) --> SV["Servo"]
+  P5 --> LSW["LED switch<br>≈ 0.75 A"] --> LED["LED chain"]
+```
+
+**Fan channel A (D51, D70).** 24 V switched on the high side (60 V P-FET, D51; the heater stage's S40P06F since D82; the XR20P10D in D80), with a tach input (pull-up and clamp) and an open-drain PWM output on ESP32 GPIO 14 (D70), which floats to full speed while the ESP32 is in reset [E: the Intel 4-wire fan specification, as Noctua's PWM white paper quotes it, has the fan pull PWM up and run at full speed with no signal; a fan without that pull-up won't, so check the fitted fan]. High-side switching keeps the tach valid (F5). The footprint-only 0–10 V output stage moved to B2 (D85).
+
+**Low-side outputs B1, B2 (D51, D68, D75, D80, D84).** Switched 24 V (60 V N-FET, D51; SP60N12GNJ since D80), with a flyback diode each.
+- B1 is driven by the carrier I/O controller (PA8, D68), with a **10 kΩ gate pull-up** so it runs at full duty while the controller is in reset, in its bootloader or blank (D75).
+- B2 is driven by ESP32 GPIO 45 (gate pull-down). **B2 is a fan port (D84):** JST-XH 4 (GND, fan-tap supply, tach, B2; D85, D92). It switches a 2- or 3-wire fan low-side or drives a 4-wire fan's PWM input as an open-drain output, and its tach reaches the carrier I/O controller's PA9 through a 1N4148WS (doc 04 §7a). On the hub and the combined roles B2 is the exhaust fan (D84, D85).
+- A footprint-only **0–10 V output stage** (D85, moved from fan A) filters GPIO 45's PWM into 0–10 V for a fan with an analogue input; it stays unpopulated until a fan, or R1, needs it.
+
+**Output feeds (D57, D94).** Fan A and B1 take their 24 V from the bus through a **0.75 A hold, 1.5 A trip, 60 V** resettable fuse (2018L075/60GR class, C33977642), so a shorted lead opens it before the segment or injection limit trips and the rest of the chain stays up. A 5015 blower draws 0.18 A [V]; the PTC module's fan is [U] until R8. From D78 to D94 fan A and B1 had a two-leg feed, from the heater rail while it was live and from the bus otherwise; D94 put them back on the bus, since B2 no longer shares their fuse and a heating node's own supply feeds its bus. When every output on one fuse stops at once, the firmware raises an output-fault alert. On a node-heat the firmware keeps fan A and B1 off while no heater supply is live (D78, D94), and both off while the bus reads 30–34 V.
+
+**Servo header.** `+5V_PWR`, signal held low at boot. On a node it drives the damper servo; the damper's **AS5600 angle encoder** (D30) reads the blade shaft and connects to I²C header 2, not here. On the hub and the combined roles it drives a **5 V active buzzer module** (3-pin, transistor input, active high), silent through a reset because the signal is held low at boot (D85).
+
+**LED chain 1 (D44, D45, D51, D56, D70, D71).**
+- A **current-limit switch** from `+5V_PWR` (SY6280AAAC class, C207620, SOT-23-5, 63 mΩ; limit = 6800 / R_SET, **≈ 0.75 A with 9.1 kΩ**, 0.56–0.93 A over tolerance [V: datasheet ±25 % at 1 A]; enable tied high) makes `+5V_LED`, with 1000 µF bulk.
+- A **2N7002 inverting level shifter** (1 kΩ pull-up to `+5V_LED`, so the data line never sits above a sagging LED supply) and 330 Ω series resistor carry the data. The carrier I/O controller's timer output runs with inverted polarity to match (D51, D70, D71); the ESP32's RMT drove it before D70. Chain 2 was dropped (D45).
+- LED 0 of the bed strip is the status pixel; on the hub LED1 is the panel RGB. The strip is ~48 LEDs per printer (D44), ≈ 2.9 A at full white. The firmware caps it at 0.5 A (doc 04 §3), below the switch's lowest limit; the switch is the hardware backstop (D56). In limit it holds the current and lets `+5V_LED` sag, so the LEDs dim, the servo and the power buck stay inside their ratings, and it soft-starts the 1000 µF. Loss ≈ 20 mW at 0.5 A.
+
+#### 2.2.8 Sensing and inputs (D11, D30, D32, D42, D47, D48, D49, D68, D69)
+
+**Goal.** Connect every sensor the roles need through a few standard connectors, so that one faulty sensor or cable can't take the others down, and every analog reading can be trusted.
+
+**How it works.**
+- An **8-channel I²C switch** gives each of the eight Qwiic-style sensor headers its own bus segment, and the carrier I/O controller powers each header separately.
+- An **on-board XGZP6897D** pressure sensor sits on the main I²C bus.
+- Two **NTC inputs** cover either the anemometer's range or the heater housing's hot range, chosen by a RANGE shunt.
+- The **door reed** is read through the I/O controller.
+- The **AUX header** gives two 5 V-tolerant lines: a smoke contact and an acknowledge button on the hub, or a UART printer link on a node.
+
+```mermaid
+%%{init: {'flowchart': {'nodeSpacing': 20, 'padding': 8}}}%%
+flowchart TB
+  ESP["ESP32"] -->|"I²C"| SW["8-channel I²C switch<br>FCA9548T"]
+  ESP -->|"I²C"| XG["On-board<br>XGZP6897D"]
+  SW --> H["Headers 1–8<br>JST-SH, Qwiic pinout"]
+  PY["Carrier I/O<br>controller"] -->|"power per header"| H
+  NTC["2 × NTC<br>+ RANGE shunts"] --> ESP
+  DOOR["Door reed"] --> PY
+  AUX["AUX A, B<br>(level shifted)"] <--> ESP
+```
+
+**Sensor headers 1–8 (D51, D68, D69).** JST-SH 4 with the Qwiic / STEMMA QT pinout (GND, 3.3 V, SDA, SCL), one per channel of a TCA9548A-compatible switch (FCA9548T fitted, D51), with per-header power from the **PY32F030 carrier I/O controller** (§2.4). Every XGZP6897D is fixed at 0x6D, so each off-board one sits on its own switch channel and can't clash with the on-board one (D11; supersedes C7). Each header being its own segment also keeps bus capacitance low. **A display never shares a channel with a sensor** (D48, doc 09 §3), so a locked-up OLED can't take a sensor reading with it. Headers 5–8 (and 3 on nodes) are free for further sensor boards.
+
+| Header | Node-heat | Node-lite | Hub |
+|---|---|---|---|
+| 1 | Sensor head | Sensor head | Room sensor head |
+| 2 | AS5600 damper encoder (sensor board E, D30) | AS5600 damper encoder | XGZP6897D trunk sensor (sensor board P) |
+| 3 | Unused (per-branch flow option) | Unused | XGZP6897D trunk-flow sensor at the venturi (D30, D33) |
+| 4 | Optional OLED (D48) | Optional OLED | Optional 0.96″ OLED at 0x3C (D48) |
+| 5–8 | Free | Free | Free |
+
+**On-board XGZP6897D** pressure sensor (I²C 0x6D), two barbs: chamber against room on a node, **across the filter** on the hub.
+
+**NTC inputs (D32, D47, D56, D72).** Two NTC 100k inputs on ADC1 with an RC filter: a **47 kΩ** pull-up to **`+3V3`** (the ESP32's own supply, D56, D72) on every board, plus **5.1 kΩ through a RANGE shunt** per channel (≈ 4.6 kΩ with the shunt on, D47).
+- 47 kΩ gives resolution at 20–80 °C for the hub's **low-flow anemometer** (reference and heated NTC, D32; RANGE shunts off). ≈ 4.6 kΩ covers the hot range of the heater housing on a node-heat (chamber air and heater housing; both RANGE shunts on). A wrong shunt is caught at boot (doc 04 §4).
+- The ESP32's ADC isn't ratiometric, so the pull-up rail's error becomes a temperature error. Since D72 the rail is the 3.3 V buck (≈ ±3 %, against a dev board regulator's ±1–2 % before), so the firmware scales each reading by the rail voltage the carrier I/O controller measures against its internal reference (doc 09 §2.4) [E: residual error at layout].
+- Pulling the pins up to their own chip's supply means they can never sit above it while the rails come up. The pull-ups draw ≈ 60 µA in total; the anemometer's heater runs from B1 at 24 V, not from this rail.
+
+**Door input.** A reed switch with a pull-up, RC filter and ESD, **read through the carrier I/O controller** (§2.4). Fitted on every role; used on node-heat, optional on node-lite. A printer that reports its doors over its link can use them instead (`door.source: link`, doc 12 §4). With a reed fitted, the reed is primary and the link is the backup (doc 05 §4).
+
+**AUX header (D48, D49, D75).** JST-XH 5: 3.3 V, GND, A = GPIO 36, B = GPIO 6, GND (A was GPIO 5 before D75). Each line passes a **2N7002 level shifter** (gate to 3.3 V; 10 kΩ pull-up to 3.3 V on the ESP32 side, 4.7 kΩ to 3.3 V on the connector side) and is ESD-protected. The shifter makes both lines **5 V-tolerant** and still passes a contact pulling low, so edge interrupts work. Both lines are digital only; pinout in doc 04 §4.
+- **Hub:** A = smoke dry contact, B = acknowledge button, each with its own GND pin.
+- **Node:** spare, or the **UART printer link** (A = TX, B = RX; doc 12 `marlin_serial`).
+- An **on-board tact switch** (TS-1187A-B-A-B, LCSC C318884, a Basic part) sits on B's connector side, in parallel with the AUX pin, on every carrier (D49). The hub's front panel presses it through a printed plunger, and a builder can still cable a remote button to AUX B. It is on B, the UART **RX** line, so a press on a node using the UART link only garbles a received frame; on A, the TX line, it would short a driven output through the shifter. AUX replaces the two spare-input headers.
+
+#### 2.2.9 Identity and indicators (D46, D62, D63, D84)
+
+**Goal.** Make a board refuse to run as the wrong role, and let a person see power, link and bus traffic at a glance, without tools or firmware.
+
+**How it works.** A **role shunt** on a divider gives each role a distinct voltage, which the firmware checks against the stored role at boot. Indicator LEDs are driven in hardware wherever possible, so they keep telling the truth when the firmware doesn't run.
+
+**Board identity header (D46, D84).** A 2 × 5 pin header and shunt (HEAT, C-HEAT, LITE, C-LITE, HUB; 2 × 3 until D84) on a divider to the carrier I/O controller's PA0 (D68; GPIO 3 before), checked against the stored role at boot (doc 04 §4). A wrong or missing shunt gives a safe hold: nothing switches on. Since D47 it is the only part of the role set on the board. The carrier's BOOT switch doubles as a service button after boot (doc 04 §4, D72).
+
+**Status LEDs.** A power LED, a **CAN activity** LED, and a **board status LED** driven by the carrier I/O controller (§2.4); the jack LEDs are in §2.2.3.
+
+**CAN activity LED (D63), hardware-driven.**
+- **What it shows:** a blue LED blinks for ≈ 30 ms whenever another unit drives a dominant bit, detected as the transceiver's RXD low while its TXD is high. The unit's own frames are excluded, and the ACK another unit gives to its frames is counted. No firmware or controller pin is involved.
+- **Circuit:** a PNP on RXD in series with a small N-FET on TXD charges a 100 nF capacitor through a diode, a bleed resistor sets the ≈ 30 ms stretch, and an NPN drives the LED. A **minimum-off timer** (a second NPN with its own RC, started by the end of each on-pulse) blocks the charge path for another ≈ 30 ms. So a busy bus gives a fixed ≈ 30 ms on / ≈ 30 ms off blink (≤ ≈ 16 Hz), as an Ethernet activity LED does, instead of a solid LED [U: values tuned and simulated at bring-up].
+- **Reading it:** every unit sends a 1 Hz heartbeat (doc 07 §6.2), so a connected neighbour makes it blink about once a second at the least.
+  - ≈ 1 blink a second or a few more: healthy.
+  - A steady fast flicker (≈ 16 Hz): heavy traffic, or a unit holding the bus dominant [E].
+  - **Dark:** this unit hears no other unit. It is alone, its neighbours are off, or the cable's CAN pair (pins 1/2) is broken.
+  - It shows the bus, not one cable, since both jacks share the CAN pair on ≤ 50 mm stubs. A break in the middle of a chain leaves both sides blinking from their own neighbours, and shows on the hub's dashboard instead (doc 07 §6.2).
+- **Suggested layout:** put the activity LED **between the IN and OUT jacks**, with the solid link LEDs on the outer sides, in the order *IN link LED, IN jack, activity LED, OUT jack, OUT port-live LED*, so the eye reads the solid LEDs as per-port link and the blinking one as the traffic between them [U: spacing set at layout]. On the hub, which uses only the OUT jack, the activity LED sits beside it.
+
+#### 2.2.10 Part ratings, population, size and connectors
 
 **Part choices and ratings (D51).** Named parts are JLC-stocked and chosen for cost; equivalents are fine if they meet the same ratings:
 - **Anything switching or blocking on the 24 V side is rated ≥ 60 V.** Fan A and the POWER IN preference switch use the S40P06F P-FET (60 V, PDFN 5 × 6, D82, D94) and B1/B2 the SP60N12GNJ N-FET (60 V, PDFN 3 × 3), so they outlast a fan-lead short until its fuse trips (D80). 30 V SOT-23 FETs leave no margin above the ~37 V TVS breakdown. The bucks are the exception (40 V): they sit behind the IN guard and the eFuse cut-off (D56). On the heater rail, only the high-side switch and the preference switch are 60 V; the rest sees leakage only once the D57 comparator opens it.
