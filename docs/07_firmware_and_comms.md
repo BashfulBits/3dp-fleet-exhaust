@@ -78,7 +78,7 @@ flowchart TD
   ID -->|"no, or unset"| SH["Safe hold: heater and<br>outputs off, fault raised"]
   ID -->|"controller silent"| UC["Run the stored role,<br>'identity unchecked',<br>heater off until read"]
   ID -->|"yes"| Z["Zero the heater current<br>(both switches off)"]
-  Z --> RG{"NTCs agree with<br>the SHT40? (RANGE)"}
+  Z --> RG{"NTCs agree with<br>the SHT40?"}
   RG -->|"no"| SH
   RG -->|"yes"| PD["Power-input diagnostics;<br>two-supply check<br>runs from here on"]
   PD --> ST["Safety task starts the<br>charge pump; role tasks run"]

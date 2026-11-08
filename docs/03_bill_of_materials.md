@@ -99,13 +99,13 @@ JLCPCB builds 5 of each board per order, so a fleet of up to 4 printers plus the
 | HEATER barrel jack, right-angle mid-mount 5.5 × 2.5 mm, 15 A (G-Switch DC-S007B-D025-15A, C7464909; was the 5 A XKB DC-005-5A-2.5 until D66) | 1 | $0.80 | $0.80 | HEATER barrel on the outside face (D64), full-power barrel brick (D66). The HEATER DIN jack has a footprint on every board but is an accessory (below) |
 | JST-XH 2.54 mm THT header, 2/3/5/6-pin (XH-5A class, e.g. C2318) | 9 | $0.015 | $0.14 | Fan A and B2 (6-pin fan ports since D95; B2 4-pin from D84), LED 1, NTC ×2, KSD301 loop, door, B1, AUX (5-pin, D48; replaces the two spare-input headers). The sensor headers are JST-SH since D69 (next row) |
 | JST-SH 1.0 mm 4-pin SMD header, right angle (Megastar ZX-SH1.0-4PWT, C7430446) | 8 | $0.068 | $0.54 | Sensor headers 1–8 in the Qwiic / STEMMA QT pinout (D69; JST-XH 4 before) |
-| 2.54 mm pin header + shunt (shunt C100114) | 7 | ≈ $0.02 | $0.14 | Servo, board-identity 2 × 5 (D46; 2 × 3 until D84), RANGE 1, RANGE 2 (D47; ILIM went in D81); FAN V (D85, D86) went in D92; TERM went in D96; spare shunts |
+| 2.54 mm pin header + shunt (shunt C100114) | 5 | ≈ $0.02 | $0.10 | Servo, board-identity 2 × 5 (D46; 2 × 3 until D84); ILIM went in D81, RANGE 1 and RANGE 2 (D47) in D97; FAN V (D85, D86) went in D92; TERM went in D96; spare shunts |
 | 2.54 mm pin header, 1 × 5, no shunt | 1 | ≈ $0.02 | $0.02 | SWD debug header for the carrier I/O controller (D65, doc 09 §4.5) |
 | 2.54 mm pin header, 1 × 6, no shunt | 1 | ≈ $0.02 | $0.02 | ESP32 JTAG header on GPIOs 39–42 (D68, doc 07 §11.8) |
 | 2 × 5 2.54 mm female socket | 1 | ≈ $0.05 | $0.05 | LAN module socket on GPIOs 10–13 (D72; replaces the two 1 × 22 dev-board sockets, $0.45) |
 | 2.54 mm pin header, 1 × 3, no shunt | 1 | ≈ $0.01 | $0.01 | ESP32 UART0 console header on GPIOs 43/44 (D72, doc 02 §2.1) |
 | 2.54 mm pin header, 2 × 5, no shunt | 1 | ≈ $0.03 | $0.03 | Carrier I/O controller expansion port (D77, doc 09 §2.5) |
-| 2.54 mm pin header, 1 × 2, + shunt | 4 | ≈ $0.02 | $0.08 | DC and STRONG jumpers on fan A and B2 (D95, doc 04 §7a) |
+| 2.54 mm pin header, 1 × 2, + shunt | 2 | ≈ $0.02 | $0.04 | DC jumpers on fan A and B2 (D95, doc 04 §7a); STRONG went in D97, replaced by a CTRL buffer per port (MMBT3904 ×2, MMBT3906, 22 kΩ, 68 Ω, ≈ $0.01, priced in the carrier line) |
 | USB-C receptacle, 16-pin (TYPE-C-31-M-12, C165948, 20 V) | 1 | $0.187 | $0.19 | B2 "FAN 10 V" jack (D95) [V: JLC listing, 2026-11-08] |
 | 3.5 mm TRRS jack (PJ-320A class, C2884926; C3038674 $0.07 is thinly stocked) | 1 | $0.145 | $0.15 | B2 TRRS jack (D95) [V: JLC listing, 2026-11-08] |
 | 3.5 mm pluggable terminal header, 4-pole (15EDGRC class, MX15EDGRC-3.5-04P, C5188297) | 1 | $0.078 | $0.08 | B2 terminal-header jack; its push-in plug (15EDGKNH class) goes with the fan's cable (D95) [V: JLC listing, 2026-11-08] |

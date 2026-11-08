@@ -50,7 +50,7 @@ Quantities are for a fleet of **N printers**, H of them node-heat (one heater ea
 
 ### 2.2 Functional blocks and role population
 
-**Since D47 every carrier is assembled with the same parts**, so one board serves any role and the spare stands in for any of them. The only per-board settings are shunts: the role header and the two RANGE shunts. CAN termination sets itself (D96). There are no power jumpers (D94). This section shows how the blocks connect, which blocks each role uses, and then each block in turn: what it is for, how it works, and the parts and ratings that implement it.
+**Since D47 every carrier is assembled with the same parts**, so one board serves any role and the spare stands in for any of them. The only per-board setting is the role shunt (and DC, per fan port, for a fan that needs it). CAN termination sets itself (D96). There are no power jumpers (D94). This section shows how the blocks connect, which blocks each role uses, and then each block in turn: what it is for, how it works, and the parts and ratings that implement it.
 
 **Top level.** Solid arrows carry power; dashed arrows carry signals. Numbers are the subsections below.
 
@@ -83,7 +83,7 @@ flowchart TB
 | 5 Controllers, ports | LAN socket empty unless the link is wired | Same | W5500 module fitted |
 | 6 Heater stage | ✓ | Fitted, held off | Fitted, held off |
 | 7 Outputs | Fan A: recirculation fan if not built in; B1: recirculation blower where the pack fits one; B2 spare; servo: damper | Fan A, B1, B2 spare; servo: damper | Fan A: second exhaust fan from ≈ 9 printers (D95), otherwise spare; B1: anemometer heater (D32); B2: **exhaust fan** (D85); servo header: **buzzer** |
-| 8 Sensing | NTCs: chamber air and heater housing, both RANGE shunts on; headers 1 sensor head, 2 damper encoder, 4 optional OLED; door reed; AUX spare or UART link | NTCs spare; headers 1, 2, 4; door optional; AUX spare or UART link | NTCs: low-flow anemometer, RANGE shunts off; headers 1 room sensor head, 2 trunk pressure, 3 trunk flow, 4 optional OLED; AUX A smoke contact, B acknowledge button |
+| 8 Sensing | NTCs: chamber air and heater housing; headers 1 sensor head, 2 damper encoder, 4 optional OLED; door reed; AUX spare or UART link | NTCs spare; headers 1, 2, 4; door optional; AUX spare or UART link | NTCs: low-flow anemometer; headers 1 room sensor head, 2 trunk pressure, 3 trunk flow, 4 optional OLED; AUX A smoke contact, B acknowledge button |
 | 9 Identity, indicators | Role shunt HEAT | LITE | HUB |
 
 #### 2.2.1 Power inputs and supply selection (D22, D64, D66, D94)
@@ -369,9 +369,10 @@ flowchart TB
 - B1 is driven by the carrier I/O controller (PA8, D68), with a **10 kΩ gate pull-up** so it runs at full duty while the controller is in reset, in its bootloader or blank (D75).
 - B2 is driven by ESP32 GPIO 45 (gate pull-down). **B2 is a fan port (D84, D95):** the 6-pin port below, with the fan tap on pin 2 (D92). It switches a 2- or 3-wire fan low-side or drives a 4-wire fan's PWM input as an open-drain output, and its tach reaches the carrier I/O controller's PA9 through a 1N4148WS (doc 04 §7a). On the hub and the combined roles B2 is the exhaust fan (D84, D85). The footprint-only 0–10 V output stage (D85) is gone: it output 0 V, and so stopped the fan, whenever the hub was down (D95).
 
-**6-pin fan port (D95).** Fan A and B2 share one pinout (JST-XH 6, doc 04 §7a): **1 GND, 2 V+** (fan A: the bus through its high-side switch; B2: the fan tap), **3 TACH** (open-collector input, as above), **4 PWM** (open drain on a 60 V FET, ≈ 25 kHz, for a 4-wire fan), **5 REF** (the fan's own +10 V, in) and **6 CTRL** (10 kΩ pull-up to REF, pulled down by its own 2N7002 on the same GPIO as pin 4).
-- **Fails to full speed:** both FETs are off at reset and with the board unpowered, so CTRL sits at the fan's 10 V (100 % duty) and pin 4 floats to a 4-wire fan's pull-up. A mains EC fan on CTRL keeps running at full speed through a hub-supply failure too (F3).
-- **Jumpers:** **DC** puts an RC filter in the CTRL line for a fan that takes 0–10 V but not PWM; **STRONG** adds 1.5 kΩ to REF for an input that needs a stiffer pull-up [U: whether any fan needs it; it draws ≈ 7 mA, so leave it off a fan whose reference is rated ≈ 1 mA, such as the prioAir EC's]. PWM mode is the default: a 10 kΩ pull-up into a ≈ 100 kΩ input reaches only ≈ 9 V in DC mode [E], and a fan that accepts PWM on its 0–10 V line reads the duty, not the level.
+**6-pin fan port (D95).** Fan A and B2 share one pinout (JST-XH 6, doc 04 §7a): **1 GND, 2 V+** (fan A: the bus through its high-side switch; B2: the fan tap), **3 TACH** (open-collector input, as above), **4 PWM** (open drain on a 60 V FET, ≈ 25 kHz, for a 4-wire fan), **5 REF** (the fan's own +10 V, in) and **6 CTRL** (a push-pull buffer powered from REF, switched low by its own 2N7002 on the same GPIO as pin 4; D97).
+- **Fails to full speed:** both FETs are off at reset and with the board unpowered, so the buffer holds CTRL at ≈ 9.4 V (100 % duty to a fan that reads PWM, ≈ 94 % to one that reads the level [U]) and pin 4 floats to a 4-wire fan's pull-up. A mains EC fan on CTRL keeps running at full speed through a hub-supply failure too (F3).
+- **CTRL buffer (D97):** an emitter follower, MMBT3904 + MMBT3906 with bases joined, 22 kΩ from REF to the bases, which the CTRL 2N7002 pulls low, and a 68 Ω + MMBT3904 current limit at ≈ 10 mA. High ≈ 9.4 V into 100 kΩ, ≈ 9.1 V at 1 mA, ≈ 7.9 V at 5 mA; low ≈ 0.6 V. It draws ≈ 0.45 mA from REF while low and otherwise only what the fan's input takes, so it drives a stiff input and never overloads a ≈ 1 mA reference. It replaces the 10 kΩ pull-up and the STRONG jumper (D95) [U: values on the bench].
+- **DC jumper:** puts an RC filter (series ≤ 1 kΩ, a few µF) in the CTRL line for a fan that takes 0–10 V but not PWM, so the level stays ≈ 9.3 V. PWM mode is the default: a fan that accepts PWM on its 0–10 V line reads the duty, not the level.
 - **CTRL is not pin 4:** on B2, pin 4's flyback diode to the fan tap would drag a pulled-up line low with the board off.
 - **REF** feeds only the pull-ups, never the board.
 
@@ -383,7 +384,7 @@ flowchart TB
 | 3.5 mm TRRS | PJ-320A class (C2884926; C3038674 is cheaper but thinly stocked) | +10 V → REF, 0–10 V/PWM → CTRL, GND → GND, tach → TACH | TerraBloom ECMF series, on a plain male-to-male TRRS cable [V: signals, maker manual; U: which contact is which] |
 | 4-pole 3.5 mm pluggable terminal header | 15EDGRC class (C5188297, $0.078), push-in plug of the 15EDGKNH class (no screw terminal) | REF, CTRL, GND, TACH | Bare-lead EC fans (Fantech, ebm-papst: +10 V, 0–10 V, GND, tach), and TerraBloom's own breakout cable |
 
-A laptop or charger in the USB-C jack sees only Rd and supplies 5 V, which feeds just the pull-up. The USB-C pinout comes from hobby projects that disagree on which data line carries PWM, so the **SWAP** jumper (2 × 3 header, two shunts; default D+ → CTRL) lets a builder cross them after metering the fan; a hobby controller that works with these fans pulls PWM to 10 V through 1 kΩ, so STRONG is the first thing to try if a fan ignores CTRL [U]. The ESD diodes on REF, CTRL and TACH at these jacks are rated above 10 V, not the 5 V class used elsewhere. The housing has an opening per jack with a printed snap-in blank and a label, and the fan USB-C sits well apart from the printer-link USB-C. **No RJ12:** brands' pinouts are unpublished and differ, and an RJ12 plug fits the RJ45 bus jack. Fan A has only its XH 6.
+A laptop or charger in the USB-C jack sees only Rd and supplies 5 V, which feeds just the CTRL buffer. The USB-C pinout comes from hobby projects that disagree on which data line carries PWM, so the **SWAP** jumper (2 × 3 header, two shunts; default D+ → CTRL) lets a builder cross them after metering the fan; a hobby controller that works with these fans pulls PWM to 10 V through 1 kΩ, a load the CTRL buffer drives at ≈ 7.9 V or more [U]. The ESD diodes on REF, CTRL and TACH at these jacks are rated above 10 V, not the 5 V class used elsewhere. The housing has an opening per jack with a printed snap-in blank and a label, and the fan USB-C sits well apart from the printer-link USB-C. **No RJ12:** brands' pinouts are unpublished and differ, and an RJ12 plug fits the RJ45 bus jack. Fan A has only its XH 6.
 
 **Output feeds (D57, D94).** Fan A and B1 take their 24 V from the bus through a **0.75 A hold, 1.5 A trip, 60 V** resettable fuse (2018L075/60GR class, C33977642), so a shorted lead opens it before the segment or injection limit trips and the rest of the chain stays up. A 5015 blower draws 0.18 A [V]; the PTC module's fan is [U] until R8. From D78 to D94 fan A and B1 had a two-leg feed, from the heater rail while it was live and from the bus otherwise; D94 put them back on the bus, since B2 no longer shares their fuse and a heating node's own supply feeds its bus. When every output on one fuse stops at once, the firmware raises an output-fault alert. On a node-heat the firmware keeps fan A and B1 off while no heater supply is live (D78, D94), and both off while the bus reads 30–34 V.
 
@@ -401,7 +402,7 @@ A laptop or charger in the USB-C jack sees only Rd and supplies 5 V, which feeds
 **How it works.**
 - An **8-channel I²C switch** gives each of the eight Qwiic-style sensor headers its own bus segment, and the carrier I/O controller powers each header separately.
 - An **on-board XGZP6897D** pressure sensor sits on the main I²C bus.
-- Two **NTC inputs** cover either the anemometer's range or the heater housing's hot range, chosen by a RANGE shunt.
+- Two **NTC inputs** with one fixed pull-up cover the anemometer, the chamber air and the heater housing (D97).
 - The **door reed** is read through the I/O controller.
 - The **AUX header** gives two 5 V-tolerant lines: a smoke contact and an acknowledge button on the hub, or a UART printer link on a node.
 
@@ -412,7 +413,7 @@ flowchart TB
   ESP -->|"I²C"| XG["On-board<br>XGZP6897D"]
   SW --> H["Headers 1–8<br>JST-SH, Qwiic pinout"]
   PY["Carrier I/O<br>controller"] -->|"power per header"| H
-  NTC["2 × NTC<br>+ RANGE shunts"] --> ESP
+  NTC["2 × NTC"] --> ESP
   DOOR["Door reed"] --> PY
   AUX["AUX A, B<br>(level shifted)"] <--> ESP
 ```
@@ -429,8 +430,8 @@ flowchart TB
 
 **On-board XGZP6897D** pressure sensor (I²C 0x6D), two barbs: chamber against room on a node, **across the filter** on the hub.
 
-**NTC inputs (D32, D47, D56, D72).** Two NTC 100k inputs on ADC1 with an RC filter: a **47 kΩ** pull-up to **`+3V3`** (the ESP32's own supply, D56, D72) on every board, plus **5.1 kΩ through a RANGE shunt** per channel (≈ 4.6 kΩ with the shunt on, D47).
-- 47 kΩ gives resolution at 20–80 °C for the hub's **low-flow anemometer** (reference and heated NTC, D32; RANGE shunts off). ≈ 4.6 kΩ covers the hot range of the heater housing on a node-heat (chamber air and heater housing; both RANGE shunts on). A wrong shunt is caught at boot (doc 04 §4).
+**NTC inputs (D32, D56, D72, D97).** Two NTC 100k inputs on ADC1 with an RC filter and one fixed **22 kΩ 1 %** pull-up to **`+3V3`** (the ESP32's own supply, D56, D72) on every board. Until D97 it was 47 kΩ plus 5.1 kΩ through a RANGE shunt per channel (≈ 4.6 kΩ with the shunt on, D47).
+- 22 kΩ covers every use with one value (100k B 3950 NTC, ≈ 0.76 mV per ADC step, ≈ ±15 mV ADC error after factory calibration [E]): node chamber air, 10–70 °C, 15–30 mV/°C, ≤ 1.0 °C from ADC error; heater housing, 20–120 °C, 11–30 mV/°C, ≤ 1.4 °C; the hub's **low-flow anemometer** (D32), reference NTC at 10–40 °C 15–28 mV/°C, heated NTC at 30–80 °C 24–30 mV/°C, both ≤ 0.05 °C per step. Below ≈ 5 °C the reading nears the top of the ADC range [U: value 20–27 kΩ on the bench].
 - The ESP32's ADC isn't ratiometric, so the pull-up rail's error becomes a temperature error. Since D72 the rail is the 3.3 V buck (≈ ±3 %, against a dev board regulator's ±1–2 % before), so the firmware scales each reading by the rail voltage the carrier I/O controller measures against its internal reference (doc 09 §2.4) [E: residual error at layout].
 - Pulling the pins up to their own chip's supply means they can never sit above it while the rails come up. The pull-ups draw ≈ 60 µA in total; the anemometer's heater runs from B1 at 24 V, not from this rail.
 
@@ -471,12 +472,12 @@ flowchart TB
 - **ESD:** a single-line 5 V bidirectional diode (H5VL10B class, DFN1006) on every off-board signal line.
 - **Clones:** the MX74700T and FCA9548T are pin-compatible with the LM74700 and TCA9548A [E: confirm each pinout on the datasheet before layout].
 
-**One population (D47).** JLC assembles one BOM per order [E], so three populations would mean three assembly orders, each with its own setup and extended-part fees, and a spare board that fits only one role. Fitting every block on every carrier costs less than that and lets the spare stand in for any role. The heater stage is safe to fit on a board that doesn't use it: its high-side switch needs both the charge-pump wave and a closed KSD301 loop (doc 05 §3.1), the KSD301 loop is not wired on a node-lite or the hub, and the firmware refuses to drive it unless the role shunt says HEAT. A node-lite becomes a node-heat by moving the role shunt, fitting both RANGE shunts and wiring the heater and KSD301 loop.
+**One population (D47).** JLC assembles one BOM per order [E], so three populations would mean three assembly orders, each with its own setup and extended-part fees, and a spare board that fits only one role. Fitting every block on every carrier costs less than that and lets the spare stand in for any role. The heater stage is safe to fit on a board that doesn't use it: its high-side switch needs both the charge-pump wave and a closed KSD301 loop (doc 05 §3.1), the KSD301 loop is not wired on a node-lite or the hub, and the firmware refuses to drive it unless the role shunt says HEAT. A node-lite becomes a node-heat by moving the role shunt and wiring the heater and KSD301 loop.
 
 **Board size:** set by its connectors, not a target size (ARG-12). Estimated ~100 × 70 mm, 2-layer, **1 oz** copper (2 oz before D59). The heater path (heater inputs → high-side and low-side FETs → XT60 out) runs as ≥ 4 mm pours on both layers, stitched with vias, for ≤ 20 °C rise at 4.2 A [E: IPC-2221].
 
 **Connectors:**
-- Power: two XT60s inside the housing (internal heater supply, heater output); HEATER DIN (right-angle power DIN, fitted where used) and HEATER barrel (5.5 × 2.5 mm, 15 A, D66) under the housing shutter (D64); POWER IN barrel (5.5 × 2.1 mm, logic only, D66); no power jumpers (the INJECT header went in D94, the HEAT header in D64); RANGE 1/2 shunt headers (D47; the ILIM header went in D81).
+- Power: two XT60s inside the housing (internal heater supply, heater output); HEATER DIN (right-angle power DIN, fitted where used) and HEATER barrel (5.5 × 2.5 mm, 15 A, D66) under the housing shutter (D64); POWER IN barrel (5.5 × 2.1 mm, logic only, D66); no power jumpers (the INJECT header went in D94, the HEAT header in D64); no RANGE shunts since D97 (the ILIM header went in D81).
 - AUX: JST-XH 5, smoke contact and an optional remote acknowledge button on the hub, or a UART printer link on a node (D48, D49).
 - Acknowledge button: on-board SMD tact switch on AUX B, pressed through a printed plunger (D49).
 - Bus: RJ45.
@@ -643,11 +644,11 @@ Every fan the framework knows about has one status. "Class" means any fan with t
 | Fan (class) | Status | Printers | Connects to | Open checks | Settings |
 |---|---|---|---|---|---|
 | 24 V 120 × 38 mm 4-wire PWM, high pressure (Jentech JC12038B24UC2 class) | **Qualifies on paper** | 1–15 (a second one on fan A from ≈ 9) | B2 XH 6 pins 1–4, fan tap; a printed 120 mm → 4″ or 6″ adapter | Starting and full-speed current (FN-8a, D87) | Tach 2 pulses/rev; jumpers off |
-| 6″ mains EC with 0–10 V input and +10 V reference (Fantech prioAir 6 EC, FG 6M EC) | **Qualifies on paper** | 5–15 (6″ kit) | B2 terminal header: red → REF, yellow → CTRL, blue → GND, white → TACH | Full speed through the 10 kΩ pull-up with the hub off (F3) | Tach 1 pulse/rev; PWM mode (DC off); **STRONG never** (1.1 mA reference) |
+| 6″ mains EC with 0–10 V input and +10 V reference (Fantech prioAir 6 EC, FG 6M EC) | **Qualifies on paper** | 5–15 (6″ kit) | B2 terminal header: red → REF, yellow → CTRL, blue → GND, white → TACH | Runs on the CTRL buffer's ≈ 9.4 V with the hub off: ≈ 94 % if it reads the level linearly (F3) | Tach 1 pulse/rev; PWM mode (DC off); the buffer draws ≤ 0.45 mA of its 1.1 mA reference (D97) |
 | 24 V 120 × 38 mm 4-wire PWM, budget (Jentech JC12038B24UC1 class) | Designed for, not validated | 1–4, short runs | As the high-pressure class | Purge flow through the filter: ≈ 176 Pa at 50 CFM is below FN-2 | Tach 2 pulses/rev |
 | 24 V 120 × 38 mm 4-wire PWM, industrial (Delta PFB1224SE / HE class) | Designed for, not validated | 1–15 | As the high-pressure class | Running current, P–Q curve | Tach 2 pulses/rev |
 | 12 V 120 × 38 mm 4-wire PWM (Wathai 12038 class) | Designed for, not validated | 1–4 | B2 pins 1–4 through an inline 24 → 12 V adapter (D86) | P–Q curve (below the FN-3 screen) | Tach 2 pulses/rev |
-| USB-C-port grow EC (AC Infinity UIS: Cloudline T6 class; Vivosun) | Designed for, not validated | 5–15 for 6″ models | B2 USB-C "FAN 10 V" | Which data line is PWM (SWAP); whether STRONG is needed; full speed with the hub off (F3); P–Q curve | Tach 2–3 pulses/rev [U]; SWAP and STRONG as measured |
+| USB-C-port grow EC (AC Infinity UIS: Cloudline T6 class; Vivosun) | Designed for, not validated | 5–15 for 6″ models | B2 USB-C "FAN 10 V" | Which data line is PWM (SWAP); full speed with the hub off (F3); P–Q curve | Tach 2–3 pulses/rev [U]; SWAP as measured |
 | TRRS-port EC (TerraBloom ECMF-150 class) | Designed for, not validated | 5–15 (6″ kit) | B2 TRRS jack, or the maker's breakout cable on the terminal header | TRRS contact positions; whether it starts with CTRL pulled to REF in place of its controller (F3); P–Q curve | Tach [U]; PWM mode |
 | TRRS-port 4″ EC (TerraBloom ECMF-100 class) | Designed for, not validated; marginal | 1–4 | As the ECMF-150 | As the ECMF-150; ≈ 254 Pa at 50 CFM [E] leaves nothing for leakage at a loaded filter | As the ECMF-150 |
 | 4″ grow EC below FN-2 (AC Infinity Cloudline S4 class) | Not suitable | – | (B2 USB-C) | ≈ 185 Pa at 50 CFM [E] | – |

@@ -159,8 +159,8 @@ Rules applied:
 | GPIO | Node-heat | Node-lite | Hub | Notes |
 |---|---|---|---|---|
 | 0 | **Service button** (the carrier's BOOT tact switch, D46, D72) | Same | Same | Input; 10 kΩ pull-up per Espressif's module reference. Held at power-up, it enters download mode as usual |
-| 1 | Chamber-air NTC (ADC) | – (fitted, spare) | **Anemometer reference NTC** (D32) | ADC1_CH0. 47 kΩ pull-up, ≈ 4.6 kΩ with the RANGE 1 shunt on (node-heat, D47) |
-| 2 | Heater-housing NTC (ADC) | – (fitted, spare) | **Anemometer heated NTC** (D32) | ADC1_CH1. RANGE 2 shunt as for GPIO 1 |
+| 1 | Chamber-air NTC (ADC) | – (fitted, spare) | **Anemometer reference NTC** (D32) | ADC1_CH0. 22 kΩ pull-up for every use (D97; RANGE shunts until then) |
+| 2 | Heater-housing NTC (ADC) | – (fitted, spare) | **Anemometer heated NTC** (D32) | ADC1_CH1. 22 kΩ pull-up, as GPIO 1 |
 | 3 | **Fan A high-side enable** (D68, was GPIO 18) | – | – (held off: the second exhaust fan on fan A takes 24 V from its own brick, D95) | 10 kΩ pull-down, low at reset (strapping pin, above). The board identity moved to the carrier I/O controller (D68, below) |
 | 4 | Heater current, LM2904 out (ADC, D50) | – | – | ADC1_CH3; sampled at a fixed rate by ADC1 continuous mode with DMA (below) |
 | 5 | **Jack-side heater voltage** (ADC, D75, D94) | Same | Same; **hub supply** (D78) | ADC1_CH4. 100 kΩ / 9.1 kΩ divider, 100 nF at the pin, on the HEATER jacks' side of the jack ideal diode (the heater rail until D94). Back from the controller's PB0 (D75); AUX A moved to GPIO 36 |
@@ -201,7 +201,7 @@ Rules applied:
 - **Re-zero:** only while both switches are commanded off, and an update that moves more than 50 mA from the boot zero is refused (and counted), so a slowly rising leak can't hide in the zero.
 - After zeroing, the error left is drift (≈ 7 µV/°C, about 60 mA over a 40 °C swing) and ±6 % gain (shunt and resistors), against the 0.3 A L4 threshold (doc 05 §3.1) [E].
 
-**Board identity (D46, D84).** A 2 × 5 pin header with one shunt (2 × 3 until D84) (the same 2.54 mm header and shunt as RANGE) selects the board's role. It is read by the carrier I/O controller on **PA0** (ADC_IN0, D68; GPIO 3 before), which has 100 kΩ to 3.3 V, plus 100 nF to GND so the ADC sees a low source impedance. The shunt adds a resistor to GND (1 % parts) [E]:
+**Board identity (D46, D84).** A 2 × 5 pin header with one shunt (2 × 3 until D84) (the same 2.54 mm header and shunt as the DC jumpers) selects the board's role. It is read by the carrier I/O controller on **PA0** (ADC_IN0, D68; GPIO 3 before), which has 100 kΩ to 3.3 V, plus 100 nF to GND so the ADC sees a low source impedance. The shunt adds a resistor to GND (1 % parts) [E]:
 
 | Shunt position | Resistor to GND | PA0 voltage | Read as |
 |---|---|---|---|
@@ -212,7 +212,7 @@ Rules applied:
 | HUB | 220 kΩ | ≈ 2.27 V | `hub` (1.95–2.8 V) |
 | No shunt | — | 3.3 V | **unset** (above 2.8 V) |
 
-The ESP32 reads it from the controller once at boot, after the controller starts (doc 09 §4.2). If the shunt and the role stored in NVS disagree (doc 07 §2), or the shunt is unset, the board starts in a **safe hold**. If the controller can't be reached, the board runs the stored role with an "identity unchecked" alert, and the heater stays off until the identity has been read once since boot (D75). In safe hold, the heater enable stays off, the outputs stay off and the LEDs work, and a "role mismatch" fault is raised. Since D47 every carrier carries the same parts, so the shunt is what makes a board a given role. The firmware also checks the **RANGE shunts** against it: at boot, after the heater has been off, each NTC must agree with the sensor head's SHT40 to within a few °C. A RANGE shunt left in the wrong position reads tens of degrees off, and raises the same mismatch fault and safe hold. The eFuse limit is one fixed resistor since D81 (doc 02 §2.2), so there is no shunt to set; the injected-current monitor (D61) reads it back.
+The ESP32 reads it from the controller once at boot, after the controller starts (doc 09 §4.2). If the shunt and the role stored in NVS disagree (doc 07 §2), or the shunt is unset, the board starts in a **safe hold**. If the controller can't be reached, the board runs the stored role with an "identity unchecked" alert, and the heater stays off until the identity has been read once since boot (D75). In safe hold, the heater enable stays off, the outputs stay off and the LEDs work, and a "role mismatch" fault is raised. Since D47 every carrier carries the same parts, so the shunt is what makes a board a given role. At boot, after the heater has been off, each NTC must also agree with the sensor head's SHT40 to within a few °C, which catches a faulty or misplaced NTC; there are no RANGE shunts since D97. The eFuse limit is one fixed resistor since D81 (doc 02 §2.2), so there is no shunt to set; the injected-current monitor (D61) reads it back.
 
 **Service button (D46).** The carrier's BOOT tact switch (GPIO 0, D72), read after boot:
 - **Short press:** opens Wi-Fi provisioning for 10 minutes.
@@ -370,7 +370,6 @@ A one-printer system can run its hub and its node on one carrier: the role shunt
 | Duct vacuum, low-flow anemometer | Not fitted (the chamber ΔP takes their place) | Same | – |
 | Venturi trunk flow, room head, OLED | Optional, each on a free sensor header | Same | Hub |
 | Logic power | **≥ 24 V, 2 A barrel brick on POWER IN** (D85; ≥ 4 A with a board-powered exhaust fan, D91), **on an outlet that is not the printer's smart plug** (§6b), so the board and a board-powered exhaust fan outlive a mains cut. While it is live the printer's supply only heats (D94) | Same | – |
-| RANGE 1 and RANGE 2 shunts (D47) | **Both on** (chamber-air and heater-housing NTCs, as node-heat) | Off (the NTC inputs are spare) | Node |
 | RJ45 IN/OUT | Unused; OUT stays dark (§3a), and the board terminates itself (D96), which does no harm | Same | – |
 
 ```mermaid
@@ -398,10 +397,10 @@ flowchart LR
 | 3 | Tach | Tach (valid only while B2 is fully on) | Tach | Tach, where the fan has one |
 | 4 | PWM: B2 the N-FET's drain; fan A a 2N7002's drain (D95) | Fan − (low-side switched, B2 only) | PWM input, pulled low as an open-drain output, so the firmware inverts the duty; ≈ 25 kHz on LEDC | Not connected |
 | 5 | REF: the fan's own +10 V, in | – | – | Fan +10 V reference out |
-| 6 | CTRL: 10 kΩ to REF, pulled down by a 2N7002 on the same GPIO as pin 4 | – | – | Fan speed input |
+| 6 | CTRL: push-pull buffer powered from REF (D97), switched low by a 2N7002 on the same GPIO as pin 4 | – | – | Fan speed input |
 
-- **Jumpers (D95):** **DC** (RC filter in the CTRL line, for a fan that reads 0–10 V but not PWM; off by default) and **STRONG** (1.5 kΩ to REF, ≈ 7 mA; off by default, and never with a reference rated ≈ 1 mA). B2 also has **SWAP** (2 × 3, two shunts) on its USB-C jack: straight by default (D+ → CTRL, D− → TACH), crossed for a fan metered the other way round (doc 02 §2.2.7).
-- **At reset or unpowered:** both FETs are off, so pin 4 floats to a 4-wire fan's own pull-up and CTRL sits at the fan's 10 V: either fan runs at full speed (Intel 4-wire behaviour [E]; the EC reference, D95).
+- **Jumpers (D95, D97):** **DC** (RC filter in the CTRL line, for a fan that reads 0–10 V but not PWM; off by default). STRONG went in D97: the CTRL buffer drives a stiff input (≈ 7.9 V at 5 mA) and draws ≈ 0.45 mA from REF while low, so it can't overload a ≈ 1 mA reference. B2 also has **SWAP** (2 × 3, two shunts) on its USB-C jack: straight by default (D+ → CTRL, D− → TACH), crossed for a fan metered the other way round (doc 02 §2.2.7).
+- **At reset or unpowered:** both FETs are off, so pin 4 floats to a 4-wire fan's own pull-up and CTRL sits at the fan's 10 V: either fan runs at full speed (Intel 4-wire behaviour [E]; the CTRL buffer at ≈ 9.4 V, D95, D97).
 - **B2 external jacks (D95, doc 02 §2.2.7):** in parallel with pins 1, 3, 5 and 6, one fan at a time:
 
 | Jack | GND | REF | CTRL | TACH |
