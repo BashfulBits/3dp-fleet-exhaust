@@ -50,7 +50,7 @@ Quantities are for a fleet of **N printers**, H of them node-heat (one heater ea
 
 ### 2.2 Functional blocks and role population
 
-**Since D47 every carrier is assembled with the same parts**, so one board serves any role and the spare stands in for any of them. The only per-board settings are shunts: the role header, TERM and the two RANGE shunts. There are no power jumpers (D94). This section shows how the blocks connect, which blocks each role uses, and then each block in turn: what it is for, how it works, and the parts and ratings that implement it.
+**Since D47 every carrier is assembled with the same parts**, so one board serves any role and the spare stands in for any of them. The only per-board settings are shunts: the role header and the two RANGE shunts. CAN termination sets itself (D96). There are no power jumpers (D94). This section shows how the blocks connect, which blocks each role uses, and then each block in turn: what it is for, how it works, and the parts and ratings that implement it.
 
 **Top level.** Solid arrows carry power; dashed arrows carry signals. Numbers are the subsections below.
 
@@ -206,7 +206,7 @@ flowchart TB
 
 **Fan tap (D85, D87, D91, D92).** A second branch after the input ideal diodes and the input guard, ahead of the bus eFuse, through its own **tap eFuse**, a second MX26631DL limited to **≈ 2.7 A** (D91; ≈ 2.3 A in D87, a 2 A polyfuse in D85), wired direct to B2's pin 2 (a FAN V jumper chose it or the bus in D85 and D86). The fan's current never crosses the bus eFuse or the CAT6, and a fan short stays on the tap. A 24 V fan here may draw up to ≈ 2.2 A, ≈ 50 W, at full speed. Pin 2 is live whenever the board has a supply of its own, so a fan or adapter with its own supply leaves it unconnected.
 
-#### 2.2.3 Fleet jacks: IN, OUT and CAN (D17, D52, D56, D57, D62, D63)
+#### 2.2.3 Fleet jacks: IN, OUT and CAN (D17, D52, D56, D57, D62, D63, D96)
 
 **Goal.** Chain carriers with ordinary RJ45 patch cables that carry 24 V and CAN, and survive anything a person might plug into those jacks by mistake: Ethernet, a PoE switch or injector, a 48–57 V passive injector of either polarity. Each end of a cable should show whether it is connected the right way round.
 
@@ -214,6 +214,7 @@ flowchart TB
 - **IN** takes power from upstream. A polyfuse, a TVS and a reverse clamp absorb faults. The **IN guard**, two P-FETs back to back, conducts both ways while the voltage is normal and blocks both ways above ≈ 34 V. It turns on slowly, so plugging a supply into IN charges the bus gently.
 - **OUT** stays at 0 V until it detects a fleet node on the far end (**detect-before-power**). It then switches the bus onto the jack through a current-limited switch that conducts both ways. A **presence loop** on pair 3 holds it on while the cable stays connected.
 - The **CAN transceiver** sits on pins 1/2 of both jacks, with bus pins rated ±58 V.
+- **Termination switches itself (D96):** 120 Ω goes across the bus whenever either jack has no link, which is true only at the two ends of the chain.
 - An LED beside each jack shows its state: IN link (the far end is an OUT) and OUT port-live.
 
 ```mermaid
@@ -229,6 +230,9 @@ flowchart TB
   DET -.-> SW
   CAN["CAN transceiver"] <-.->|"pins 1/2"| INJ
   CAN <-.->|"pins 1/2"| OUTJ
+  INJ -.->|"IN link"| TS["Termination switch:<br>120 Ω on unless<br>both jacks linked"]
+  DET -.->|"OUT link"| TS
+  TS <-.->|"pins 1/2"| CAN
 ```
 
 **IN protection, in order from the jack (D51, D56):**
@@ -244,7 +248,7 @@ flowchart TB
 
 **OUT with detect-before-power (D17, D52, D57).** A window comparator and latch drive a bidirectional current-limited switch on +24 V, held on by the **presence loop** on pair 3: pins 3/6 are pulled up at the OUT jack and tied to GND through a resistor by the next node's IN jack (D63). The loop works whichever way current flows. OUT powers the jack only for a fleet node signature or a powered fleet segment, so a switch, laptop or PoE port sees 0 V. **Ratings (D57):** an **SMBJ58CA** on the jack's +24 V pins (as on IN); the switch's back-to-back N-FETs rated 60 V (SP60N12GNJ, C22466779, 16 mΩ max, ≈ 0.05 W each at 1.5 A hot, D80; HL2310A class before); the prober and window comparator reach the pins through a series resistor and clamp rated for 60 V. So a 48–57 V injector plugged into OUT is refused and damages nothing.
 
-**CAN transceiver (D17).** Fault-tolerant bus pins ±58 V (*candidate: TJA1051T/3 with 3.3 V VIO*), on the IN and OUT jacks for the daisy chain, so it survives Ethernet or PoE on pins 1/2. A **TERM jumper** (120 Ω 1 % in series with a 2-pin shunt) is fitted at the two chain ends (doc 04 §3).
+**CAN transceiver (D17).** Fault-tolerant bus pins ±58 V (*candidate: TJA1051T/3 with 3.3 V VIO*), on the IN and OUT jacks for the daisy chain, so it survives Ethernet or PoE on pins 1/2. **Automatic termination (D96):** 120 Ω (2 × 59 Ω 1 % around back-to-back 60 V N-FETs) switches on whenever either jack has no link, so the hub and the last node terminate and every other node doesn't, with no jumper (doc 04 §3).
 
 **Jack LEDs (D62, D63).**
 - **OUT port-live LED (D62):** one **blue side-view LED** (XL-1606UBC class, C965865, 120°, ≈ 260 mcd at 20 mA per its listing [E: confirm V_F on the datasheet]) at the board edge beside the OUT jack, lit whenever the port's +24 V switch is on. A 2N7002-class FET driven by the port-on latch pulls the LED's 1 kΩ to GND from `+5V_PWR` (D72), ≈ 2 mA (≈ 1.6–2.6 mA over the V_F range). It is logic-side, so it never loads the 5 V / 1 mA prober or the 10 kΩ signature and sees no bus voltage [U: circuit in Phase 2]. It faces the housing wall, so a 2.5–3 mm window in the wall lights it with no light pipe (doc 08 C5, C9, C20). Blue, so it can't be mistaken for an Ethernet jack's green and amber link lights.

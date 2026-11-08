@@ -28,7 +28,7 @@ flowchart TB
   N -->|"ideal diode (§6a)"| BUS["Bus injection"]
 ```
 
-RJ45 IN/OUT on every carrier; a TERM jumper on every carrier, fitted at the two ends of the chain (§3). Every carrier injects 24 V onto the bus through its eFuse from whatever supply it has, with nothing to set (§6a, D94).
+RJ45 IN/OUT on every carrier; CAN termination switches itself on at the two ends of the chain (§3, D96). Every carrier injects 24 V onto the bus through its eFuse from whatever supply it has, with nothing to set (§6a, D94).
 
 - **The hub supply powers node logic only**, over CAT6.
 - **Each node heater runs from its printer's own 24 V supply or a brick on that printer's plug** (D12, doc 02 §3.1). The printer's smart plug removes both.
@@ -114,8 +114,8 @@ flowchart LR
 - **Capacity:** two conductors for +24 V (≤ 0.75 A each, **≈ 1.5 A per segment, ~36 W**) and two for GND (pins 7/8, the same 0.75 A each). Pair 3 carries only the presence loop's sense current since D52; the two extra GND wires it used to be only lowered the ground drop, not the segment limit. **Kept at 1.5 A on purpose (D21):** a cheap copper-clad-aluminium or Cat5 patch cable swapped in later still runs inside its rating. Injection at the nodes (§6a) covers more load.
 - **Load:** each bed strip is ~48 LEDs (D44), about 2.9 A at full white, so the firmware limits LED brightness by estimated current to **≤ 0.5 A at 5 V per node** (a few percent of the bus, ~0.1 A at 24 V). A current-limit switch on the LED chain (≈ 0.75 A, D56, doc 02 §2.2) backs that up in hardware. Status colours at a diffused, low brightness stay well under that. Three nodes then stay ≤ 1.2 A from the hub alone. Bus power injection (§6a) covers anything more.
 - **Jacks are directional:** each node has an **IN** jack (toward the hub) and an **OUT** jack (away from it). The hub has one OUT jack. Pins 1, 2, 7, 8 pass straight through. Pins 3 and 6 don't: the IN jack ties them to GND through a resistor (D63), and the OUT jack senses them as the presence loop (§3a, D52); +24 V reaches the OUT jack only through the detect-before-power switch (§3a). CAN stubs on the board are ≤ 50 mm.
-- **Termination (D27):** every carrier has a **TERM jumper**: a 2-pin 2.54 mm header in series with a **120 Ω 1 % resistor** (1206, 0.25 W) across CAN_H and CAN_L, beside the OUT jack. Fit the shunt at the **two physical ends** only: the hub, and the node with nothing in its OUT jack. Two 120 Ω in parallel give the **60 Ω** that ISO 11898 and Klipper's CAN guide require, so the bus also meets Klipper's rules if someone reuses it. Adding a node at the end means moving one shunt.
-- **Termination check (commissioning):** with the bus powered off, meter CAN_H to CAN_L (pins 1–2) at any spare jack or a breakout: **54–66 Ω passes**; ~120 Ω means one end is missing, ~40 Ω means three are fitted. The firmware can't measure termination, but a node whose OUT jack detects nothing shows a dashboard reminder to confirm its TERM shunt.
+- **Termination (D27, D96):** every carrier switches its own **120 Ω** across CAN_H and CAN_L (2 × 59 Ω 1 % around back-to-back 60 V N-FETs, beside the OUT jack) whenever **either jack has no link**: the IN jack sees no OUT on its far end, or the OUT jack's presence loop is open. So the **hub** (IN never used) and the **node with nothing in its OUT jack** terminate, and every node in between doesn't. Two 120 Ω in parallel give the **60 Ω** that ISO 11898 and Klipper's CAN guide require, so the bus also meets Klipper's rules if someone reuses it. Adding a node at the end moves the termination by itself. A board with no power leaves its resistor off. Before D96 this was a TERM jumper, a 2-pin header in series with the 120 Ω, fitted by hand at the two ends.
+- **Termination check (commissioning):** each board reports its termination state in its heartbeat, and the hub alerts unless **exactly two** are on; the CAN error counters should stay at zero over the commissioning run. The old meter check (bus powered off, CAN_H to CAN_L, 54–66 Ω) no longer works, because an unpowered board is unterminated; on a bench, one powered board with an empty OUT jack should show ≈ 120 Ω switched in [U: bench check in Phase 2].
 
 **Bus parameters:** CAN 2.0A at **125 kbit/s**. The total bus length (~6 m) is far inside the limit.
 
@@ -201,7 +201,7 @@ Rules applied:
 - **Re-zero:** only while both switches are commanded off, and an update that moves more than 50 mA from the boot zero is refused (and counted), so a slowly rising leak can't hide in the zero.
 - After zeroing, the error left is drift (≈ 7 µV/°C, about 60 mA over a 40 °C swing) and ±6 % gain (shunt and resistors), against the 0.3 A L4 threshold (doc 05 §3.1) [E].
 
-**Board identity (D46, D84).** A 2 × 5 pin header with one shunt (2 × 3 until D84) (the same 2.54 mm header and shunt as TERM) selects the board's role. It is read by the carrier I/O controller on **PA0** (ADC_IN0, D68; GPIO 3 before), which has 100 kΩ to 3.3 V, plus 100 nF to GND so the ADC sees a low source impedance. The shunt adds a resistor to GND (1 % parts) [E]:
+**Board identity (D46, D84).** A 2 × 5 pin header with one shunt (2 × 3 until D84) (the same 2.54 mm header and shunt as RANGE) selects the board's role. It is read by the carrier I/O controller on **PA0** (ADC_IN0, D68; GPIO 3 before), which has 100 kΩ to 3.3 V, plus 100 nF to GND so the ADC sees a low source impedance. The shunt adds a resistor to GND (1 % parts) [E]:
 
 | Shunt position | Resistor to GND | PA0 voltage | Read as |
 |---|---|---|---|
@@ -371,7 +371,7 @@ A one-printer system can run its hub and its node on one carrier: the role shunt
 | Venturi trunk flow, room head, OLED | Optional, each on a free sensor header | Same | Hub |
 | Logic power | **≥ 24 V, 2 A barrel brick on POWER IN** (D85; ≥ 4 A with a board-powered exhaust fan, D91), **on an outlet that is not the printer's smart plug** (§6b), so the board and a board-powered exhaust fan outlive a mains cut. While it is live the printer's supply only heats (D94) | Same | – |
 | RANGE 1 and RANGE 2 shunts (D47) | **Both on** (chamber-air and heater-housing NTCs, as node-heat) | Off (the NTC inputs are spare) | Node |
-| RJ45 IN/OUT, TERM | Unused; OUT stays dark (§3a) | Same | – |
+| RJ45 IN/OUT | Unused; OUT stays dark (§3a), and the board terminates itself (D96), which does no harm | Same | – |
 
 ```mermaid
 flowchart LR
