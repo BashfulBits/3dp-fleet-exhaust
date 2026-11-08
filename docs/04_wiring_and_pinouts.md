@@ -399,7 +399,7 @@ flowchart LR
 | 5 | REF: the fan's own +10 V, in | – | – | Fan +10 V reference out |
 | 6 | CTRL: push-pull buffer powered from REF (D97), switched low by a 2N7002 on the same GPIO as pin 4 | – | – | Fan speed input |
 
-- **Jumpers (D95, D97):** **DC** (RC filter in the CTRL line, for a fan that reads 0–10 V but not PWM; off by default). STRONG went in D97: the CTRL buffer drives a stiff input (≈ 7.9 V at 5 mA) and draws ≈ 0.45 mA from REF while low, so it can't overload a ≈ 1 mA reference. B2 also has **SWAP** (2 × 3, two shunts) on its USB-C jack: straight by default (D+ → CTRL, D− → TACH), crossed for a fan metered the other way round (doc 02 §2.2.7).
+- **Jumpers (D95, D97):** **DC** (RC filter in the CTRL line, for a fan that reads 0–10 V but not PWM; off by default). STRONG went in D97: the CTRL buffer drives a stiff input (≈ 7.9 V at 5 mA) and draws ≈ 0.45 mA from REF while low, so it can't overload a ≈ 1 mA reference. B2 also has **SWAP** (2 × 3, two shunts) on its USB-C jack: straight by default (D+ → CTRL, D− → TACH), crossed where the fan's row in doc 02 §6.2 says so. The setting is found once per fan model when it is validated (D98). A wrong setting damages nothing; it leaves the fan at its own no-signal speed with no tach, which raises "B2 fan not under control" (doc 05 §4).
 - **At reset or unpowered:** both FETs are off, so pin 4 floats to a 4-wire fan's own pull-up and CTRL sits at the fan's 10 V: either fan runs at full speed (Intel 4-wire behaviour [E]; the CTRL buffer at ≈ 9.4 V, D95, D97).
 - **B2 external jacks (D95, doc 02 §2.2.7):** in parallel with pins 1, 3, 5 and 6, one fan at a time:
 
