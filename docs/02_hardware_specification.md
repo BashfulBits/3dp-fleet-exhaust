@@ -597,7 +597,7 @@ By default the heater runs from **its own printer's internal 24 V supply**. An *
 
 ## 6. Exhaust fan
 
-The framework sets what an exhaust fan must do and lists products known to qualify; each build picks its own fan and records it in its own fleet record. Any fan that meets every requirement below is supported. To add a product, add a row to the examples table with its evidence.
+The framework sets what an exhaust fan must do and lists products known to qualify; each build picks its own fan and records it in its own fleet record. Any fan that meets every requirement below is supported. To add a product, add a row to the status table (§6.2) and its evidence to §6.3; it reaches Validated only through the bench check in §6.2.
 
 ### 6.1 Requirements
 
@@ -623,11 +623,45 @@ A fan with a proprietary controller qualifies only once its control port is mapp
 - **Grow-room EC with a USB-C-shaped port** (AC Infinity UIS, Vivosun): VBUS +10 V from the fan, D+ PWM (pulled down against the fan's 10 V), D− tach (2–3 pulses/rev) [U: two hobby projects, not the makers]. B2's USB-C jack. TerraBloom's ECMF series uses a TRRS socket carrying GND, +10 V, tach and 0–10 V/PWM (PWM 15–32 kHz at 10–12 V; maximum speed is +10 V joined to the input; 10 kΩ speed pot) [V: maker manual; U: which contact is which], and **does not start unless a controller is connected before power-up** [V: maker manual], so FN-6 needs a bench check: does CTRL pulled to REF count as a controller? RJ12-port fans (Spider Farmer, Mars Hydro, TrolMaster controllers) have unpublished pinouts and need an adapter proven on the bench.
 - **Shared ground:** pin 1 ties the fan's control GND to the board's, so the control side must be isolated from mains (SELV) [V: isolated on the prioAir EC; U: grow-room fans, to check on the bench with the mains plug in before connecting].
 
-### 6.2 Qualifying examples
+### 6.2 Fan status (D95)
 
-These products were checked against §6.1, with the evidence shown; only a **Yes** row meets every requirement on paper, and the others qualify once the marked item is measured. "Class" means any fan with the same ratings qualifies equally.
+Every fan the framework knows about has one status. "Class" means any fan with the same ratings and wiring has the same status.
 
-| Class | Meets §6.1 | Example | Supply | Notes |
+| Status | Meaning |
+|---|---|
+| **Validated** | Passed the bench check below on a carrier, with the results recorded in §6.3. |
+| **Qualifies on paper** | The maker's own data meets every §6.1 requirement; only the listed checks are open. |
+| **Designed for, not validated** | The carrier is wired for it, but at least one §6.1 item rests on unverified data [U]. Use it only once its open checks pass. |
+| **Not suitable** | Fails a §6.1 requirement, or has no supported connection. |
+
+**No fan is Validated yet.**
+
+| Fan (class) | Status | Printers | Connects to | Open checks | Settings |
+|---|---|---|---|---|---|
+| 24 V 120 × 38 mm 4-wire PWM, high pressure (Jentech JC12038B24UC2 class) | **Qualifies on paper** | 1–15 (a second one on fan A from ≈ 9) | B2 XH 6 pins 1–4, fan tap; a printed 120 mm → 4″ or 6″ adapter | Starting and full-speed current (FN-8a, D87) | Tach 2 pulses/rev; jumpers off |
+| 6″ mains EC with 0–10 V input and +10 V reference (Fantech prioAir 6 EC, FG 6M EC) | **Qualifies on paper** | 5–15 (6″ kit) | B2 terminal header: red → REF, yellow → CTRL, blue → GND, white → TACH | Full speed through the 10 kΩ pull-up with the hub off (F3) | Tach 1 pulse/rev; PWM mode (DC off); **STRONG never** (1.1 mA reference) |
+| 24 V 120 × 38 mm 4-wire PWM, budget (Jentech JC12038B24UC1 class) | Designed for, not validated | 1–4, short runs | As the high-pressure class | Purge flow through the filter: ≈ 176 Pa at 50 CFM is below FN-2 | Tach 2 pulses/rev |
+| 24 V 120 × 38 mm 4-wire PWM, industrial (Delta PFB1224SE / HE class) | Designed for, not validated | 1–15 | As the high-pressure class | Running current, P–Q curve | Tach 2 pulses/rev |
+| 12 V 120 × 38 mm 4-wire PWM (Wathai 12038 class) | Designed for, not validated | 1–4 | B2 pins 1–4 through an inline 24 → 12 V adapter (D86) | P–Q curve (below the FN-3 screen) | Tach 2 pulses/rev |
+| USB-C-port grow EC (AC Infinity UIS: Cloudline T6 class; Vivosun) | Designed for, not validated | 5–15 for 6″ models | B2 USB-C "FAN 10 V" | Which data line is PWM (SWAP); whether STRONG is needed; full speed with the hub off (F3); P–Q curve | Tach 2–3 pulses/rev [U]; SWAP and STRONG as measured |
+| TRRS-port EC (TerraBloom ECMF-150 class) | Designed for, not validated | 5–15 (6″ kit) | B2 TRRS jack, or the maker's breakout cable on the terminal header | TRRS contact positions; whether it starts with CTRL pulled to REF in place of its controller (F3); P–Q curve | Tach [U]; PWM mode |
+| TRRS-port 4″ EC (TerraBloom ECMF-100 class) | Designed for, not validated; marginal | 1–4 | As the ECMF-150 | As the ECMF-150; ≈ 254 Pa at 50 CFM [E] leaves nothing for leakage at a loaded filter | As the ECMF-150 |
+| 4″ grow EC below FN-2 (AC Infinity Cloudline S4 class) | Not suitable | – | (B2 USB-C) | ≈ 185 Pa at 50 CFM [E] | – |
+| RJ12-port grow fans (Spider Farmer, Mars Hydro, TrolMaster controllers) | Not suitable | – | No jack (an RJ12 plug fits the RJ45 bus jack) | An adapter after mapping the port on the bench (R1) could move it to Designed for | – |
+| 120 × 25 mm case fans; on/off fans; 0–10 V inputs without a +10 V reference output | Not suitable | – | – | Too little pressure, or stop when the hub is down (F3) | – |
+
+**Bench check (to reach Validated).** On a carrier with the fan in a test duct:
+1. **Flow:** delivered CFM at full speed through the filter at the trunk setpoint, read on the venturi (M1, M2); meets FN-2.
+2. **Current** (board-powered fans): start and full-speed current inside FN-8a.
+3. **Control and tach:** speed follows the duty from 0 to 100 %; tach RPM matches a handheld tachometer within 5 %, which fixes pulses per revolution.
+4. **F3, three ways:** full speed with the ESP32 held in reset, with the hub unpowered (a fan on its own mains), and with the control cable unplugged where the fan allows it.
+5. **Record** the fan, its date code, the jumper settings and the numbers in §6.3, citing the build that measured them, and change its status here.
+
+### 6.3 Performance and evidence
+
+Ratings and maker data behind the statuses above, with the evidence shown.
+
+| Class | Against §6.1 | Example | Supply | Notes |
 |---|---|---|---|---|
 | Budget | Short, low-loss runs only (≈ 176 Pa at 50 CFM); bench-check | 24 V 120 × 38 mm 4-wire PWM fan, ≤ ≈ 2.2 A: Jentech JC12038B24UC1 class (228 CFM, 1.03 inH₂O shut-off, ≈ 176 Pa at 50 CFM, 1.3 A, 58 dB(A)) [V: maker datasheet and P–Q curve] | Fan tap | Printed 120 mm → 4″ adapter. Below the 250 Pa requirement: reaches 50 CFM only on short, low-loss runs (≈ 40–60 CFM with a new filter, D88 [E]), so **bench-check purge flow** through the filter. Loud at full speed; normal running is well below it |
 | Industrial | [U] running current, P–Q curve | 24 V 120 × 38 mm 4-wire PWM fan: Delta PFB1224SE / PFB1224HE class (≈ $46–51) [U: running current] | Fan tap (≤ ≈ 2.2 A) | More pressure than the budget class; the same adapter |
@@ -640,6 +674,16 @@ These products were checked against §6.1, with the evidence shown; only a **Yes
 FN-2 covers a typical run (≈ 15 ft of 4″ semi-rigid duct, five bends, the makeup inlet, the filter at its +60 % alert, the venturi and the hood) [E].
 
 Not suitable: 120 × 25 mm case fans (well under 1 inH₂O [E]), on/off fans with no PWM input, which stop when the board goes silent, and a 0–10 V input with no reference output, which reads 0 V when the hub is down. On the hub, a fan on 24V stops if the hub supply fails (doc 05 §4); one on its own mains doesn't.
+
+**Bench results:** none recorded yet.
+
+### 6.4 Sources
+
+- Intel 4-wire fan behaviour: [Noctua PWM specifications white paper](https://noctua.at/pub/media/wysiwyg/Noctua_PWM_specifications_white_paper.pdf).
+- Fantech prioAir EC wiring and curves: [prioAir IOM](https://hvacquick.com/catalog_files/Fantech_prioAir_IOM.pdf), [prioAir catalogue](https://hvacquick.com/catalog_files/Fantech_prioAir_Catalog.pdf), [FG EC catalogue](https://www.hvacquick.com/catalog_files/Fantech_FG_EC_Series_Catalog.pdf).
+- TerraBloom ECMF signals, PWM range, ratings and controller-present start: [ECMF manual](https://manuals.plus/terrabloom/ecmf-web-duct-fan-with-remote-speed-controller-manual).
+- USB-C-port grow fans (hobby projects, not makers' documents): [awysocki/AC-Infinity-Ctrl](https://github.com/awysocki/AC-Infinity-Ctrl), [gemivnet/EC_Fan_ESPHome](https://github.com/gemivnet/EC_Fan_ESPHome), [RollItUp ESP32 guide](https://www.rollitup.org/t/idiots-guide-to-getting-an-esp32-to-control-ac-infinity-cloudline-ec-fans-esphome-ha.1053910/); [AC Infinity Molex-to-UIS adapter](https://acinfinity.com/hydroponics-growers/controllers/smart-uis-controllers/molex-to-uis-port-adapter-dongle-conversion-cable-cord/).
+- Second-fan brick isolation: [Mean Well GST60A specification](https://www.meanwell.com/Upload/PDF/GST60A/GST60A-SPEC.PDF).
 
 ## 7. Mains-cut smart plugs (D14)
 
