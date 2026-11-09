@@ -1,6 +1,6 @@
 # 07 - Firmware, Klipper Plugin, Protocols and Notifications
 
-> Design baseline, 2026-10-25. This defines the software architecture and interfaces. The code is written in Phase 2.
+> Design baseline, 2026-11-09. This defines the software architecture and interfaces. The code is written in Phase 2.
 
 ---
 
@@ -39,7 +39,7 @@ flowchart TB
 
 **Why ESP-IDF C++ rather than ESPHome:** the node and hub need a CAN protocol, a USB-serial protocol, a Moonraker WebSocket client, cascaded control loops, a proprietary fan protocol where the chosen fan needs one (R1) and hardware-coupled safety logic. In ESPHome nearly all of that would be custom components. Home Assistant integration stays available through MQTT discovery (§9).
 
-**Why plain ESP-IDF rather than Arduino-ESP32 (D52):** the design already uses ESP-IDF drivers directly: LEDC for the servo, fan and heater PWM, a UART in open-drain mode on the I²C pins for the MCU bootloaders (doc 09 §4), continuous ADC with DMA, TWAI, ESP-NOW, the task and RTC watchdogs and NVS. Arduino would only add a layer on top. Vendor drivers come from the component manager: `espressif/ch390` (LAN), `esp_websocket_client` (Moonraker), `mqtt`, `esp_http_server`, `led_strip` and LittleFS.
+**Why plain ESP-IDF rather than Arduino-ESP32 (D52):** the design already uses ESP-IDF drivers directly: LEDC for the servo, fan and heater PWM, a UART in open-drain mode on the I²C pins for the MCU bootloaders (doc 09 §4), continuous ADC with DMA, TWAI, ESP-NOW, the `esp_eth` W5500 driver for the LAN module (D72), the task and RTC watchdogs and NVS. Arduino would only add a layer on top. Vendor drivers come from the component manager: `esp_websocket_client` (Moonraker), `mqtt`, `esp_http_server`, `led_strip` and LittleFS.
 
 ## 2. Firmware architecture (node and hub)
 
@@ -358,7 +358,7 @@ stateDiagram-v2
 |---|---|
 | Normal | Print complete + "safe to open"; link restored |
 | **High** | Heater or fan fault, exhaust lost, door left open on a heated print, node or hub offline during a print, damper stuck closed, single fire signal |
-| **Emergency** | Corroborated fire |
+| **Emergency** | Corroborated fire; verified heater runaway (RW-a/RW-b); a cut plug switched back on (doc 05 §4.1) |
 | Digest (daily, normal) | Filter loading, room VOC trend, maintenance due |
 | **Panel only, escalating to the buzzer** | Any unacknowledged critical alert after 15 min, or Wi-Fi/Pushover unreachable |
 
@@ -384,7 +384,7 @@ Each printer has a `cut` config in the hub (dashboard, stored in NVS):
 {"backend": "shelly", "host": "192.168.1.51"}
 {"backend": "tasmota_node", "fallback_host": "athom-plug-1.local"}
 {"backend": "tasmota", "host": "192.168.1.52"}
-{"backend": "ha", "switch": "switch.ad5x_1_plug", "power": "sensor.ad5x_1_plug_power"}
+{"backend": "ha", "switch": "switch.printer_1_plug", "power": "sensor.printer_1_plug_power"}
 {"backend": "none"}
 ```
 
@@ -411,7 +411,7 @@ Networks around one printer with the `shelly_node` backend (plus the hub's fallb
 flowchart TB
   ROUTER["Home router"]
   HUB["Hub<br>AP fleet-hub"]
-  NODE["Node n<br>AP fleet-node-n"]
+  NODE["Node n<br>AP fleet-node#lt;n#gt;"]
   PLUG["Shelly plug n"]
   ROUTER --- HUB
   ROUTER --- NODE

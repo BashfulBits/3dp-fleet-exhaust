@@ -1,6 +1,6 @@
 # 08 - Printable Parts Catalogue
 
-> Design baseline, 2026-10-25. Phase 2 work: verify each existing model (link, licence, fit to the real parts), then design the custom parts. **Policy:** existing models first; custom parts only where they're genuinely better.
+> Design baseline, 2026-11-09. Phase 2 work: verify each existing model (link, licence, fit to the real parts), then design the custom parts. **Policy:** existing models first; custom parts only where they're genuinely better.
 
 ---
 

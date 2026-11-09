@@ -17,6 +17,7 @@
 | Purges at once | **One** (token) | doc 06 §5.1 | Others queue, contained at −3 Pa |
 | Node heater chamber cap | ≤ 60 °C, hard limit cap + 5 °C, lower if the enclosure's weakest material needs it | D26, doc 05 §3.2 | Not supported with the node heater; a printer with its own heater may run above it on its own rating |
 | Node heater power | 150 W PTC | doc 02 §3 | A chamber that loses more than ≈ 150 W + bed heat at the cap won't reach it: seal and insulate (D7, doc 06 §7) |
+| Printer serial link | 3.3 V logic only | D100, doc 04 §5 | A 5 V 8-bit board is not supported on the serial link: use the USB-host route or a lower link tier (doc 12 §3) |
 | Printer USB lead | ≤ 1.5 m, no VBUS | doc 04 §5 | Use the network link instead |
 | Heater lead | 14 AWG ≤ 1.5 m when the heater shares the USB ground | R11 | Fit a USB isolator, or keep the ground share under test 9's 0.3 A |
 | Duct | 4″ branches; 4″ trunk for 1–4 printers, the 6″ kit (6″ trunk, two stacked cartridges, 65 mm venturi throat, 6″ hood) for 5–15; fan at the outlet | D6, D95, doc 06 §2 | A fan inside the room would put duct above room pressure: not supported |

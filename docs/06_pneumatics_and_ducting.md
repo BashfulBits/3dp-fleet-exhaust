@@ -1,6 +1,6 @@
 # 06 - Pneumatics, Ducting, Filtration and Control
 
-> Design baseline, 2026-10-25. Numbers marked [E] are first-principles estimates. Setpoints marked *(commission)* are set from measurements on the real system (§10).
+> Design baseline, 2026-11-09. Numbers marked [E] are first-principles estimates. Setpoints marked *(commission)* are set from measurements on the real system (§10).
 
 ---
 
@@ -153,11 +153,11 @@ flowchart TB
 
 ### 4.1 Static auto-zero (all pressure sensors)
 
-All six sensors are XGZP6897D parts (D11, D30, D33), and their main error is offset drift with time and temperature (R4). When nothing is moving air, every sensor's true reading is 0 Pa. The system uses those moments to measure each offset.
+All the pressure sensors (one per node, three on the hub) are XGZP6897D parts (D11, D30, D33), and their main error is offset drift with time and temperature (R4). When nothing is moving air, every sensor's true reading is 0 Pa. The system uses those moments to measure each offset.
 
 | Sensor | Where | Measures | True value in the static window |
 |---|---|---|---|
-| Chamber ×3 | Each node | Chamber vs room | 0 Pa |
+| Chamber (one per node) | Each node | Chamber vs room | 0 Pa |
 | Trunk | Hub | Trunk tap (upstream of the filter) vs room | 0 Pa |
 | Filter | Hub | Across the cartridge | 0 Pa |
 | Trunk flow (D30) | Hub | Venturi inlet vs throat | 0 Pa |
@@ -201,7 +201,7 @@ flowchart TD
 A rejected zero usually means a leak, a kinked tube or a failed sensor. Z1–Z5 are the conditions in the table above.
 
 **Cross-checks the window enables**
-- **Agreement:** in the static window all six sensors should read ~0 after correction. A sensor that disagrees while the others agree is flagged on its own.
+- **Agreement:** in the static window all the pressure sensors should read ~0 after correction. A sensor that disagrees while the others agree is flagged on its own.
 - **Tube integrity:** when the fan stops, trunk and filter ΔP should decay to ~0 within ~10 s. A slow decay means a kinked or blocked tube, and raises an alert.
 - **Staleness:** if a sensor has no accepted zero for 24 h of system use, it raises a digest warning. Normal idle time between prints makes that rare.
 

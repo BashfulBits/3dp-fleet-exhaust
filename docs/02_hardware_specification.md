@@ -1,6 +1,6 @@
 # 02 - Hardware Specification
 
-> Design baseline, 2026-10-25. Part numbers marked *(candidate)* are confirmed against JLCPCB stock during Phase 2 PCB design. Wiring is in doc 04, cost in doc 03.
+> Design baseline, 2026-11-09. Part numbers marked *(candidate)* are confirmed against JLCPCB stock during Phase 2 PCB design. Wiring is in doc 04, cost in doc 03.
 
 ---
 
