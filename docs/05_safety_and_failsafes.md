@@ -156,7 +156,7 @@ flowchart TD
 
 | Backend | What it adds or loses vs `shelly` |
 |---|---|
-| `shelly_node` (recommended) | Each node hosts a private access point for its own Shelly (doc 07 §10.1). The node→plug path needs **no router, hub or HA**: the node cuts on RW-a by itself, and executes the hub's cut for RW-b or fire over CAN or ESP-NOW. If the node dies, the plug falls back to the hub's own network (or home Wi-Fi) and the hub cuts it directly. |
+| `shelly_node` (recommended) | Each node hosts a private access point for its own Shelly (doc 07 §10.1). The node→plug path needs **no router, hub or HA**: the node cuts on RW-a by itself, and executes the hub's cut for RW-b or fire over CAN or ESP-NOW. If the node dies, the plug falls back to the hub's own network (or home Wi-Fi) and the hub cuts it directly. With `ble_backup` (D102), the node falls back to Bluetooth when the plug isn't on its AP or a Wi-Fi cut fails, so a plug with a Wi-Fi fault can still be cut without the hub. |
 | `shelly` | Hub → plug over the home LAN. Depends on the router. |
 | `tasmota_node`, `tasmota` (D73) | The same as `shelly_node` and `shelly`, for metering plugs sold with Tasmota (doc 07 §10.3). One difference: after a fallback the plug stays on the hub's network until the hub moves it back to the node's AP, so for that time a `tasmota_node` cut takes the hub path. Wherever this document says `shelly_node` or `shelly`, the Tasmota backend of the same kind applies too. |
 | `ha` | Works with any plug HA can switch, including Matter plugs you already own. It **also depends on the HA server being up and the plug's integration working**, so it adds a few hundred ms of latency and one more point of failure. Metering (F-e) only if the plug exposes a power sensor. **Cloud-only integrations are not acceptable** for this role, since an internet outage would block the cut. |
@@ -167,6 +167,8 @@ The hub reads the plug back after every cut command and treats "still on after 5
 **Plug-local power limit (D16):** Shelly plugs also get their own over-power limit (printer peak × 1.3, doc 07 §10.5), and Tasmota plugs `MaxPower` (doc 07 §10.3). That is a gross-overload trip inside the plug that works with the hub, node and Wi-Fi all down.
 
 **If the plug (or HA) is unreachable** when a cut is needed, the hub sends an emergency push ("mains cut failed, act now") and keeps retrying. The hub also polls every plug once a minute and raises a high alert if one stops answering.
+
+**BLE backup (D102, Shelly only):** before the hub declares a failed cut, a node with `ble_backup` has also tried the cut over Bluetooth. A node that can't reach its plug over either path reports it, and the hub then tries the plug's fallback network.
 
 ## 4. Fault-response matrix
 
@@ -417,3 +419,4 @@ flowchart TD
     4. Short fan A's output through a 0.1 Ω load for 5 s: the 0.75 A fuse opens, the bus and the chain stay up, and it recovers once the short is removed. Repeat on B1.
     5. With POWER IN unplugged and the board on the bus, raise the bench supply to 36 V: the input guard keeps it off the bus, the heater stays off, and "wrong supply on heater input" arrives.
     6. On a hub fed by a brick in the HEATER barrel, unplug the brick: the "hub supply lost" push arrives (as test 30). Repeat with the brick on POWER IN and with a supply on the internal XT60.
+36. **BLE backup cut (D102), each plug with `ble_backup`:** keep the plug off the node's AP (point its `sta` at a dummy network), then issue a test cut from the node: it must arrive over BLE, with read-back, inside the hub's 5 s window. Record the connect-to-off time (O17). Restore the plug's `sta` and confirm the next cut goes over Wi-Fi again.

@@ -380,7 +380,7 @@ When a broker exists (Mosquitto on a home server or a Pi), the hub publishes **M
 Each printer has a `cut` config in the hub (dashboard, stored in NVS):
 
 ```json
-{"backend": "shelly_node", "fallback_host": "shellyplusplugus-a1b2c3.local"}
+{"backend": "shelly_node", "fallback_host": "shellyplusplugus-a1b2c3.local", "ble_backup": true}
 {"backend": "shelly", "host": "192.168.1.51"}
 {"backend": "tasmota_node", "fallback_host": "athom-plug-1.local"}
 {"backend": "tasmota", "host": "192.168.1.52"}
@@ -401,9 +401,11 @@ The node runs a small Wi-Fi access point of its own **alongside** its normal hom
 | Who talks to the plug | **The node.** It polls `Switch.GetStatus` every 5 s and reports plug state, power and health to the hub (CAN 0x120+n) |
 | Cut on a node decision | RW-a (doc 05 §3.4): the node cuts its own plug directly, then tells the hub. **No hub, router or HA needed** |
 | Cut on a hub decision | RW-b or corroborated fire: the hub sends `MAINS_CUT` over CAN (0x140+n); the node executes it and confirms with a read-back |
+| BLE backup (optional, D102) | `ble_backup: true`: when the plug isn't on the node's AP, or a cut or its read-back fails within 2 s, the node sends `Switch.Set` over Bluetooth to its bonded plug and reads back `Switch.GetStatus`. A daily idle health check over BLE; failures go to the digest |
+| Combined board (D103) | One AP, `fleet-hub`, is both the plug's primary network and the dashboard fallback (the ESP32 has one AP interface); the plug's `sta1` is home Wi-Fi |
 | Node dead or AP gone | The plug falls back to `sta1`, and the hub reaches it directly at `fallback_host` (reserved IP on the hub network, or mDNS on home Wi-Fi) [U: measure the Shelly's fallback time at commissioning] |
-| Setup | The hub dashboard pushes the node's AP credentials to the plug once, while the plug is on home Wi-Fi (or on the plug's own setup AP) |
-| Limits | Shelly plugs here; Tasmota plugs use the same design as `tasmota_node` (§10.3). HA-controlled plugs (Matter, Zigbee, ESPHome, etc.) can't be pointed at an arbitrary AP by the hub; they use the `ha` backend |
+| Setup | The hub dashboard pushes the node's AP credentials to the plug once, while the plug is on home Wi-Fi (or on the plug's own setup AP). With `ble_backup` it also enables BLE RPC and starts pairing, and the node bonds (D102) |
+| Limits | Shelly plugs here; Tasmota plugs use the same design as `tasmota_node` (§10.3). HA-controlled plugs (Matter, Zigbee, ESPHome, etc.) can't be pointed at an arbitrary AP by the hub; they use the `ha` backend. BLE backup: Shelly Gen2+ plugs on firmware that enforces BLE bonding; not Tasmota on ESP8266/ESP8285 |
 
 Networks around one printer with the `shelly_node` backend (plus the hub's fallback network, §11.4):
 
@@ -516,6 +518,7 @@ See §6.2: automatic bus-off recovery, error-counter reporting, segment localisa
 ### 11.4 Hub fallback network
 
 - The hub runs its own WPA2 access point `fleet-hub` permanently, alongside its home-Wi-Fi connection.
+- A combined board (D84) hosts only this network, which is also its plug's primary network (D103): the ESP32 has one AP interface.
 - If the router is down:
   - the dashboard is still reachable at `http://192.168.4.1`
   - Shelly and Tasmota plugs use the hub network as their fallback (§10.1–§10.3)
