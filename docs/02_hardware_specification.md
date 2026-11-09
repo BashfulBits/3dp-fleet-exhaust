@@ -440,7 +440,7 @@ flowchart TB
 **AUX header (D48, D49, D75).** JST-XH 5: 3.3 V, GND, A = GPIO 36, B = GPIO 6, GND (A was GPIO 5 before D75). Each line passes a **2N7002 level shifter** (gate to 3.3 V; 10 kΩ pull-up to 3.3 V on the ESP32 side, 4.7 kΩ to 3.3 V on the connector side) and is ESD-protected. The shifter makes both lines **5 V-tolerant** and still passes a contact pulling low, so edge interrupts work. Both lines are digital only; pinout in doc 04 §4.
 - **Hub:** A = smoke dry contact, B = acknowledge button, each with its own GND pin.
 - **Node:** spare, or the **UART printer link** (A = TX, B = RX; doc 12 `marlin_serial`).
-- An **on-board tact switch** (TS-1187A-B-A-B, LCSC C318884, a Basic part) sits on B's connector side, in parallel with the AUX pin, on every carrier (D49). The hub's front panel presses it through a printed plunger, and a builder can still cable a remote button to AUX B. It is on B, the UART **RX** line, so a press on a node using the UART link only garbles a received frame; on A, the TX line, it would short a driven output through the shifter. AUX replaces the two spare-input headers.
+- An **on-board tact switch** (TS-1187A-B-A-B, LCSC C318884, a Basic part) sits on B's connector side, in parallel with the AUX pin, on every carrier (D49). The hub's front panel presses it through a printed plunger, as does the node housing on a combined board (D84, D101), and a builder can still cable a remote button to AUX B. It is on B, the UART **RX** line, so a press on a node using the UART link only garbles a received frame; on A, the TX line, it would short a driven output through the shifter. AUX replaces the two spare-input headers.
 
 #### 2.2.9 Identity and indicators (D46, D62, D63, D84)
 

@@ -232,7 +232,7 @@ The ESP32 reads it from the controller once at boot, after the controller starts
 - **Speed:** ≈ 0.5 µs rise on a 1 m cable [E], fine at 115200 and 250000 baud.
 - **Peripheral:** UART1 through the GPIO matrix. UART0 (GPIOs 43, 44) stays the console.
 - A and B are digital only: the shifter doesn't pass an analog level.
-- **On-board button (D49):** a TS-1187A-B-A-B SMD tact switch (C318884, Basic, 1.5 mm actuator) from B's connector side to GND, on every carrier. It sits on the RX line on purpose: pressing it can't short the TX output. Its position on the board is fixed at layout so the C9 plunger lines up; the node housing (C5) has no plunger for it.
+- **On-board button (D49):** a TS-1187A-B-A-B SMD tact switch (C318884, Basic, 1.5 mm actuator) from B's connector side to GND, on every carrier. It sits on the RX line on purpose: pressing it can't short the TX output. Its position on the board is fixed at layout so the ACK plungers line up: in the hub enclosure (C9), and in the node housing (C5) on a combined board, which is its own hub (D84, D101). On a node role, C5's ACK opening takes a C15 blanking plug.
 
 It is reached with the node housing open. Holding it at power-up still enters download mode, as on any ESP32 board.
 
