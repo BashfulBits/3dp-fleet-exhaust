@@ -1,6 +1,6 @@
 # 15 - Phase 2 Plan (proposed)
 
-> **Status: proposed, 2026-11-09, for discussion.** Phase 1 (the design baseline, D1–D106) is mostly complete. This doc proposes how Phase 2 gets from the design to a release that builders can install: what can close on paper now (§2), the phases and their gates (§3), and what runs in parallel (§4). Test IDs are those of the three test steps (D104): `VAL-…` validation ([`validation/`](../validation/README.md)), `PQ-…` / `FQ-…` qualification ([doc 12 §7](12_porting_guide.md#7-porting-checklist-and-printer-qualification), [doc 13 §4](13_fan_packs.md#4-fan-qualification)), `INS-…` installation ([doc 14 §4](14_build_your_own.md#4-install-and-commission)).
+> **Status: proposed, 2026-11-09, for discussion.** Phase 1 (the design baseline, D1–D107) is mostly complete. This doc proposes how Phase 2 gets from the design to a release that builders can install: what can close on paper now (§2), the phases and their gates (§3), and what runs in parallel (§4). Test IDs are those of the three test steps (D104): `VAL-…` validation ([`validation/`](../validation/README.md)), `PQ-…` / `FQ-…` qualification ([doc 12 §7](12_porting_guide.md#7-porting-checklist-and-printer-qualification), [doc 13 §4](13_fan_packs.md#4-fan-qualification)), `INS-…` installation ([doc 14 §4](14_build_your_own.md#4-install-and-commission)).
 
 ---
 
@@ -16,14 +16,14 @@ These need no prototype and no test equipment. Each says what closes it and, whe
 
 ### 2.1 Decisions
 
-All decided on 2026-11-09 and recorded as D106, except O18, whose fix is proposed and confirmed in validation.
+All decided on 2026-11-09 and recorded as D106, except O18, whose fix is proposed (D106) and priced (D107); its accuracy is confirmed in validation.
 
 | # | Item | Decision |
 |---|---|---|
 | **O14** | Node damper behaviour when the hub is lost (doc 05 §4, doc 06 §4) | **Closed.** A node keeps its chamber loop running on its own ΔP sensor while chamber ΔP shows the trunk still drawing (below about −1 Pa with the damper at or above its bleed angle), and holds its last angle otherwise. Works whatever R1 shows |
 | **O12** | Fault and recovery wording, and the timed inspection window after a cut (doc 05 §4.1) | **Closed.** Keep the CLEAR button at level 4; no inspection window, since `FLEET_CLEAR` can be sent through Moonraker from anywhere. The wording comes with the dashboard mock-up in Phase D |
 | Runaway recovery | What a builder must do before a node heats again after a runaway (a proven double fault) | **The installation self-check (INS-4)**, with automatic logging: the hub keeps a fault report (configuration, versions, event log, sensor history) and offers a prefilled GitHub issue (doc 07 §8, `.github/ISSUE_TEMPLATE/fault_report.md`). A failed self-check keeps the heater locked out until the carrier is replaced or repaired |
-| **O18** | Rail reading without a per-board trim | **Proposed:** 0.1 % rail dividers and a TL431B-class reference read at boot (≈ ±0.17 V at 24 V [E]); pass at ±0.2 V in VAL-H8; LM4040A (±0.1 %, ≈ $1.3–1.8) is the upgrade if it falls short |
+| **O18** | Rail reading without a per-board trim | **Proposed:** 0.1 % rail dividers and a second CJ431 (LCSC C3113, ±0.5 %, the part the guard comparators already use) read at boot, ≈ ±0.17 V at 24 V [E]; pass at ±0.2 V in VAL-H8. Priced against the alternatives (2026-11-09): every ±1 % CJ431 on LCSC is a JLC extended part and none is cheaper than C3113, so there is no 0.5 %-vs-1 % trade to make; C3113 is simply the better part |
 | R11 | USB ground share | **Agreed:** one reference measurement (VAL-H9), link-error checks per pack (PQ-6) |
 | M9 | Anemometer calibration | **Goal:** one default curve from validation, so installations run only the static zero. It needs every probe built to one standard build (doc 08 C18); per-fleet calibration with the reference venturis stays as the fallback (VAL-A5) |
 | O19 | INS-4 heater-chain self-check (a short low-duty pulse with the charge pump stopped) | **Agreed**, and since it now re-admits a node after a runaway, VAL must show it catches a welded switch on either side every time |

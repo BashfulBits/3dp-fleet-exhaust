@@ -123,7 +123,7 @@ Disconnect the element (heater commanded with no rise) and confirm the L3 trip. 
 3. **Learned cap:** set the bench supply's current limit below the heater's draw: the supply drops out, the node sets the cap at 90 % of the proven level (half `heater_power` if none) and alerts; each further drop steps it down; Clear restores it.
 4. **Boot inference:** cut the supply mid-heat with the node on the bench supply alone: at the next boot it infers the drop from the "heater on" flag.
 
-*Closes O18:* corrected spread within ±0.2 V → the trim goes (doc 05 §3.3, D75 amended in a new D row). Otherwise fit the LM4040A-class reference and repeat.
+*Closes O18:* corrected spread within ±0.2 V → the trim goes (doc 05 §3.3, D75 amended in a new D row). Otherwise re-run with the CJ431B (C3031881, ±0.3 %) in place of C3113 and repeat.
 
 ### VAL-H9 USB ground share on the reference printer (was test 9, R11)
 *Run on:* the reference node-heat printer (AD5X pack), heater fed from the printer's supply tap with a 14 AWG ≤ 1.5 m lead. *Equipment:* DC clamp meter or a shunt in the USB lead's ground.

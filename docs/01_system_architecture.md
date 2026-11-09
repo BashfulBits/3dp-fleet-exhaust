@@ -1,6 +1,6 @@
 # 01 - System Overview
 
-> **Status:** Phase 1 design baseline, 2026-10-25, updated 2026-11-09. Every decision is recorded as D1–D106 in [design_decisions.md](design_decisions.md). This doc says what the system can do and how it's built; [doc 10](10_requirements.md) lists the requirements it meets, and [doc 11](11_use_envelope.md) the limits of use with example systems.
+> **Status:** Phase 1 design baseline, 2026-10-25, updated 2026-11-09. Every decision is recorded as D1–D107 in [design_decisions.md](design_decisions.md). This doc says what the system can do and how it's built; [doc 10](10_requirements.md) lists the requirements it meets, and [doc 11](11_use_envelope.md) the limits of use with example systems.
 >
 > **Evidence key used across the docs:** **[V]** verified against a primary source · **[E]** engineering estimate · **[U]** unverified, needs a measurement or a test on the real hardware.
 
@@ -224,7 +224,7 @@ sequenceDiagram
 | 13 | Fan packs: how an exhaust fan is supported, its profile and qualification, the pack list |
 | 14 | Build-your-own quick start, with the installation checks |
 | 15 | Phase 2 plan (proposed): phases, gates and what can close on paper now |
-| Design decisions | Decision record D1–D106, cost-reduction pass, trade studies T1–T3 |
+| Design decisions | Decision record D1–D107, cost-reduction pass, trade studies T1–T3 |
 | `printers/` | Printer packs, one folder per model (doc 12 §9) |
 | `fans/` | Fan packs, one folder per fan model or class (doc 13 §5) |
 | `validation/` | Design validation on prototype boards: procedures, status, rework log (outside `docs/` on purpose) |
