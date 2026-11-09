@@ -61,12 +61,12 @@ None yet.
 
 ## 11. Open items
 
-| # | Item | Impact | Plan |
-|---|---|---|---|
-| H2D-1 | Exhaust outlet position and size | Port adapter | Inspect |
-| H2D-2 | Chamber heating rating | `chamber.cap_c` | Vendor spec |
-| H2D-3 | How fire signal F-a works without chamber data over a link (D39) | Fire detection | Phase 2 firmware: sensor-head SHT40 path |
+| # | Item | Impact | Closes at | Plan |
+|---|---|---|---|---|
+| H2D-1 | Exhaust outlet position and size | Port adapter | PQ-1 | Inspect |
+| H2D-2 | Chamber heating rating | `chamber.cap_c` | Design | Vendor spec |
+| H2D-3 | How fire signal F-a works without chamber data over a link (D39) | Fire detection | VAL-F8, then PQ-9 | Phase 2 firmware: sensor-head SHT40 path |
 
-## 12. Commissioning results
+## 12. Qualification results
 
 None.

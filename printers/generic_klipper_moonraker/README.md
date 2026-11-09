@@ -60,10 +60,10 @@ None yet.
 
 ## 11. Open items
 
-| # | Item | Impact | Plan |
-|---|---|---|---|
-| G-1 | Copy this stub for a specific model and fill in its facts | — | Doc 12 §7 |
+| # | Item | Impact | Closes at | Plan |
+|---|---|---|---|---|
+| G-1 | Copy this stub for a specific model and fill in its facts | — | Design | Doc 12 §7 |
 
-## 12. Commissioning results
+## 12. Qualification results
 
 None.

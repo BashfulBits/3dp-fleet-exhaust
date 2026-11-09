@@ -61,11 +61,11 @@ None yet.
 
 ## 11. Open items
 
-| # | Item | Impact | Plan |
-|---|---|---|---|
-| QD-1 | Split into one pack per model once one is designed | Pack structure | Doc 12 §7 |
-| QD-2 | Exhaust fan position and circulation macros per model | Port adapter, `klipper.modes` | Inspect `printer.cfg` |
+| # | Item | Impact | Closes at | Plan |
+|---|---|---|---|---|
+| QD-1 | Split into one pack per model once one is designed | Pack structure | Design | Doc 12 §7 |
+| QD-2 | Exhaust fan position and circulation macros per model | Port adapter, `klipper.modes` | PQ-1 | Inspect `printer.cfg` |
 
-## 12. Commissioning results
+## 12. Qualification results
 
 None.

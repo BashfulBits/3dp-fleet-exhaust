@@ -61,11 +61,11 @@ None yet.
 
 ## 11. Open items
 
-| # | Item | Impact | Plan |
-|---|---|---|---|
-| CC-1 | Network protocol and print-state fields | Tier 1 link | Whoever builds the link type |
-| CC-2 | Exhaust outlet | Port adapter | Inspect |
+| # | Item | Impact | Closes at | Plan |
+|---|---|---|---|---|
+| CC-1 | Network protocol and print-state fields | Tier 1 link | Link type | Whoever builds the link type |
+| CC-2 | Exhaust outlet | Port adapter | PQ-1 | Inspect |
 
-## 12. Commissioning results
+## 12. Qualification results
 
 None.

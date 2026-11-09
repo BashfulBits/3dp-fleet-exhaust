@@ -79,7 +79,7 @@ JLCPCB builds 5 of each board per order, so a fleet of up to 4 printers plus the
 | ESP32-S3-WROOM-1-N8R2 module (C2913204, 85 °C), assembled on the carrier | 5 | $4.60 | $23 | D72; JLC-stocked extended part, $4.00 at 10+, $3.57 at 30+, $3.16 at 100+ [V: JLC parts page, 2026-10-29]. Was a plug-in DevKitC-1-format board, 6 × $6 with a spare. The spare carrier is now the spare ESP32. Its extended-part fee is in the carrier line. |
 | XGZP6897D differential pressure sensor (I²C 0x6D), on the carrier | 4 | $4 | $16 | 3 chamber (lowest range) + 1 filter on the hub board (±1 kPa class, so a loaded filter stays in range). Assembled by JLC if stocked, otherwise hand-soldered; the hub's range variant is fitted by hand. |
 | Universal sensor board, variant P: XGZP6897D ±500 Pa class, trunk vacuum + trunk flow + 1 spare | 3 | $6 | $18 | D42. Trunk vacuum (D11, replaces the SDP810). ±1 % FS ≈ ±5 Pa at a −80 Pa setpoint is enough for a fan-speed loop; static auto-zero (doc 06 §4.1) removes the offset. |
-| (second P board) | – | – | – | Trunk flow across the venturi (D30, D33; doc 06 §4.3). Same board and part as the trunk sensor. Upgrade if M4 shows > ~1 Pa residual after auto-zero: Sensirion SDP31, ~$20, same header. |
+| (second P board) | – | – | – | Trunk flow across the venturi (D30, D33; doc 06 §4.3). Same board and part as the trunk sensor. Upgrade if VAL-A1 (was M4) shows > ~1 Pa residual after auto-zero: Sensirion SDP31, ~$20, same header. |
 | Universal sensor board, variant E: AS5600 | 4 | $2 | $8 | D30, D42: one per damper, 1 spare. A 5-board JLC order (or bare boards with hand-soldered AS5600). |
 | Sensor-header I/O: 8-channel I²C switch (FCA9548T, C55562906, TCA9548A-compatible) + carrier I/O controller (PY32F030K28T6, C3018720, LQFP32 since D83; the QFN32 K28U6TR, C3018718, before) + 8 P-FETs (HL3401, C22469449, Preferred) + per-header SDA/SCL pull-ups and ESD (H5VL10B) + expansion port protection (7 × H5VL10B, 7 × 1 kΩ, 2 × 100 kΩ, D77, ≈ $0.17) | 5 | $2.07 | $10 | D45, D54, doc 09 §6. Populated on every carrier for one assembly BOM. One I²C segment per header (fixed XGZP6897D addresses, bus capacitance); per-header power and interrupts, and the slow carrier I/O. D54: one PY32F030 replaces the two CH32V003s, programmed through its ROM bootloader; eight external headers. D83: LQFP32 for probing and rework, ≈ +$0.20 per board, no new extended-part fee; D99 keeps it on every board. |
 | 0.96″ I²C OLED | 1 | $3 | $3 | Hub panel, optional, on its own sensor header (D48). A node OLED is the same part, optional and not in the total. |
@@ -121,7 +121,7 @@ Not in this table, because they are priced elsewhere: the POWER IN barrel jack (
 
 | Item | Qty | Unit | Total | Notes |
 |---|---|---|---|---|
-| 24 V 150 W PTC heater, integrated fan, aluminium housing | 2 | $18 | $36 | C8, conditional on the bench stall test (R8). Fallback: bare PTC + 3-wire 5015 blower, +$8. |
+| 24 V 150 W PTC heater, integrated fan, aluminium housing | 2 | $18 | $36 | C8, conditional on the stall test in validation (VAL-H6, R8). Fallback: bare PTC + 3-wire 5015 blower, +$8. |
 | KSD301 normally-closed thermostat | 5 | $1 | $5 | Per node-heat: one on the heater housing (rating per O7) and one in chamber air (≈ 70 °C, D12, D26). 1 spare. |
 | Thermal cut-off (TCO), rated per O7, DC-capable | 4 | $0.75 | $3 | 2 spares (one-shot). |
 | ATO blade fuses 10 A | 5 | $0.40 | $2 | Printer supply taps and node inputs, plus spares. |

@@ -61,11 +61,11 @@ None yet.
 
 ## 11. Open items
 
-| # | Item | Impact | Plan |
-|---|---|---|---|
-| K2-1 | Exhaust outlet and circulation macros | Port adapter, `klipper.modes` | Inspect `printer.cfg` |
-| K2-2 | Chamber heater rating and Klipper object names | `chamber.cap_c`, fire signals (D39) | Vendor spec, `printer.cfg` |
+| # | Item | Impact | Closes at | Plan |
+|---|---|---|---|---|
+| K2-1 | Exhaust outlet and circulation macros | Port adapter, `klipper.modes` | PQ-1 | Inspect `printer.cfg` |
+| K2-2 | Chamber heater rating and Klipper object names | `chamber.cap_c`, fire signals (D39) | Design (rating), PQ-9 (names) | Vendor spec, `printer.cfg` |
 
-## 12. Commissioning results
+## 12. Qualification results
 
 None.

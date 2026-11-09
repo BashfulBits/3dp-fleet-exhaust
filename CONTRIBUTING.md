@@ -5,20 +5,24 @@ Thanks for helping. This project is a design framework for a shared exhaust, fil
 ## What to open an issue for
 
 - **A mistake in a doc**: wrong value, broken reasoning, a claim that needs a source. Include the doc and section, and say whether you have a measurement or a primary source ([V] verified, [E] estimate, [U] unverified: the evidence key in doc 01).
-- **A measurement from real hardware**: it can turn an [U] into a [V], or show an [E] is wrong. These are the most valuable reports.
+- **A measurement from real hardware**: it can turn an [U] into a [V], or show an [E] is wrong. These are the most valuable reports. Validation results go in `validation/`; qualification results in the pack.
 - **A safety concern**: use the same issue form, with "safety" in the title. Nothing in this project may kill a print except the mains cut on a corroborated fire or a verified heater runaway, so say which safety layer (doc 05) is affected.
 
 ## Adding a printer
 
-1. Read the [porting guide](docs/12_porting_guide.md) and its checklist (§7).
-2. Copy `printers/_template/` to `printers/<vendor>_<model>/`, fill in `profile.yaml` and the README, and run through the checklist.
+1. Read the [porting guide](docs/12_porting_guide.md): the checklist (§7.1) and the qualification tests (§7.2).
+2. Copy `printers/_template/` to `printers/<vendor>_<model>/`, fill in `profile.yaml` and the README, and run through the checklist. Qualification results from a real unit (with a multimeter and the dashboard only) are what make a pack `qualified`.
 3. A profile can only make the core limits stricter, never looser (doc 12 §6).
 4. Link the pack's printable parts in doc 08's pack index and its lines in the BOM scaling section (doc 03 §1.2).
+
+## Adding an exhaust fan
+
+Copy `fans/_template/` and follow [doc 14](docs/14_fan_packs.md) §7: the maker's data against the fan requirements (doc 02 §6.1), the connection, and fan qualification (§4). A fan with an undocumented control port needs its port mapped in validation first (`validation/procedures.md`, VAL-X2): open an issue.
 
 ## Changing the design
 
 - A design change that applies to any build gets a new `D<n>` row in [design_decisions.md](docs/design_decisions.md), saying what it amends or supersedes. Update the docs it affects in the same pull request, including the BOM total.
-- **Safety changes** (doc 05, the safety contract in doc 12 §6, or anything that touches the mains cut, heater limits or watchdog) need a matching commissioning test in doc 05 and an explanation of the failure it prevents. Fewer false positives on the mains cut is a requirement, not a nice-to-have.
+- **Safety changes** (doc 05, the safety contract in doc 12 §6, or anything that touches the mains cut, heater limits or watchdog) need a matching validation test in [`validation/procedures.md`](validation/procedures.md) (and a qualification or installation check where it depends on the printer or the fleet; doc 05 §9 says which step runs what) and an explanation of the failure it prevents. Fewer false positives on the mains cut is a requirement, not a nice-to-have.
 - Keep the evidence key and cross-reference style of the existing docs. Mermaid diagrams should stay under about 700 px wide.
 - Prefer existing printable models over custom parts (doc 08), and link models rather than copying them. CC BY-NC models are linked, never copied.
 

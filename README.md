@@ -13,7 +13,7 @@ An open-source exhaust, filtration and chamber-heating system for a small fleet 
 
 None of it can shut down Klipper or kill a print.
 
-**Status:** Phase 1 design baseline, decisions D1–D93. What it can do and its limits are in [doc 01](docs/01_system_architecture.md), the requirements in [doc 10](docs/10_requirements.md), and example systems at the edges of what it supports in [doc 11](docs/11_use_envelope.md). Phase 2 (implementation) follows the staged bring-up in [doc 01 §8](docs/01_system_architecture.md#8-phase-2-bring-up-stages-d41).
+**Status:** Phase 1 design baseline, decisions D1–D105. What it can do and its limits are in [doc 01](docs/01_system_architecture.md), the requirements in [doc 10](docs/10_requirements.md), and example systems at the edges of what it supports in [doc 11](docs/11_use_envelope.md). Phase 2 (implementation) is proposed in [doc 15](docs/15_phase2_plan.md). Testing is in three steps: the project validates the design on prototype boards ([`validation/`](validation/README.md)), a pack author qualifies each printer or fan model, and a builder installs with checks the dashboard runs, with no test equipment ([doc 13](docs/13_build_your_own.md)).
 
 ---
 
@@ -41,20 +41,23 @@ The CAT6 daisy chain carries 24 V logic power and CAN, with ESP-NOW radio as a b
 
 | Doc | Content |
 |---|---|
-| [01 System overview](docs/01_system_architecture.md) | What it does, its building blocks, topology, key decisions, **risk and open-item register**, bring-up stages |
+| [01 System overview](docs/01_system_architecture.md) | What it does, its building blocks, topology, key decisions, the **open-item index** (which step closes each item), the phases and install stages |
 | [02 Hardware specification](docs/02_hardware_specification.md) | Carrier board roles, heater, sensors, dampers, hub, supported exhaust fans |
 | [03 Bill of materials](docs/03_bill_of_materials.md) | Line-item BOM and cost for an example fleet, cost per role, and how it scales |
 | [04 Wiring and pinouts](docs/04_wiring_and_pinouts.md) | Cables, RJ45 bus pinout, GPIO map, printer USB link, grounding |
-| [05 Safety and failsafes](docs/05_safety_and_failsafes.md) | Safety layers, fault-response matrix, fire logic, commissioning tests |
+| [05 Safety and failsafes](docs/05_safety_and_failsafes.md) | Safety layers, fault-response matrix, fire logic, and where each safety test runs |
 | [06 Pneumatics and ducting](docs/06_pneumatics_and_ducting.md) | Layout, control loops, purge, material policy, heat budget, filter |
 | [07 Firmware and comms](docs/07_firmware_and_comms.md) | Firmware, Klipper plugin, G-code API, protocols, notifications, dashboard |
 | [08 Printable parts](docs/08_printable_catalog.md) | Existing models to verify, custom parts to design, and the pack parts index |
 | [09 Sensor bus and I/O controller](docs/09_sensor_bus_and_io_controller.md) | Up to 8 sensor headers, one I²C segment each, per-header power, programming every MCU through its ROM bootloader, and the supported sensors |
-| [10 Requirements](docs/10_requirements.md) | The requirements the design meets, traced to the decisions and to the commissioning tests |
+| [10 Requirements](docs/10_requirements.md) | The requirements the design meets, traced to the decisions and to the tests that prove them |
 | [11 Use envelope](docs/11_use_envelope.md) | The limits of use (fleet size, cable length, power, links, heat) and hypothetical systems at those limits |
-| [12 Printer packs](docs/12_porting_guide.md) | How a printer pack is made: link tiers, profile schema, mechanical interface, safety contract; the pack list |
-| [13 Build your own](docs/13_build_your_own.md) | Quick start: does it fit, plan your fleet, staged build, reading order |
-| [Design decisions](docs/design_decisions.md) | Decision record D1–D93, the cost-reduction pass and the trade studies behind them |
+| [12 Printer packs](docs/12_porting_guide.md) | How a printer pack is made: link tiers, profile schema, mechanical interface, safety contract, **printer qualification**; the pack list |
+| [13 Build your own](docs/13_build_your_own.md) | Quick start: does it fit, plan your fleet, staged build, **installation checks**, reading order |
+| [14 Fan packs](docs/14_fan_packs.md) | How an exhaust fan is supported: fan profile, fan qualification, the fan pack list |
+| [15 Phase 2 plan](docs/15_phase2_plan.md) | Proposed: what can close on paper now, the phases and their gates |
+| [Validation](validation/README.md) | Design validation on prototype boards: procedures, test status, rework log |
+| [Design decisions](docs/design_decisions.md) | Decision record D1–D105, the cost-reduction pass and the trade studies behind them |
 
 ## Repository layout (Phase 2)
 
@@ -62,6 +65,8 @@ The CAT6 daisy chain carries 24 V logic power and CAN, with ESP-NOW radio as a b
 ├── LICENSES/                # Licence texts (REUSE); source files carry SPDX headers
 ├── docs/                    # Design documents (this baseline)
 ├── printers/                # Printer packs (doc 12 §9): _template plus one folder per model
+├── fans/                    # Fan packs (doc 14 §5): _template plus one folder per fan model or class
+├── validation/              # Design validation: procedures, status, rework log, results/
 ├── firmware/
 │   ├── fleet_node/          # One ESP-IDF project: node-heat, node-lite and hub roles
 │   └── components/fleet_common/ # CAN + USB protocols, control loops, sensor drivers
@@ -77,7 +82,7 @@ The Klipper side (klippy extra, macros, installers) is published from its own sm
 
 ## Using this for your own fleet
 
-Keep your own build (which printers, where the duct runs, which fan, plugs and supplies, your BOM and commissioning records) in a repository of your own, and add this one to it as a git submodule. Fleet-specific needs that this framework can't express yet are best raised here as a config option or a new printer pack, so they don't turn into a private fork.
+Keep your own build (which printers, where the duct runs, which fan, plugs and supplies, your BOM and installation reports) in a repository of your own, and add this one to it as a git submodule. Fleet-specific needs that this framework can't express yet are best raised here as a config option or a new printer pack, so they don't turn into a private fork.
 
 ## Licence
 

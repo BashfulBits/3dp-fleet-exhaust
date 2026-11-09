@@ -1,0 +1,13 @@
+# Fan profile (schema: doc 14 §3). Unknown keys are rejected.
+schema: 1
+id: fantech_6in_ec
+name: "6″ mains EC, 0–10 V input with +10 V reference (Fantech prioAir 6 EC, FG 6M EC / FGC 6M EC)"
+status: designed              # stub | designed | qualified (doc 14 §5)
+family: ec_0_10v
+duct_in: 6
+port: b2_terminal
+supply: own_mains
+tach_ppr: 1
+rated_rpm: null           # from FQ-3
+dc_filter: false
+printers: [5, 15]

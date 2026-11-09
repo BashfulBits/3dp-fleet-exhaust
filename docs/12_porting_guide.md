@@ -1,6 +1,6 @@
 # 12 - Printer Packs: Adding a Printer
 
-> Design baseline, 2026-11-07 (D25). How the system meets one printer model: what a printer pack is, the contracts it fills in, how to write one, and the list of packs (§9). Phase 1 defines the structure and the contracts. Phase 2 builds the core and the first two designed packs; links for other printer families get built by whoever needs them.
+> Design baseline, 2026-11-07 (D25), qualification added 2026-11-09 (D104). How the system meets one printer model: what a printer pack is, the contracts it fills in, how to write one, how a model is qualified as supported (§7), and the list of packs (§9). Exhaust fans have packs of their own ([doc 14](14_fan_packs.md)). Phase 1 defines the structure and the contracts. Phase 2 builds the core and the first two designed packs; links for other printer families get built by whoever needs them.
 
 ---
 
@@ -14,9 +14,9 @@ The system splits into a **core** that every printer shares and a **printer pack
 | Hub, bus, ESP-NOW, fan, filter, trunk (docs 02, 06) | Port adapter: the printed part from the printer's exhaust opening to the standard interface (§5) |
 | Damper (E3) and node housing (C5) on the standard interface (§5) | Other printed parts for that printer (pass-throughs, door-switch mounts, recirculation) |
 | Node and hub firmware, including every link type (§3) | `profile.yaml` (§4): limits, link type, printer object names |
-| Safety layers and commissioning tests (doc 05) | Wiring to the printer: USB connection point, heater supply tap if used |
+| Safety layers (doc 05) and their validation ([`validation/`](../validation/README.md)) | Wiring to the printer: USB connection point, heater supply tap if used |
 | Klipper extra and the USB-serial protocol (doc 07) | Install variant for that printer's firmware, slicer snippets |
-| Smart-plug backends (doc 07 §10) | Decisions, open items and commissioning results for that model (§2.2) |
+| Smart-plug backends (doc 07 §10) | Decisions, open items and qualification results for that model (§2.2, §7) |
 
 ```mermaid
 flowchart LR
@@ -69,12 +69,12 @@ Every pack README has the same sections, so packs can be compared side by side. 
 | 9 | Install variant | Which variant (§3.3), paths, notifier |
 | 10 | Pack decisions | Model-specific decisions (§2.2) |
 | 11 | Open items | Model-specific risks and open items (§2.2) |
-| 12 | Commissioning results | Measured `power.idle_w` / `power.printing_w`, and the tests from §6 item 7 with dates and results |
+| 12 | Qualification results | The §7.2 tests with dates, firmware and pack versions, results and measured values (`power.*`, `heater_power`, characterise ranges) |
 
 ### 2.2 Pack decisions and open items
 
 - **Decisions** that apply to one model only go in the pack's §10, numbered within the pack (`<pack>-1`, `<pack>-2`, …), each citing the core decision it applies (for example "applies D26"). A decision that would apply to any printer is a core `D` row in `design_decisions.md` instead.
-- **Risks and open items** for one model go in the pack's §11 with the core register's columns (doc 01 §7). An item first raised in the core register keeps its ID (`O1`, `R7`, …) when it moves to a pack, so older references still resolve. New pack items are numbered within the pack.
+- **Risks and open items** for one model go in the pack's §11, with columns `# | Item | Impact | Closes at | Plan`. *Closes at* names the step that closes it: **Design** (desk work before the pack can be `designed`), a qualification test (`PQ-n`, §7.2), **Link type** (core work on a link the pack waits for), or a validation test (`VAL-…`) for an item the core must prove first. An item first raised in the core register keeps its ID (`O1`, `R7`, …) when it moves to a pack, so older references still resolve. New pack items are numbered within the pack.
 - An item closed by a measurement on one unit is recorded as a fact in §2 with [V] and the date, so the next owner of the model doesn't repeat it.
 
 ## 3. Printer-link contract
@@ -147,7 +147,7 @@ The node gets its printer-specific behaviour from the profile, not from code. Th
 | Key | Type | Meaning |
 |---|---|---|
 | `id`, `name` | string | Pack folder name and display name |
-| `status` | enum | `stub`, `designed` or `commissioned` (§9). Default `designed`. A node refuses a `stub` profile for heating |
+| `status` | enum | `stub`, `designed` or `qualified` (§9). Default `designed`. A node refuses a `stub` profile for heating |
 | `link` | enum | Printer link (not the hub link of doc 07 §6.4): `usb_serial`, `moonraker`, `octoprint`, `prusalink`, `bambu_mqtt`, `marlin_serial`, `power_only` |
 | `link_port` | enum | `marlin_serial` only: `uart` (AUX header) or `usb_host` (§3.2) |
 | `link_backup` | enum | Usually `moonraker` on Klipper printers, else `power_only` |
@@ -163,7 +163,7 @@ The node gets its printer-specific behaviour from the profile, not from code. Th
 | `klipper.chamber_sensor` | enum | `fleet_node` (the extra provides `[temperature_sensor chamber]`) or `native` |
 | `klipper.m141_m191` | enum | `plugin` or `native` |
 | `klipper.modes` | map | Macros to call per fleet mode (`heated`, `cooling`, `purge`, `done`), for a printer whose own fans or circulation modes must follow the fleet mode |
-| `power.idle_w`, `power.printing_w` | number | Tier 0 thresholds (doc 07 §6.5), measured at commissioning |
+| `power.idle_w`, `power.printing_w` | number | Tier 0 thresholds (doc 07 §6.5), measured in qualification (PQ-4); an installation re-learns them (INS-9) |
 | `purge` | map | Optional per-printer overrides of the material defaults (doc 06 §6) |
 | `outputs.b1`, `outputs.b2` | string | What the low-side outputs drive (for example a recirculation blower on B1) |
 
@@ -212,38 +212,90 @@ A pack **must** meet all of these. A profile can only make limits stricter; noth
 3. `chamber.cap_c` set from the weakest material in the chamber (≤ HDT − 30 °C for printed parts). With a **node heater**, never above 60 °C; the firmware hard limit is then cap + 5 °C and the chamber-air KSD301 is rated about cap + 10 °C (doc 05 §3.1). A printer that heats its own chamber uses the manufacturer's rating instead.
 4. Any external heater supply on the **printer's own smart plug** (doc 05 §3.3).
 5. Heater only on Tier 1 or Tier 2 links (§3.2), and never on a `stub` profile.
-6. A heater supply that suits the heater: the sizing rule for a shared supply (doc 02 §3.1), and the node's `heater_power` set at commissioning; the learned supply cap covers a misjudged supply (doc 05 §3.3, D64).
-7. The commissioning tests that apply (doc 05 §9: always 6, 7, 10, 12, 13, 15–22, 25, 27, 29 and 31, with tests written for heating run without the heater (28 and 30 are hub tests, run once per installation); with a node heater also 1–5, 9, 11, 14, 24 and 26, plus 8, and 23 if it uses an external brick), with results recorded in the pack README.
+6. A heater supply that suits the heater: the sizing rule for a shared supply (doc 02 §3.1), and the node's `heater_power` set from the pack's qualified value (PQ-6); the learned supply cap covers a misjudged supply (doc 05 §3.3, D64).
+7. The qualification tests that apply (§7.2) pass on at least one unit, with results recorded in the pack README §12. The design itself is proven once, in validation ([`validation/`](../validation/README.md)); a pack proves only what depends on the printer.
 8. The host plugin, if any, never shuts down or errors the printer's firmware (doc 07 §3.2). Its only print control is the `PAUSE` of the print hold (doc 05 §4.1).
 9. Latched states follow the fault levels (doc 05 §4.1): only **Clear** ends a lockout or cut, and a plug switched on while a cut is latched is cut again. A pack can't change either.
 
-## 7. Porting checklist
+## 7. Porting checklist and printer qualification
+
+A printer model becomes supported in two steps: the pack is **designed** on paper (§7.1), then **qualified** on a real unit (§7.2). Qualification proves only what depends on the printer: the design itself (boards, firmware, safety layers) is proven once, in validation ([`validation/`](../validation/README.md)), and every builder's own fleet is checked at installation ([doc 13 §4](13_build_your_own.md#4-install-and-commission)). It is one of three test steps (D104):
+
+| Step | Proves | Equipment |
+|---|---|---|
+| Validation (`VAL-…`) | The core design, on prototype boards | Lab bench |
+| **Qualification (`PQ-…`, this section)** | **One printer model works with the core** | **The system's dashboard and test modes, a multimeter, the printer. Nothing else** |
+| Installation (`INS-…`) | One builder's fleet | None |
+
+### 7.1 Designing a pack
 
 1. Copy `printers/_template/` to `printers/<vendor>_<model>/`. Set `status: stub` until the pack is designed.
 2. Record the printer facts (§2.1 section 2), each with its evidence tag.
 3. Pick the link tier (§3.2) and role. Check whether the printer heats its own chamber.
 4. Find the exhaust opening and choose the kind of port adapter (§5). Look for existing models first (doc 08 policy).
 5. Decide the heater supply if there's a node heater (doc 02 §3.1) and record the sizing check.
-6. Fill in `profile.yaml`; measure `power.idle_w` and `power.printing_w` with the plug.
-7. Tier 2: confirm the printer exposes USB-serial (`cdc_acm`), find a USB connection point that needs no wires on pads, and install the extra with the right variant. Tier 2b: pick `uart` or `usb_host`, confirm the port answers `M115` at the firmware's baud rate, and confirm the board uses 3.3 V logic (D100).
-8. Run the safety-contract tests (§6 item 7) and record the results in the pack README; set `status: commissioned`.
-9. Add the pack's parts to doc 08's pack index, the pack to §9, and its lines to your BOM.
+6. Fill in `profile.yaml`.
+7. List the pack's open items with the step that closes each (§2.2). Every item marked **Design** must be closed to set `status: designed`.
+8. Add the pack's parts to doc 08's pack index, the pack to §9, and its lines to your BOM.
+
+### 7.2 Qualification tests
+
+Run on one unit of the model, installed as a builder would (doc 13 §4), on boards and firmware that passed validation. Test mode is the firmware's mode for injecting faults and signals (doc 07 §8). Which tests apply:
+
+| Test | node-lite, Tier 0 | node-lite, Tier 1 / 2 / 2b | node-heat | Own chamber heater |
+|---|---|---|---|---|
+| PQ-1 Unboxing facts | ✓ | ✓ | ✓ | ✓ |
+| PQ-2 Host install | | Tier 2 (and 1 on Klipper) | ✓ | Tier 2 |
+| PQ-3 Link robustness | | ✓ | ✓ | ✓ |
+| PQ-4 Plug power profile | ✓ | ✓ (backup) | ✓ | ✓ |
+| PQ-5 Fit, leakage, makeup air and door | ✓ | ✓ | ✓ | ✓ |
+| PQ-6 Heater supply under load | | | ✓ | |
+| PQ-7 Heat-up and characterise | | | ✓ | |
+| PQ-8 Chamber wait and print hold | | | ✓ (Tier 2) | |
+| PQ-9 The printer's own heater and fans | | where `klipper.modes` is set | where `klipper.modes` is set | ✓ |
+| PQ-10 Prints without the macros | ✓ | ✓ | ✓ | ✓ |
+| PQ-11 Print cycle and purge | ✓ | ✓ | ✓ | ✓ |
+
+**PQ-1 Unboxing facts.** Before any wiring, with the printer unplugged: read the supply label (watts, 24 V current) and trace whether the bed runs from it; check the markings on every plastic part inside the chamber (`>ABS<`, `>PC<`, `>PLA<`); find the exhaust opening and its size; list the USB host ports and meter any header's VBUS and pin order. Then with the printer on: plug a node (or any ESP32-S3 board running the node firmware) into the chosen USB port and look for `/dev/ttyACM*` and `dmesg` (`cdc_acm`). Tier 2b: confirm the port answers `M115` at the firmware's baud rate and meter the TX line's idle level (3.3 V logic, D100). Each fact goes into §2 as [V] with the date.
+
+**PQ-2 Host install** (Tier 2, and Tier 1 on Klipper). Install the extra with the pack's variant (§3.3): it loads, the extras path matches the pack (R5), `[temperature_sensor chamber]` appears, `M141`/`M191` don't collide with a stock definition (doc 07 §3.2), the Moonraker update manager sees the repo and a test `_NOTIFY` reaches the phone. If the extra won't load, record the pack as macros-only (no blocking wait).
+
+**PQ-3 Link robustness** (Tier 1, 2, 2b). Unplug the printer's USB lead mid-print (Tier 2): the print continues, the extra reconnects on replug, and alerts behave as in doc 05 §4. Stop Moonraker mid-print (Tier 1, and Tier 2's backup): the node falls back to the next link and alerts. Tier 2b: the node sends only the allowlisted commands (§3.2; read the printer's console log).
+
+**PQ-4 Plug power profile.** Let the node learn the plug's power trace over one idle period and one print (doc 07 §6.5) and accept the proposed `power.idle_w` and `power.printing_w`; check that print start and end are detected on three prints, including a short one. Record the printer's peak draw: the plug's power limit (printer peak × 1.3, D16) is set from it at installation.
+
+**PQ-5 Fit, leakage, makeup air and door.** The port adapter seals and the printer's own fans and airflow are not blocked. With the trunk at its setpoint, sweep the damper and record chamber ΔP against angle (was M3): the chamber reaches −3 Pa well inside the damper's travel. With a makeup inlet: run one branch at purge flow and read that chamber's ΔP (≤ ≈ 25 Pa at 50 CFM, scaled by flow²), and record the first crack test's opening point (≈ 8–16 Pa) (was M11). Open the door during a print with the pack's door source: damper to purge, alert at 60 s (was test 12).
+
+**PQ-6 Heater supply under load** (node-heat; was test 8, and test 9 in part). With `heater_power` set from the pack and no print, heat the bed to its usual target, then run the heater at `heater_power` for 10 min while the printer runs a fast motion test. Meter the printer's 24 V rail at its supply terminals during the run. If the supply drops out, confirm the node sets the learned cap and alerts, then repeat until a run completes. Pass: on a shared supply, the rail stays above 23 V and the mainboard doesn't reset (R12), and the USB link's error counters stay at zero through the run (R11: the wiring rule was proven in VAL-H9; a pack that can't follow the rule fits the USB isolator). Record `heater_power` and any learned cap.
+
+**PQ-7 Heat-up and characterise** (node-heat; was test 24 and M5). Run the characterise run (doc 05 §3.2) in the coldest room available and record the room temperature, the time to the cap and the proposed thresholds. Accept them; these become the pack's **expected ranges**, which installations check theirs against (INS-8). Then print ABS at 50 °C: heater duty and chamber ΔP stay steady (was M5). Soak the chamber at the cap for 2 h and look for creep in every stock plastic part (O11 on kit enclosures); drop `chamber.cap_c` if any part moves.
+
+**PQ-8 Chamber wait and print hold** (node-heat on Tier 2; was test 26 on this printer's Klipper). `M191` holds print start until the chamber reaches its target, and its timeout gives the continue-or-pause choice (doc 07 §4). Lock the node out (test mode) and start a job with `M191`: the print pauses during the chamber wait with the reason on screen; `RESUME` runs it unheated; `FLEET_CLEAR` then `RESUME` on a second job heats normally.
+
+**PQ-9 The printer's own heater and fans.** Each fleet mode calls the pack's `klipper.modes` macros and the printer's fans follow. On a printer that heats its own chamber, check its heater rating against `chamber.cap_c`, then inject two fire signals in test mode with the printer link unplugged: F-a falls back to the node's SHT40 (D39, was test 13 in part).
+
+**PQ-10 Prints without the macros.** Start a print from the touchscreen and from the vendor's app or slicer: it gets bleed and purge under the default policy and never heats (F-11). Record which default-policy levels work on this printer: `filament_type` metadata (level 3) and the material slot source (level 4) (doc 07 §5).
+
+**PQ-11 Print cycle and purge.** One cooling print (PLA or PETG) stays below the material policy's chamber limit with bleed (F-7). One heated or enclosed print (ABS) ends in a purge that cools at the slicer's ramp and finishes on its criteria (F-8); the bed LED goes green and the push arrives (F-10).
+
+### 7.3 Recording and status
+
+- Record every test in the pack README §12: date, unit, firmware and pack version, pass or fail, and the measured values. A measurement that closes an open item also goes into §2 as [V] (§2.2).
+- When every applicable test passes on one unit, set `status: qualified` in `profile.yaml` and §9. A second unit is welcome, not required.
+- A later pack change that touches the port adapter, heater supply, link or `klipper.modes` re-runs the tests that depend on it; a firmware release re-runs nothing unless its notes name a pack test.
+- Anyone who installs a `designed` pack is running this qualification: say so in an issue, and send the results back.
 
 ```mermaid
 flowchart TD
-  A["Copy printers/_template;<br>status: stub"] --> B["Printer facts;<br>tier and role"]
-  B --> C["Port adapter to the<br>standard interface (§5)"]
-  C --> D{"Node heater?"}
-  D -->|"yes"| E["Heater supply and<br>sizing check"]
-  D -->|"no"| F
-  E --> F["profile.yaml; measure idle<br>and printing watts"]
-  F --> G{"Link tier"}
-  G -->|"2: USB host plugin"| H["cdc_acm, a no-solder<br>USB point, the extra"]
-  G -->|"2b: direct serial"| I["uart or usb_host,<br>M115, 3.3 V logic"]
-  G -->|"0 or 1"| J
-  H --> J["Safety-contract tests;<br>status: commissioned"]
-  I --> J
-  J --> K["Doc 08 index, §9 list,<br>BOM lines"]
+  A["Copy printers/_template;<br>status: stub"] --> B["Facts, tier, role,<br>port adapter, supply"]
+  B --> C["profile.yaml; Design<br>items closed"]
+  C -->|"status: designed"| D["PQ-1 unboxing,<br>PQ-2 host install"]
+  D --> E["PQ-3 to PQ-5:<br>link, power, fit, door"]
+  E --> F{"Node heater?"}
+  F -->|"yes"| G["PQ-6 to PQ-8:<br>supply, characterise, hold"]
+  F -->|"no"| H
+  G --> H["PQ-9 to PQ-11:<br>own heater, macros, purge"]
+  H -->|"status: qualified"| I["§9 list, doc 08 index"]
 ```
 
 ## 8. Licensing and contributions
@@ -261,7 +313,7 @@ FLOOK32 (GPLv3, D23) and Nevermore Controller (AGPL-3.0, D27) contributed ideas 
 
 ## 9. Pack list
 
-**Status:** *designed* = the pack design is complete and waits for commissioning; *stub* = facts and likely integration only, every unknown marked [U], not usable for heating until designed; *commissioned* = the safety-contract tests passed on at least one unit. Stubs are starting points for anyone who owns the printer; corrections and measurements are welcome.
+**Status:** *stub* = facts and likely integration only, every unknown marked [U], not usable for heating until designed; *designed* = the pack design is complete and its Design items are closed; it waits for qualification (§7.2); *qualified* = every applicable qualification test passed on at least one unit, so the model is supported. Stubs are starting points for anyone who owns the printer; corrections and measurements are welcome.
 
 | Pack | Status | Role | Link (backup) | Port adapter | Notes |
 |---|---|---|---|---|---|

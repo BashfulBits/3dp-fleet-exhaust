@@ -62,12 +62,12 @@ None yet.
 
 ## 11. Open items
 
-| # | Item | Impact | Plan |
-|---|---|---|---|
-| AD5M-1 | Does the 5M Pro's rear fan exhaust or recirculate? | Port adapter kind; recirculation duct | Inspect |
-| AD5M-2 | Supply rating and whether the bed runs from it | Heater supply | Read the label |
-| AD5M-3 | USB host port and `cdc_acm` | Tier 2 or Moonraker only | Plug a node in |
+| # | Item | Impact | Closes at | Plan |
+|---|---|---|---|---|
+| AD5M-1 | Does the 5M Pro's rear fan exhaust or recirculate? | Port adapter kind; recirculation duct | PQ-1 | Inspect |
+| AD5M-2 | Supply rating and whether the bed runs from it | Heater supply | PQ-1 | Read the label |
+| AD5M-3 | USB host port and `cdc_acm` | Tier 2 or Moonraker only | PQ-1 | Plug a node in |
 
-## 12. Commissioning results
+## 12. Qualification results
 
 None.

@@ -61,12 +61,12 @@ None yet.
 
 ## 11. Open items
 
-| # | Item | Impact | Plan |
-|---|---|---|---|
-| K1-1 | Rear outlet: exhaust or recirculation, by model | Port adapter | Inspect |
-| K1-2 | Stock chamber plastics | `chamber.cap_c` | Check markings |
-| K1-3 | Supply rating and bed supply | Heater supply | Read the label |
+| # | Item | Impact | Closes at | Plan |
+|---|---|---|---|---|
+| K1-1 | Rear outlet: exhaust or recirculation, by model | Port adapter | PQ-1 | Inspect |
+| K1-2 | Stock chamber plastics | `chamber.cap_c` | PQ-1 | Check markings |
+| K1-3 | Supply rating and bed supply | Heater supply | PQ-1 | Read the label |
 
-## 12. Commissioning results
+## 12. Qualification results
 
 None.

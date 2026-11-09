@@ -1,6 +1,6 @@
 # 06 - Pneumatics, Ducting, Filtration and Control
 
-> Design baseline, 2026-11-09. Numbers marked [E] are first-principles estimates. Setpoints marked *(commission)* are set from measurements on the real system (§10).
+> Design baseline, 2026-11-09. Numbers marked [E] are first-principles estimates. Setpoints marked *(commission)* start from a design default proven in validation and are set on each fleet by its automatic installation checks (§10, D104).
 
 ---
 
@@ -92,9 +92,9 @@ In a three-printer fleet on 4″ duct the branches join the trunk through **two 
 - **Angle encoder (D30):** an **AS5600** magnetic encoder on a printed bracket reads a diametric magnet on the blade shaft's free end (doc 08 C16), so it measures the blade itself, not the servo. It's on the node's I²C header 2.
   - **Closed is confirmed**, not assumed, including with the fan off (idle, heat hold, fire), when ΔP can't show anything.
   - **Stuck or slipped:** measured angle more than 5° from the command for 5 s → fault. This catches a stripped horn or a slipping blade, which the ΔP check misses or finds late. The same check bounds a **servo stall** (D56): when it fires, the node stops sending servo pulses, so a jammed blade can't hold the servo at stall current (≈ 1 A+ [E]) on `+5V_PWR`. A re-seat attempt drives it for ≤ 1 s, then stops for ≥ 30 s.
-  - **Angle–flow curve per branch:** measured once at commissioning with the trunk venturi (§4.3, M8). Because the trunk vacuum is held constant (§4), the curve stays valid in service, and gives each branch's purge flow (§5.2).
-  - The closed angle is learned at commissioning (blade on its seal) and rechecked in each static window.
-  - **Leak drift (D32):** at a steady −3 Pa the damper only exhausts what leaks in, so the angle needed to hold it tracks the chamber's leakiness. The node logs the median angle per heated print and compares it with its commissioning baseline; when the printer runs alone, the hub's low-flow reading (§4.4) gives the bleed in CFM directly. A sustained rise raises a digest item (doc 05).
+  - **Angle–flow curve per branch:** measured once at installation by the automatic duct sweep, with the trunk venturi (§4.3, INS-7). Because the trunk vacuum is held constant (§4), the curve stays valid in service, and gives each branch's purge flow (§5.2).
+  - The closed angle is learned at installation (blade on its seal, INS-4) and rechecked in each static window.
+  - **Leak drift (D32):** at a steady −3 Pa the damper only exhausts what leaks in, so the angle needed to hold it tracks the chamber's leakiness. The node logs the median angle per heated print and compares it with its installation baseline; when the printer runs alone, the hub's low-flow reading (§4.4) gives the bleed in CFM directly. A sustained rise raises a digest item (doc 05).
 - **Stuck detection, second check:** the commanded angle changes by > 10° but chamber ΔP doesn't respond within 10 s (with the trunk active) → fault. It is the only check if the encoder is missing or faulty, and it stops the servo pulses the same way.
 
 ## 4. Control loops (cascaded, D5)
@@ -140,7 +140,7 @@ The hub's trunk loop and each node's loops are linked only by the **trunk-active
 - **Auto-zero:** every pressure sensor is re-zeroed in the system-wide static window (§4.1).
 - The **trunk-active flag** comes from the hub over CAN. The node doesn't run its ΔP loop when the trunk is off. What a node does when the hub, and so the flag, is lost is open item O14 (doc 01 §7).
 
-**Combined roles (D84):** one carrier on one printer has no trunk loop and no branch damper. Its chamber ΔP loop moves the exhaust fan's speed (B2) instead of a damper angle, against the same setpoints (heated print, cooling floor, purge); the purge token has one holder. The loop's gains are set at commissioning [E].
+**Combined roles (D84):** one carrier on one printer has no trunk loop and no branch damper. Its chamber ΔP loop moves the exhaust fan's speed (B2) instead of a damper angle, against the same setpoints (heated print, cooling floor, purge); the purge token has one holder. The loop's gains start from validated defaults and are trimmed by the installation's duct sweep (INS-7) [E].
 
 ```mermaid
 flowchart TB
@@ -177,7 +177,7 @@ All the pressure sensors (one per node, three on the hub) are XGZP6897D parts (D
 1. The hub sends `ZERO_WINDOW_OPEN` (flag in the hub heartbeat, doc 07 §6.2) when Z1, Z2 and Z5 hold.
 2. Each unit checks Z3 and Z4 for its own sensors, then averages 60 s of samples. It records the mean and also the sensor's built-in temperature reading.
 3. **Acceptance:**
-   - Reject the result if the offset is beyond the plausible limit: > 10 % of full scale from the commissioning value. That points to a leak, a blocked or kinked tube, or a failed sensor, and it raises a digest alert instead of being absorbed into the offset.
+   - Reject the result if the offset is beyond the plausible limit: > 10 % of full scale from the installation value. That points to a leak, a blocked or kinked tube, or a failed sensor, and it raises a digest alert instead of being absorbed into the offset.
    - A step of more than 1 Pa (chamber) or 3 Pa (hub) from the last accepted offset needs a second window that agrees before it is applied.
 4. **Store:** the unit writes `{offset, sensor temperature, timestamp}` to NVS and reports "zero accepted" in its heartbeat. The hub logs every sensor's result on the dashboard.
 5. **Temperature compensation:** once a sensor has ≥ 3 accepted zeros spanning ≥ 5 °C, the firmware fits a linear offset-versus-temperature line and applies it in operation. This matters because a node enclosure warms next to a heated chamber during a print, long after the last idle zero.
@@ -189,7 +189,7 @@ flowchart TD
   W --> U{"Each unit:<br>Z3 and Z4 hold?"}
   U -->|"no"| X["Window closes;<br>last offset stays"]
   U -->|"yes"| S["Average 60 s;<br>record mean + temp"]
-  S --> P{"Within 10 % FS of<br>commissioning offset?"}
+  S --> P{"Within 10 % FS of<br>installation offset?"}
   P -->|"no"| R["Reject;<br>digest alert"]
   P -->|"yes"| ST{"Step > 1 Pa (chamber)<br>or > 3 Pa (hub)?"}
   ST -->|"yes"| SEC["Wait for a second<br>window to agree"]
@@ -220,10 +220,10 @@ A printed **venturi** between the filter and the fan measures total exhaust flow
 | Signal [E] | ΔP ≈ ½ρ(Q/A_throat)²(1 − β⁴)/C², with C ≈ 0.97 for a smooth print. 50 mm throat: **~8 Pa at 15 CFM, ~14 Pa at 20 CFM, ~87 Pa at 50 CFM, ~350 Pa at 100 CFM**, the sensor's 500 Pa near 120 CFM. 65 mm throat: **~5 Pa at 20 CFM, ~30 Pa at 50 CFM, ~125 Pa at 100 CFM**, 500 Pa near 200 CFM, which covers two fans in series (≈ 160–185 CFM; a 60 mm throat would reach full scale at ≈ 170 CFM) (D95). |
 | Useful range [E] | 65 mm throat: **~25–200 CFM** (≈ ±7 % at 25 CFM, ±5 % at 30 CFM). 50 mm throat: **~15–120 CFM**: about ±7 % at 15 CFM, ±5 % at 20 CFM, ±3 % at 30 CFM, ~±2 % at purge flows. Flow goes as √ΔP, so bleed flows (< 1 Pa here) are **below range**; the low-flow anemometer (§4.4) covers them. |
 | Pressure cost [E] | ~10–15 % of the venturi ΔP is lost for good: ~10–13 Pa at 50 CFM, against ~100–250 Pa for the filter. Check in M1. |
-| Calibration | C from the printed geometry; spot-check at commissioning with a handheld vane anemometer at the outlet if one is available (M8). |
+| Calibration | C from the printed geometry; spot-checked in validation with a handheld vane anemometer at the outlet (VAL-A6). |
 
 **What it's used for:**
-- **Per-branch angle–flow curves** at commissioning (M8): one branch open, the others closed, sweep its damper angle at the trunk setpoint. With the encoder angle (§3), each node then knows its own flow at runtime, even though the hub only sees the total.
+- **Per-branch angle–flow curves** at installation (INS-7, was M8): one branch open, the others closed, sweep its damper angle at the trunk setpoint. With the encoder angle (§3), each node then knows its own flow at runtime, even though the hub only sees the total.
 - **Purge air changes** from the branch's curve (§5.2), instead of a guess from the commanded angle.
 - **Filter resistance** = filter ΔP at a measured flow, so loading is tracked independently of fan speed (§8).
 - **Exhaust confirmation at purge flows:** trunk vacuum reached but venturi flow missing points to a blocked outlet or hood flap.
@@ -252,9 +252,9 @@ The anemometer's figures assume calibration 3 below; without it, the gap between
 
 **Calibration:**
 
-1. **Static zero (automatic).** In every static window (§4.1) the hub records G₀ at the working ΔT: still air, the element's own plume, and conduction down its leads. A baseline more than 10 % from its commissioning value means dust on the element or a bent probe, and raises a digest item.
+1. **Static zero (automatic).** In every static window (§4.1) the hub records G₀ at the working ΔT: still air, the element's own plume, and conduction down its leads. A baseline more than 10 % from its installation value means dust on the element or a bent probe, and raises a digest item.
 2. **Overlap with the venturi (automatic, continuous).** Whenever the venturi reads 20–40 CFM steadily for 60 s (±5 % or better), the hub adds a point and refits B and n over a rolling set. Purges and cooling mode supply these points in normal use.
-3. **Low-flow reference venturis (commissioning, M9; repeat yearly or after a probe change).** Two printed venturis go into the hub spool's **calibration slot** (doc 08 §3c), one at a time, just ahead of the main venturi, with that joint foil-taped, with the trunk-flow sensor's tubes moved to their taps. With the XGZP [E]:
+3. **Low-flow reference venturis (validation, VAL-A5; was M9, repeated yearly on every fleet).** If VAL-A5 shows that probes agree, the firmware ships one default curve and an installation runs only steps 1 and 2; otherwise this step returns to installation (D104). Two printed venturis go into the hub spool's **calibration slot** (doc 08 §3c), one at a time, just ahead of the main venturi, with that joint foil-taped, with the trunk-flow sensor's tubes moved to their taps. With the XGZP [E]:
 
    | Reference | Range | Signal | Flow error |
    |---|---|---|---|
@@ -379,7 +379,7 @@ Assumptions [E]: enclosure surface ~1.7 m²; worst case room 15.5 °C (60 °F) a
 | Housing | Printed airtight canister with ModulAir L bayonet ports (D34), bayonet lid and TPU gasket; two barbed taps for the filter ΔP sensor (doc 08) |
 | Purpose | Odour courtesy for neighbours (carbon, ~6–12 months of life for styrene), particles out of the outdoor air, and a clean duct and fan (HEPA) |
 | Outlet concentration [E] | Bleed: ~0.5 ppm styrene, smellable within ~1 m until the carbon saturates. Purge: below the odour threshold |
-| Loading alert | Filter ΔP vs fan-speed curve recorded new at commissioning; digest alert at +60 %, high at +120 % *(commission)* |
+| Loading alert | Filter ΔP vs fan-speed curve recorded new at installation (INS-7); digest alert at +60 %, high at +120 % *(commission)* |
 | Static pressure | Combo cartridge ~100–250 Pa at 100 CFM [E], kept as the design figure until M2. The purifier it comes from moves ≈ 140 CFM through it on ≈ 35 W, which, at a 10–25 % fan efficiency, bounds it nearer ≈ 30–90 Pa at 100 CFM [E: no published pressure-drop figure found] (D95). Two stacked roughly halve it. If the fan can't make purge flow through it (R2), use a HEPA-only cartridge in the same housing |
 
 ## 9. Outlet
@@ -389,20 +389,22 @@ Assumptions [E]: enclosure surface ~1.7 m²; worst case room 15.5 °C (60 °F) a
 - The fan sits indoors, immediately inside the wall sleeve.
 - Winter: the system is idle (fan off, flap closed) except while printing.
 
-## 10. Commissioning measurements
+## 10. Commissioning measurements and where they run
 
-| # | Measurement | Sets |
-|---|---|---|
-| M1 | Fan speed vs trunk ΔP with all dampers closed, then with each damper fully open | Trunk setpoint; purge flow achievable (R2) |
-| M1a | Damper bleed resolution (D29): step each damper 1° at a time from closed while holding trunk ΔP; record **encoder angle** (D30) and chamber ΔP per step, and closed leakage | Whether E3 can hold −3 Pa smoothly or the design needs a finer mechanism (doc 08 §3b) |
-| M2 | Filter ΔP vs fan speed with a new cartridge | Loading thresholds |
-| M3 | Chamber leakage: damper angle sweep vs chamber ΔP at the trunk setpoint, per printer | Damper limits; air-change estimate per angle |
-| M4 | All six XGZP sensors: offset and noise in the static window; auto-zero stability over a day; offset vs temperature (§4.1) | Deadband (R4), Z4 limits, plausibility limit |
-| M5 | Heated hold: chamber at 50 °C, heater duty and chamber ΔP stability during an ABS print | Confirms the heat budget (§7) |
-| M6 | Purge: timing, VOC behaviour, cross-calibration of node and hub ENS160 | VOC margin (R3) |
-| M7 | Noise at bleed and purge speeds at the nearest workspace | Maximum fan speed (P-6) |
-| M8 | Per-branch angle–flow curve (D30): one branch open, others closed, sweep its damper at the trunk setpoint and record venturi flow vs encoder angle; spot-check the venturi with a vane anemometer if available | Purge air-change estimate (§5.2); filter resistance baseline |
-| M9 | Low-flow anemometer (D32): static zero, then the 10 mm and 15 mm reference venturis in turn, fan stepped through its lowest speeds with one branch open; record reference flow vs element conductance from ~0.5 to 5 CFM. M4's residual decides whether the venturi keeps the XGZP or gets an SDP31 | Low end of the anemometer curve (§4.4) |
-| M10 | Duct leak test (D34): all dampers closed, trunk at its setpoint, read the low-flow anemometer; repeat after any joint is disturbed | Leakage baseline (< 0.5 CFM target), subtracted in M8 (§1.1) |
-| M11 | Makeup inlet (D89, D90): one branch at purge flow (venturi ≥ 40 CFM), read that chamber's ΔP; and the first crack test's opening point | Confirms the inlet: ≤ ≈ 25 Pa at 50 CFM, scaled by flow²; opening point ≈ 8–16 Pa. Nothing to adjust: out of range means a wrong part |
-| M12 | Second fan in series (D95, 9–15 printers): trunk flow at full speed with both fans, then with each stopped in turn | Flow left with one fan down, for the fan-fault alert; confirms the stopped fan passes air (≈ 14–42 Pa lost through a stopped 120 mm fan at 100 CFM [E]) |
+The measurements M1–M12 were one list run on every fleet. They are now split by who runs them (D104): **validation** proves the design and sets the defaults ([`validation/`](../validation/README.md)), **qualification** measures what belongs to one printer or fan model (doc 12 §7, doc 14 §4), and **installation** runs the rest automatically on each fleet (doc 13 §4). The M numbers stay, so references in this doc still resolve.
+
+| # | Measurement | Sets | Now |
+|---|---|---|---|
+| M1 | Fan speed vs trunk ΔP with all dampers closed, then with each damper fully open | Trunk setpoint; purge flow achievable (R2) | FQ-5 per fan model; INS-7 duct sweep per fleet |
+| M1a | Damper bleed resolution (D29): step each damper 1° at a time from closed while holding trunk ΔP; record **encoder angle** (D30) and chamber ΔP per step, and closed leakage | Whether E3 can hold −3 Pa smoothly or the design needs a finer mechanism (doc 08 §3b) | VAL-A2 |
+| M2 | Filter ΔP vs fan speed with a new cartridge | Loading thresholds | FQ-5; INS-7 baseline |
+| M3 | Chamber leakage: damper angle sweep vs chamber ΔP at the trunk setpoint, per printer | Damper limits; air-change estimate per angle | PQ-5 per printer model; INS-7 baseline |
+| M4 | All six XGZP sensors: offset and noise in the static window; auto-zero stability over a day; offset vs temperature (§4.1) | Deadband (R4), Z4 limits, plausibility limit | VAL-A1 |
+| M5 | Heated hold: chamber at 50 °C, heater duty and chamber ΔP stability during an ABS print | Confirms the heat budget (§7) | PQ-7 |
+| M6 | Purge: timing, VOC behaviour, cross-calibration of node and hub ENS160 | VOC margin (R3) | VAL-A4 |
+| M7 | Noise at bleed and purge speeds at the nearest workspace | Maximum fan speed (P-6) | FQ-8 per fan model; INS-7 by ear |
+| M8 | Per-branch angle–flow curve (D30): one branch open, others closed, sweep its damper at the trunk setpoint and record venturi flow vs encoder angle; spot-check the venturi with a vane anemometer | Purge air-change estimate (§5.2); filter resistance baseline | INS-7 (automatic, once the venturi is fitted); VAL-A6 spot check |
+| M9 | Low-flow anemometer (D32): static zero, then the 10 mm and 15 mm reference venturis in turn, fan stepped through its lowest speeds with one branch open; record reference flow vs element conductance from ~0.5 to 5 CFM | Low end of the anemometer curve (§4.4) | VAL-A5 (default curve); installation runs the static zero only |
+| M10 | Duct leak test (D34): all dampers closed, trunk at its setpoint, read the low-flow anemometer; repeat after any joint is disturbed | Leakage baseline (< 0.5 CFM target), subtracted in M8 (§1.1) | VAL-A7 on the ModulAir parts; INS-7 per fleet once the anemometer is fitted |
+| M11 | Makeup inlet (D89, D90): one branch at purge flow (venturi ≥ 40 CFM), read that chamber's ΔP; and the first crack test's opening point | Confirms the inlet: ≤ ≈ 25 Pa at 50 CFM, scaled by flow²; opening point ≈ 8–16 Pa. Nothing to adjust: out of range means a wrong part | PQ-5 |
+| M12 | Second fan in series (D95, 9–15 printers): trunk flow at full speed with both fans, then with each stopped in turn | Flow left with one fan down, for the fan-fault alert; confirms the stopped fan passes air (≈ 14–42 Pa lost through a stopped 120 mm fan at 100 CFM [E]) | FQ-7 per fan model; INS-7 per fleet |

@@ -11,11 +11,11 @@ chamber:
   cap_c: 45              # from the weakest material in the chamber; never above 60 with a node heater
   native_heater: false
 power:                   # required when link or link_backup is power_only (doc 07 §6.5)
-  idle_w: TBD            # measured with the plug at commissioning
+  idle_w: TBD            # measured with the plug in qualification (doc 12 PQ-4)
   printing_w: TBD
 
 # --- optional (core defaults shown) ---
-# status: designed            # stub | designed | commissioned (doc 12 §9)
+# status: designed            # stub | designed | qualified (doc 12 §9)
 # link_backup: power_only      # usually moonraker on Klipper printers
 # heater:                      # both required once allowed is true
 #   allowed: false             # true needs role node-heat and a Tier 1 or 2 link

@@ -224,7 +224,7 @@ Every part above is fitted on every carrier, including headers 5–8 and their F
 
 ## 7. Open points
 
-- **O15** (doc 01 §7): bench test of the ROM-bootloader path. On a PY32F030 and a PY32F003 board, from the ESP32's GPIO 8/9 in open-drain UART mode at 115200 8E1: sync, Get, Read, Erase, Write and Go, against a blank part, a running part after a reset command, and a part held in reset by a hung application and its watchdog. Also check: that the on-board XGZP6897D and the switch never respond during the traffic (§4.3); the PA2 contention current; whether the bootloader drives PA9/PA14; the same sequence through a switch channel and a 1 m header cable; and a scope check of edge times. The same session tests the LAN chip at 20 and 40 MHz on GPIOs 10–13.
+- **O15** (doc 01 §7; procedure VAL-C1 in `validation/procedures.md`, before carrier layout): bench test of the ROM-bootloader path. On a PY32F030 and a PY32F003 board, from the ESP32's GPIO 8/9 in open-drain UART mode at 115200 8E1: sync, Get, Read, Erase, Write and Go, against a blank part, a running part after a reset command, and a part held in reset by a hung application and its watchdog. Also check: that the on-board XGZP6897D and the switch never respond during the traffic (§4.3); the PA2 contention current; whether the bootloader drives PA9/PA14; the same sequence through a switch channel and a 1 m header cable; and a scope check of edge times. The same session tests the LAN chip at 20 and 40 MHz on GPIOs 10–13.
 
 ## 8. Supported sensors (D55)
 
@@ -269,7 +269,7 @@ Bought 3.3 V I²C boards with drivers in the firmware's sensor catalogue (doc 07
 | SFA40 (SEN0661) | Formaldehyde, 0–2000 ppb | $49.50 | Room, exhaust | Mostly relevant to resin printers |
 | Electrochemical CO (SEN0466) | CO, 0–1000 ppm | $66.90 | Chamber, exhaust | Early warning of smouldering. It doesn't replace the room CO alarm (doc 05 S-6). Rated range [U] |
 | MiCS-4514 (SEN0377) | CO, NO₂, NH₃ | $39.90 | Room | Low relevance; supported because it's I²C |
-| PAV3015 (SEN0639) | Air velocity, 0–15 m/s | $49.90 | Duct | A calibrated reference for commissioning the venturi and anemometer; supply [U] |
+| PAV3015 (SEN0639) | Air velocity, 0–15 m/s | $49.90 | Duct | A calibrated reference for validating the venturi and anemometer (VAL-A5, VAL-A6); supply [U] |
 | LWLP5000 (SEN0343) | Differential pressure, ±500 Pa | $39.90 | Duct | A cross-check for board P |
 | BMP585 / BMP581 / BMP388 / ICP-10111 (SEN0664–0667, SEN0251, SEN0516/0517) | Barometric pressure | $5.90–11.90 | Anywhere | Air-density correction for flow; room baseline. Two barometers are not a substitute for a differential sensor |
 | MLX90614 (SEN0206, SEN0263) | Non-contact surface temperature | $18.50–59.00 | Chamber | Watches a heater shroud or electronics bay for hot spots, in addition to the KSD301 |

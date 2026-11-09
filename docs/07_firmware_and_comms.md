@@ -165,7 +165,7 @@ The plugin never edits the printer's firmware, a firmware mod or stock files; al
 | `FLEET_STATUS` | — | Prints node, link and hub state to the console |
 | `_FLEET` | (variables) | Holds mode, chamber target and purge parameters, so the node can also read them through Moonraker (backup path) |
 
-**Name collision check (R5):** if the printer's stock or mod config already defines `M141`/`M191`, the plugin wraps them with `rename_existing` instead of redefining them [U: check at install; a duplicate definition would be a Klipper config error].
+**Name collision check (R5):** if the printer's stock or mod config already defines `M141`/`M191`, the plugin wraps them with `rename_existing` instead of redefining them [U: checked per pack in PQ-2; a duplicate definition would be a Klipper config error].
 
 ### 3.4 Printer-specific behaviour
 
@@ -320,7 +320,7 @@ Every printer is already on a metering smart plug (§10), so its power reading g
 | Item | Design |
 |---|---|
 | Source | The printer's plug: Shelly `Switch.GetStatus` → `apower` every 5 s (§10), or a Home Assistant power entity. A plug without power metering can't support Tier 0 |
-| Thresholds | `power.idle_w` and `power.printing_w` from the profile (doc 12 §4), measured at commissioning: idle with the printer on and cold, and the lowest steady draw mid-print |
+| Thresholds | `power.idle_w` and `power.printing_w` from the profile (doc 12 §4), measured in the pack's qualification (PQ-4) and re-learned at installation (INS-9): idle with the printer on and cold, and the lowest steady draw mid-print |
 | Print start | Mean over a 60 s window above `printing_w` for **2 min** (rides through the heat-up spike and short pauses) |
 | Print end | Mean below `idle_w` + 30 % of the gap to `printing_w` for **3 min**; then purge as for a finished print |
 | Hysteresis | Start and end bands don't overlap; a draw between them holds the current state |
@@ -329,7 +329,7 @@ Every printer is already on a metering smart plug (§10), so its power reading g
 | Heater | **Never on Tier 0.** Power can't tell a print from a preheat, a stuck bed heater or a paused job, so it can't grant heater permission (doc 12 §3.2) |
 | Nozzle target (Klipper, Tier 1 and 2; D27) | Any extruder target above 0 counts as "printer active" for bleed and is a second cross-check of print state, as Nevermore detects prints. It never grants heater permission |
 | Cross-check on Tier 1 and 2 | A link reporting "printing" while the plug reads off, or "idle" for 10 min while the draw stays in the printing band, raises an info alert (link or profile wrong). It never overrides the link and never stops a print |
-| Learning | On every node, commissioning logs the plug's power trace over one idle period and one print and proposes `idle_w` and `printing_w` for you to accept, in the same way as the characterise run (doc 05 §3.2) |
+| Learning | On every node, the first prints after installation log the plug's power trace over one idle period and one print and proposes `idle_w` and `printing_w` for you to accept, in the same way as the characterise run (doc 05 §3.2) |
 
 ```mermaid
 stateDiagram-v2
@@ -367,7 +367,9 @@ stateDiagram-v2
 - Served on the LAN (Wi-Fi, or the hub's wired LAN jack, D18) at `http://fleet-hub.local`, and on the hub's own network `fleet-hub` at `http://192.168.4.1` when the router is down (§11.4).
 - **Live view:** per-printer chamber temperature/target, RH, VOC, ΔP, damper, heater %, door, mode, purge progress; trunk ΔP, **trunk flow** (venturi above ~20 CFM, anemometer below, D30–D33), each printer's bleed trend, fan speed, filter ΔP and life estimate, room T/RH/VOC; Shelly power per printer; purge queue.
 - **Event log** and fault history.
-- **Settings:** Wi-Fi, notification URLs, Shelly IPs, Moonraker hosts, tuning, test modes (commissioning, doc 05 §9).
+- **Profiles:** each node's printer profile (doc 12 §4) and the hub's fan profile (doc 14 §3), loaded from the packs.
+- **Installation wizard (D104):** walks a builder through INS-1…INS-10 (doc 13 §4) in order: the first-boot self-check of every board (supplies, CAN terminations, links and radio strength, sensors, damper sweep, the heater chain with the charge pump stopped), the automatic bus load check, the per-printer plug check, the duct sweep, the characterise run against the pack's qualified ranges and the first prints. It needs no instrument, and ends with a downloadable installation report.
+- **Settings:** Wi-Fi, notification URLs, Shelly IPs, Moonraker hosts, tuning, test modes (for validation, qualification and the installation checks: `validation/`, doc 12 §7, doc 14 §4, doc 13 §4).
 - **Acknowledge** (same as the panel button and Pushover's acknowledge) silences an alert. **Clear** (PIN) ends a latched lockout or, together with the node's CLEAR button at the printer, a cut (doc 05 §4.1). They are separate buttons on purpose.
 - Read-only without a PIN; settings and test modes need a PIN stored in NVS.
 
@@ -403,7 +405,7 @@ The node runs a small Wi-Fi access point of its own **alongside** its normal hom
 | Cut on a hub decision | RW-b or corroborated fire: the hub sends `MAINS_CUT` over CAN (0x140+n); the node executes it and confirms with a read-back |
 | BLE backup (optional, D102) | `ble_backup: true`: when the plug isn't on the node's AP, or a cut or its read-back fails within 2 s, the node sends `Switch.Set` over Bluetooth to its bonded plug and reads back `Switch.GetStatus`. A daily idle health check over BLE; failures go to the digest |
 | Combined board (D103) | One AP, `fleet-hub`, is both the plug's primary network and the dashboard fallback (the ESP32 has one AP interface); the plug's `sta1` is home Wi-Fi |
-| Node dead or AP gone | The plug falls back to `sta1`, and the hub reaches it directly at `fallback_host` (reserved IP on the hub network, or mDNS on home Wi-Fi) [U: measure the Shelly's fallback time at commissioning] |
+| Node dead or AP gone | The plug falls back to `sta1`, and the hub reaches it directly at `fallback_host` (reserved IP on the hub network, or mDNS on home Wi-Fi) [U: measured in VAL-S1] |
 | Setup | The hub dashboard pushes the node's AP credentials to the plug once, while the plug is on home Wi-Fi (or on the plug's own setup AP). With `ble_backup` it also enables BLE RPC and starts pairing, and the node bonds (D102) |
 | Limits | Shelly plugs here; Tasmota plugs use the same design as `tasmota_node` (§10.3). HA-controlled plugs (Matter, Zigbee, ESPHome, etc.) can't be pointed at an arbitrary AP by the hub; they use the `ha` backend. BLE backup: Shelly Gen2+ plugs on firmware that enforces BLE bonding; not Tasmota on ESP8266/ESP8285 |
 
@@ -448,7 +450,7 @@ All calls use Tasmota's HTTP command API, `GET http://<plug>/cm?cmnd=<command>`,
 | Metering (dashboard, F-e) | `Status 8` → `StatusSNS.ENERGY.Power` (W), polled every 5 s. The HLW8032 reads unreliably below ≈ 5 W [V: Athom product notes], far below any printer's idle draw |
 | Health | No answer for 1 min → plug-unreachable alert |
 | Wi-Fi (`tasmota_node`) | `Backlog SSId1 fleet-node<n>; Password1 <pass>; SSId2 <hub network>; Password2 <pass>`: AP1 is the node's access point, AP2 the hub's network |
-| Back to AP1 | Tasmota stays on AP2 after a fallback until AP2 fails. When the plug answers on the hub network while the node's AP is up, the hub sends `Ap 1` so the plug rejoins the node [U: check the switch-over time at commissioning] |
+| Back to AP1 | Tasmota stays on AP2 after a fallback until AP2 fails. When the plug answers on the hub network while the node's AP is up, the hub sends `Ap 1` so the plug rejoins the node [U: measured in VAL-S1] |
 | Restore after power loss | `PowerOnState 3` (last saved state), with `SetOption0 1` (save the power state) [E: confirm the values on the device] |
 | Plug-local power limit (D16) | `MaxPower <W>` (printer peak × 1.3), `MaxPowerHold`, `MaxPowerWindow`; read back at startup, alert if missing [U: confirm the plug's build includes the power-limit commands] |
 | No cloud, no MQTT | `MqttHost` empty; Tasmota has no vendor cloud |
@@ -540,8 +542,8 @@ Each node-heat keeps a small first-order model of its chamber: predicted tempera
 
 | Check | How |
 |---|---|
-| **Leak drift** | The node logs the median damper angle that holds −3 Pa on each heated print and compares it with its commissioning baseline (doc 06 §3). When it's the only printer exhausting, the hub's low-flow anemometer reading is logged as that printer's bleed in CFM. |
-| **Heater step test** | Once per heated print longer than 2 h, after the chamber has held its setpoint for 30 min with the door closed: the node moves the chamber setpoint from −3 to −5 Pa (still inside the normal band) for 15 min and back. At a steady temperature the extra heater power is the heat carried by the extra bleed, ΔP_heater = ρ·cₚ·ΔQ·(T_chamber − T_room), and ΔQ follows from the leak law (Q ∝ ΔP^n, n from the commissioning data, ≈ 0.5–0.65). That gives the bleed at −3 Pa to roughly ±20–30 % [E]. The step is skipped or abandoned if the door opens, the bed or chamber setpoint changes, or any fault is active. |
+| **Leak drift** | The node logs the median damper angle that holds −3 Pa on each heated print and compares it with its installation baseline (doc 06 §3). When it's the only printer exhausting, the hub's low-flow anemometer reading is logged as that printer's bleed in CFM. |
+| **Heater step test** | Once per heated print longer than 2 h, after the chamber has held its setpoint for 30 min with the door closed: the node moves the chamber setpoint from −3 to −5 Pa (still inside the normal band) for 15 min and back. At a steady temperature the extra heater power is the heat carried by the extra bleed, ΔP_heater = ρ·cₚ·ΔQ·(T_chamber − T_room), and ΔQ follows from the leak law (Q ∝ ΔP^n, n from the installation's duct sweep, ≈ 0.5–0.65). That gives the bleed at −3 Pa to roughly ±20–30 % [E]. The step is skipped or abandoned if the door opens, the bed or chamber setpoint changes, or any fault is active. |
 | Output | Bleed in CFM and heat loss per CFM, trended per printer on the dashboard. A sustained rise is a digest item (doc 05); nothing here changes a setpoint outside the test window or feeds a safety layer. |
 
 ### 11.7 Power supervision (D35)

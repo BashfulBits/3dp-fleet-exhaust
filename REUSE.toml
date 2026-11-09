@@ -4,7 +4,7 @@ version = 1
 # own SPDX headers; anything not listed here must have one, or `reuse lint` fails.
 
 [[annotations]]
-path = ["docs/**", "printers/**", "README.md", "CONTRIBUTING.md"]
+path = ["docs/**", "printers/**", "fans/**", "validation/**", "README.md", "CONTRIBUTING.md"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Fleet Exhaust & Filtration Project Contributors"
 SPDX-License-Identifier = "CC-BY-4.0"

@@ -8,6 +8,6 @@ role: node-lite
 chamber:
   cap_c: 60              # [U] vendor rating
   native_heater: true
-power:                   # Tier 0 thresholds, measured at commissioning
+power:                   # Tier 0 thresholds, measured in qualification (doc 12 PQ-4)
   idle_w: TBD
   printing_w: TBD

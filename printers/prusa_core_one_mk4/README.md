@@ -61,12 +61,12 @@ None yet.
 
 ## 11. Open items
 
-| # | Item | Impact | Plan |
-|---|---|---|---|
-| PR-1 | Exhaust outlet on each enclosure option | Port adapter | Inspect |
-| PR-2 | Which PrusaLink fields give print state and material | Tier 1 link | Whoever builds the link type |
-| PR-3 | Whether a node heater is ever wanted on this printer | Role | Owner of the printer |
+| # | Item | Impact | Closes at | Plan |
+|---|---|---|---|---|
+| PR-1 | Exhaust outlet on each enclosure option | Port adapter | PQ-1 | Inspect |
+| PR-2 | Which PrusaLink fields give print state and material | Tier 1 link | Link type | Whoever builds the link type |
+| PR-3 | Whether a node heater is ever wanted on this printer | Role | Design | Owner of the printer |
 
-## 12. Commissioning results
+## 12. Qualification results
 
 None.

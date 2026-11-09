@@ -1,6 +1,6 @@
 # 01 - System Overview
 
-> **Status:** Phase 1 design baseline, 2026-10-25, updated 2026-11-07. Every decision is recorded as D1–D93 in [design_decisions.md](design_decisions.md). This doc says what the system can do and how it's built; [doc 10](10_requirements.md) lists the requirements it meets, and [doc 11](11_use_envelope.md) the limits of use with example systems.
+> **Status:** Phase 1 design baseline, 2026-10-25, updated 2026-11-09. Every decision is recorded as D1–D105 in [design_decisions.md](design_decisions.md). This doc says what the system can do and how it's built; [doc 10](10_requirements.md) lists the requirements it meets, and [doc 11](11_use_envelope.md) the limits of use with example systems.
 >
 > **Evidence key used across the docs:** **[V]** verified against a primary source · **[E]** engineering estimate · **[U]** unverified, needs a measurement or a test on the real hardware.
 
@@ -213,7 +213,7 @@ sequenceDiagram
 | 02 | Hardware specification: carrier board roles, heater module, sensors, dampers, hub, supported exhaust fans, supplies |
 | 03 | Bill of materials for an example fleet, cost per role, scaling |
 | 04 | Wiring, cables, connectors, GPIO map, printer USB links |
-| 05 | Safety design, fault-response matrix, commissioning safety tests |
+| 05 | Safety design, fault-response matrix, and where each safety test runs |
 | 06 | Pneumatics: ducting, filter, outlet, control loops, purge, heat budget |
 | 07 | Firmware, Klipper plugin, protocols, G-code API, notifications, dashboard |
 | 08 | Printable parts catalogue, with the pack parts index |
@@ -221,51 +221,63 @@ sequenceDiagram
 | 10 | Requirements, traced to decisions and tests |
 | 11 | Use envelope: limits of use and example systems at those limits |
 | 12 | Printer packs: how a pack is made, link tiers, profile schema, mechanical interface, safety contract, licensing, the pack list |
-| 13 | Build-your-own quick start |
-| Design decisions | Decision record D1–D93, cost-reduction pass, trade studies T1–T3 |
+| 13 | Build-your-own quick start, with the installation checks |
+| 14 | Fan packs: how an exhaust fan is supported, its profile and qualification, the pack list |
+| 15 | Phase 2 plan (proposed): phases, gates and what can close on paper now |
+| Design decisions | Decision record D1–D105, cost-reduction pass, trade studies T1–T3 |
 | `printers/` | Printer packs, one folder per model (doc 12 §9) |
+| `fans/` | Fan packs, one folder per fan model or class (doc 14 §5) |
+| `validation/` | Design validation on prototype boards: procedures, status, rework log (outside `docs/` on purpose) |
 
 ## 7. Risk and open-item register
 
-Consolidated here; each item is also referenced in the doc it affects. Items that concern one printer model live in its pack (doc 12 §2.2, §9) and keep their IDs; the IDs missing from this table (O1–O6, O10, O11, R7) are pack items.
+Every open item now lives with the step that closes it (D104), so it is clear when each must be closed and by whom:
 
-| # | Item | Impact | Plan / owner |
-|---|---|---|---|
-| **R1** | **Exhaust-fan control interface and silent-hub behaviour** (F3): a fan with a proprietary controller has an undocumented control port, and its behaviour with the controller silent is unknown | Hub may not set speed; "hub dead → fan keeps running" may be impossible | **First Phase 2 task for such a fan** (D10). Reverse-engineer with a meter and a logic analyser before relying on it. First check whether its port matches one of B2's external jacks (USB-C "FAN 10 V", TRRS, terminal header; D95) by metering it. Fallback: a fan with a documented interface (a mains EC fan whose 0–10 V input has its own +10 V reference, or a board-powered 4-wire PWM fan; supported fans in doc 02 §6, D85–D88, D95). |
-| R2 | Fan static-pressure curve unpublished | Purge flow through the filter may be low | Screen against the D88 operating point; measure at commissioning; the airflow budget lowers a purge toward 20 CFM before it caps cooling (D95); drop the carbon layer before buying a bigger fan. |
-| R3 | Chamber VOC purge criterion: gas sensor temperature range; adaptive VOC index | Purge-end logic may not validate | **Closed (D20):** the ENS160 (rated −40 to 85 °C) replaces the SGP41 (50 °C) on every sensor head, so the chamber reads through the whole purge. Raw element resistances, cross-calibrated node vs hub at idle. Fallback: time + temperature + air changes. |
-| R4 | XGZP6897D offset drift (all six, including the trunk since D11 and the trunk-flow venturi since D30) | Noisy chamber loop; trunk setpoint error | System-wide static auto-zero with plausibility limits and temperature compensation (doc 06 §4.1); deadband; bench test early. |
-| R5 | The klippy extra (`fleet_node.py`) must load in vendor Klipper forks, which can differ from mainline in extras path, Python version and internal API (reactor, sensor registration) | The extra may need a per-printer variant, or may not load on one printer | Prototype on one printer of each fork first (each pack records it). Prior art: **FLOOK32** (`ghzserg/flook32_plugin`), a standalone ESP32 chamber controller whose klippy sensor extra runs on vendor forks. If the extra won't load, the plugin runs macros-only: the G-code commands and Moonraker link work, but `M191` can't wait on chamber temperature. |
-| R6 | ESP32-S3 Wi-Fi range near metal frames | Moonraker link drop (the backup path on every node, and the only link on a printer without `cdc_acm`) | **Mitigated by placement (D19):** each node's housing sits on its branch damper at the printer's exhaust port, outside the frame and chamber, with the module's antenna end facing away from the printer. No safety function depends on Wi-Fi. Check RSSI at commissioning. |
-| R8 | C8 integrated-fan PTC: stall detection without a tach relies on PTC current falling and housing temperature rising | Possible undetected fan stall | Bench test before buying two; fallback is a separate 3-wire blower (+$8). The TCO and KSD301 still protect either way. |
-| R9 | **JLC takes one design per board** (no mouse-bite panel of different designs; they must be cut apart by hand), so the sensor board (D42) is its own order, once per population | Three small orders add setup and shipping (≈ $12 each) [E] | Get the quote at Phase 2; merge P and E into hand-soldered bare boards if the setups cost more than the parts, or order S alone and hand-solder the rest. |
-| R10 | Low-voltage RJ45/CAT6 bus can be plugged into real Ethernet gear by mistake | Was: 24 V into a switch or laptop port damages it. **Mitigated by D17** (pair-safe pinout, detect-before-power, fault-tolerant CAN, 30 V input cut-off; doc 04 §3a); residual risk is the Phase 2 circuit not behaving as designed (commissioning test 21) | Distinct cable colour; **port names embossed on the printed node housing and hub enclosure** beside each jack (IN, OUT, POWER IN, LAN on the hub, plus "FLEET BUS – NOT ETHERNET"; doc 08 C5, C9); documented in doc 04. |
-| R11 | On a node-heat printer fed from its own supply, the heater return shares the USB-link ground (the node's ground also reaches the printer through the USB lead) | Ground offset or heating in the USB lead; USB link errors | 14 AWG heater lead ≤ 1.5 m keeps the USB share ≲ 0.3 A [E]; measure at commissioning (doc 05 §9). Fallback: a USB isolator (ADuM3160-class module, ~$6) on the link. |
-| R12 | A printer's 24 V rail sags under bed + heater + motion load (stock supply reused) | Mainboard reset kills the print (P-2) | Sizing rule (doc 02 §3.1) in each pack's heater-supply check; bed-heat interlock and rail-voltage throttle on the node; load test before unattended use (doc 05 §9). |
-| O7 | Heater housing temperature in normal operation | Sets the KSD301 and TCO ratings | Measure the chosen element on the bench (doc 05 §3). |
-| O8 | ~~Response to runaway trigger RW-a~~ **Closed (D40): immediate mains cut** | — | Pause-and-escalate was considered and not adopted (doc 05 §3.4). |
-| O9 | ~~Wired LAN and PoE~~ **Closed: option A decided (D18)** | — | Fleet jacks stay CAN, protected by the D17 safety circuit (detect-before-power, pair-safe pinout, 30 V cut-off), so plugging one into a network port by mistake does no harm. The hub gets a separate, standard LAN jack (fitted on every carrier since D47, so a node can use it too). **PoE power:** no on-board PoE. Use an off-the-shelf 802.3af/at splitter with a 24 V barrel output that plugs straight into POWER IN, either (a) to run one board from PoE alone, or (b) to power the hub and, through its eFuse, the 24 V bus. An 802.3at splitter (≈ 24 W, ≈ $17) covers the hub and the three nodes' logic at idle; LED and servo peaks need the firmware brightness cap or a node-heat tap injecting (D13). |
-| O12 | **Fault and recovery UI wording** (doc 05 §4.1): what the printer-side hold message and the dashboard fault and Clear screens say. **Decided (D28):** a level-3 Clear may be done on the dashboard or with `FLEET_CLEAR` on the printer; a level-4 Clear needs the dashboard checklist plus the node's CLEAR button at the printer. **TBD:** a timed inspection window after a cut, with the re-cut paused, so `FLEET_CLEAR` on the powered printer can be the on-site step (doc 05 §4.1); window length and whether it replaces the button | Usability of recovery | Phase 2 dashboard mock-up |
-| O13 | **ModulAir licence and fit** (D34): may its parts be remixed and the remixes published with this project, and do the L bayonet and gasket seal and print as described? | Whether doc 08 §3c's extensions are published as ModulAir remixes or as our own compatible interface | Phase 2: read the licence on each ModulAir part; print a Y, two hose adapters and a gasket; run the duct leak test (doc 06 M10) on them |
-| **O14** | **Node damper behaviour when the hub is lost.** The trunk-active flag stops with the hub, but the fan keeps running at its last speed (R1). Doc 06 §4 says a node doesn't run its chamber-ΔP loop without the flag; doc 05 §4 says nodes keep their dampers in their loops | Whether chambers stay at −3 Pa or drift during a hub outage | Phase 2 firmware design: either **hold the last damper angle**, or **keep the chamber loop running** on the node's own sensor while chamber ΔP shows the trunk is still drawing. Decide after R1 shows what the fan does with the hub silent |
-| O15 | **ROM-bootloader programming over the I²C pins** (D54, doc 09 §4): does the ESP32 program a PY32F030 and a PY32F003 through UART2 on GPIO 8/9 (open-drain, 115200 8E1) when blank, after a reset command and after a watchdog reset; do the on-board XGZP6897D and the I²C switch stay silent during the traffic; does the same work through a switch channel and a 1 m cable; does the bootloader drive PA9/PA14. Also a W5500 LAN module on its socket at 20 and 40 MHz on the IO MUX pins (D72) | Decides the bootloader path or the SWD-pad fallback (doc 09 §4.5) | Bench test on PY32 dev boards and an ESP32-S3 before carrier layout |
-| O16 | **Hub supply:** settled (D92, D93): a **24 V, 5 A desktop brick** in either of the hub's barrel jacks, so the printed hub enclosure has no mains wiring. A printer's stock supply freed by an upgrade can run the hub from the internal XT60 instead, with an IEC inlet and mains work in the enclosure | — | Closed |
-| O17 | **Shelly BLE RPC in use** (D102): does `Switch.Set` work over a bonded BLE connection on current plug firmware, does the plug's HTTP authentication apply over BLE, how long does `BLE.StartPairing` stay open, and what is the connect-to-off time from the node? | Whether `ble_backup` becomes the recommended setting for `shelly_node` plugs | Bring-up: bond a node to a plug and run doc 05 test 36; until then `ble_backup` stays off |
-
-## 8. Phase 2 bring-up stages (D41)
-
-Phase 2 builds and commissions in stages, so each layer is proven before the next depends on it. Stage 3 holds only monitoring features (doc 05 S-7), so it can slip without any safety impact.
-
-| Stage | Builds | Gate to the next stage |
+| Step | Closes | Home |
 |---|---|---|
-| **0 De-risk** | R1 where the chosen fan has a proprietary controller (first task), each pack's unboxing items (supply rating, stock plastics, USB port and `cdc_acm`), R5 (the extra loads on each fork), bench tests: XGZP noise (M4), heater stall and housing temperatures (R8, O7), damper bleed resolution (M1a), ROM-bootloader programming (O15) | PCB layout waits for R1 and the heater-supply checks |
-| **1 Exhaust core** | Hub, fan and trunk loop, filter, ducting with gaskets, the node-lite printers: damper with encoder, chamber ΔP, purge (air changes from time), CAN + ESP-NOW, smart plugs with the mains cut, basic dashboard and pushes | Doc 05 §9 tests 6, 7, 12, 13, 15–22, 25, 27, 29 |
-| **2 Heating** | The node-heat printers: heater with every hardware layer, bed interlock, rail throttle, characterise run, print hold | Tests 1–5, 8–11, 14, 23, 24, 26, 30, 31. **No unattended heated printing before they pass** |
-| **3 Monitoring extras** | Venturi and low-flow anemometer (M8–M10, test 28), branch angle–flow curves (purge air changes then come from them), thermal model, leak drift and heater step test, Moonraker `[sensor]`, Home Assistant | — |
+| **Desk** | Decisions and research that need no hardware | [Doc 15 §2](15_phase2_plan.md#2-close-on-paper-now) |
+| **Validation** (`VAL-…`) | Items about the core design, on prototype boards with lab equipment | [`validation/README.md` §5](../validation/README.md#5-open-items-that-close-in-validation) |
+| **Qualification** (`PQ-…`, `FQ-…`) | Items about one printer or fan model | Each pack's open items; fan items in [doc 14 §6](14_fan_packs.md#6-open-items-for-fans) |
+| **Installation** (`INS-…`) | Nothing is left open for a builder: installation checks only confirm | [Doc 13 §4](13_build_your_own.md#4-install-and-commission) |
+
+This table indexes the core items; IDs never change. Items about one printer model live in its pack (doc 12 §2.2), where the IDs missing here (O1–O6, O10, O11, R7) are.
+
+| # | Item | Closes at | Tracked in |
+|---|---|---|---|
+| **R1** | Exhaust-fan control port and silent-hub behaviour, for a fan with a proprietary controller (F3, D10) | VAL-X2, then FQ-6, per fan family | Validation §5; doc 14 §6 |
+| R2 | Fan static-pressure curve unpublished | FQ-5 per fan pack | Doc 14 §6 |
+| R3 | ~~Chamber VOC purge criterion~~ **Closed (D20):** the ENS160 (−40 to 85 °C) on every sensor head; the purge-end margin is set in VAL-A4 | — | — |
+| R4 | XGZP6897D offset drift | VAL-A1 | Validation §5 |
+| R5 | The klippy extra must load in each vendor Klipper fork | PQ-2 per pack | Each Klipper pack |
+| R6 | ESP32-S3 radio range near metal frames; mitigated by placement (D19) | VAL-F3 sets the alert level; INS-4 checks it on every fleet | Validation §5 |
+| R8 | Integrated-fan PTC stall detection | VAL-H6 | Validation §5 |
+| R9 | JLC takes one design per board, so the sensor board is its own order per population | Desk: a quote | Doc 15 §2 |
+| R10 | RJ45 bus plugged into network gear; mitigated by D17, residual risk is the circuit | VAL-P3 | Validation §5 |
+| R11 | Heater return shares the USB-link ground | VAL-H9 on the reference printer; PQ-6 link errors per pack | Validation §5 |
+| R12 | A printer's 24 V rail sags under bed + heater + motion | PQ-6 per node-heat pack; the learned supply cap in service | Each node-heat pack |
+| O7 | Heater-housing temperature in normal operation (KSD301 and TCO ratings) | VAL-H6 | Validation §5 |
+| O8 | ~~Response to runaway trigger RW-a~~ **Closed (D40): immediate mains cut** | — | — |
+| O9 | ~~Wired LAN and PoE~~ **Closed (D18):** fleet jacks stay CAN behind the D17 circuit; a separate LAN jack; PoE through an off-the-shelf splitter into POWER IN | — | — |
+| O12 | Fault and recovery UI wording; the timed inspection window after a cut (doc 05 §4.1) | Desk: a decision | Doc 15 §2 |
+| O13 | ModulAir licence and fit (D34) | Licence: desk. Fit: VAL-A7 | Doc 15 §2; validation §5 |
+| O14 | Node damper behaviour when the hub is lost | Desk: a decision | Doc 15 §2 |
+| O15 | ROM-bootloader programming over the I²C pins; W5500 on its socket | VAL-C1, **before carrier layout** | Validation §5 |
+| O16 | ~~Hub supply~~ **Closed (D92, D93):** a 24 V, 5 A desktop brick | — | — |
+| O17 | Shelly BLE RPC in use (D102) | VAL-S3 | Validation §5 |
+| O18 | Rail reading without a per-board trim (D75 trim needs a meter) | VAL-H8 | Validation §5 |
+| O19 | The installation self-check catches the faults it claims to | VAL-H2, H3, H4, A3 | Validation §5 |
+
+## 8. Phase 2 phases and bring-up stages (D41, D104)
+
+Two different orders, kept apart:
+
+- **The project's Phase 2** (design to release: desk closure, bench de-risk, board design, firmware, printables, validation, the reference installation, release) is proposed in [doc 15](15_phase2_plan.md). Validation gates the release of the boards; qualification gates each pack.
+- **A builder's install** follows D41's staging: exhaust core, then heating, then the monitoring extras, each ending with its installation checks ([doc 13 §3–§4](13_build_your_own.md#3-build-in-stages)). Stage 3 holds only monitoring features (doc 05 S-7), so it can slip without any safety impact.
 
 ```mermaid
-flowchart TB
-  S0["0 De-risk"] -->|"R1, supply<br>checks"| S1["1 Exhaust core"]
-  S1 -->|"stage 1<br>tests"| S2["2 Heating"]
-  S2 -->|"stage 2<br>tests"| S3["3 Monitoring<br>extras"]
+flowchart LR
+  V["Validation<br>(project)"] -->|"boards<br>released"| Q["Qualification<br>(per pack)"]
+  Q -->|"pack<br>qualified"| I1["Install: exhaust<br>core"]
+  I1 --> I2["Heating"]
+  I2 --> I3["Monitoring<br>extras"]
 ```

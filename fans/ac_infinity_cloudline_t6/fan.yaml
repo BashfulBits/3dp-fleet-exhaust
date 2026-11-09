@@ -1,0 +1,14 @@
+# Fan profile (schema: doc 14 §3). Unknown keys are rejected.
+schema: 1
+id: ac_infinity_cloudline_t6
+name: "6″ grow EC with a USB-C-shaped port (AC Infinity Cloudline T6 class; Vivosun)"
+status: stub              # stub | designed | qualified (doc 14 §5)
+family: ec_usbc
+duct_in: 6
+port: b2_usbc
+supply: own_mains
+tach_ppr: 2
+rated_rpm: null           # from FQ-3
+swap: straight            # [U] until FQ-3 (D98)
+dc_filter: false
+printers: [5, 15]

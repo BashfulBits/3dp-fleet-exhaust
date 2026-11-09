@@ -6,7 +6,7 @@
 
 | Item | Value |
 |---|---|
-| Status | **designed** (waits for commissioning) |
+| Status | **designed** (waits for qualification, doc 12 §7.2) |
 | Role | node-heat (150 W PTC heater, recirculation blower on B1) |
 | Link | `usb_serial` (an internal USB header or the external USB-A port, §6), backup `moonraker` |
 | Chamber cap | **60 °C** operating, 65 °C firmware hard limit, chamber-air KSD301 and RW-b at ≈ 70 °C (AD5X-4). Assumes a sealed, insulated chamber and every printed part in the chamber in ASA/ABS. Stock toolhead and cable-chain plastics are still [U] (O11) |
@@ -199,19 +199,19 @@ zmod plugin (doc 12 §3.3), from the `fleet-exhaust-klipper` repo:
 
 ## 11. Open items
 
-| # | Item | Impact | Plan |
-|---|---|---|---|
-| **O1** | **Supply rating, form factor and whether the bed runs from it** | Decides reuse, upgrade or an external brick for the heater (§5) | Read the label and trace the bed supply at unboxing. Every node-heat carrier takes all three, so the answer changes only what you buy |
-| O2 | ~~IFS on top of or beside the enclosure~~ **Closed: beside** (the standard arrangement) | Pass-through plate location | E2 on the panel facing the IFS |
-| O3 | ~~Does the kit's fan exhaust or recirculate?~~ **Closed: it recirculates** | No conflict with the exhaust | E7 duct + blower required (AD5X-5) |
-| O5 | zmod #699 (`zmod_ifs` material status) merged? | Default-policy level 4 only | Check the zmod version at setup |
-| O6 | Do Flashforge-app and FlashPrint jobs populate Moonraker `filament_type`? | Default-policy level 3 | Test at setup |
-| **O11** | **Stock plastics inside the chamber** (toolhead shroud, fan ducts, cable chain, spool-path parts): what are they made of? | Whether the 60 °C cap holds | At unboxing: check markings (`>ABS<`, `>PC<`, `>PLA<`) and look for heat creep after a 2 h soak at 60 °C. Replace PLA/PETG parts with ASA prints, or drop `chamber.cap_c` to 55 °C |
-| R5 | The extra must load in Flashforge's Klipper 12-based fork (extras path, Python version, reactor and sensor registration) | The extra may need a variant, or run macros-only | Prototype on one AD5X first. Prior art: FLOOK32's klippy sensor extra already runs on zmod printers. Macros-only fallback: G-code commands and Moonraker work, but `M191` can't wait on chamber temperature |
-| R7 | Bottom internal USB header: footprint type and pin order unreported; **VBUS live (5.05 V)** [V: zmod #207]; stock firmware might claim `/dev/ttyACM*` | Link cable and port claim | Inspect at unboxing; data + GND only; `/dev/serial/by-id/` naming. Fallbacks in §6 |
-| R11 | Heater return shares the USB-link ground | Ground offset or heating in the USB lead; link errors | Lead lengths in §6; measure at commissioning (doc 05 §9). Fallback: a USB isolator (ADuM3160-class module, ~$6) |
-| R12 | 24 V rail sags under bed + heater + motion load with the stock supply reused | Mainboard reset kills the print | O1 sizing rule; bed-heat interlock and rail throttle; load test before unattended use (doc 05 §9) |
+| # | Item | Impact | Closes at | Plan |
+|---|---|---|---|---|
+| **O1** | **Supply rating, form factor and whether the bed runs from it** | Decides reuse, upgrade or an external brick for the heater (§5) | PQ-1 | Read the label and trace the bed supply at unboxing. Every node-heat carrier takes all three, so the answer changes only what you buy |
+| O2 | ~~IFS on top of or beside the enclosure~~ **Closed: beside** (the standard arrangement) | Pass-through plate location | — | E2 on the panel facing the IFS |
+| O3 | ~~Does the kit's fan exhaust or recirculate?~~ **Closed: it recirculates** | No conflict with the exhaust | — | E7 duct + blower required (AD5X-5) |
+| O5 | zmod #699 (`zmod_ifs` material status) merged? | Default-policy level 4 only | PQ-10 | Check the zmod version at setup |
+| O6 | Do Flashforge-app and FlashPrint jobs populate Moonraker `filament_type`? | Default-policy level 3 | PQ-10 | Test at setup |
+| **O11** | **Stock plastics inside the chamber** (toolhead shroud, fan ducts, cable chain, spool-path parts): what are they made of? | Whether the 60 °C cap holds | PQ-1, PQ-7 | At unboxing: check markings (`>ABS<`, `>PC<`, `>PLA<`) and look for heat creep after a 2 h soak at 60 °C. Replace PLA/PETG parts with ASA prints, or drop `chamber.cap_c` to 55 °C |
+| R5 | The extra must load in Flashforge's Klipper 12-based fork (extras path, Python version, reactor and sensor registration) | The extra may need a variant, or run macros-only | PQ-2 | Prototype on one AD5X first. Prior art: FLOOK32's klippy sensor extra already runs on zmod printers. Macros-only fallback: G-code commands and Moonraker work, but `M191` can't wait on chamber temperature |
+| R7 | Bottom internal USB header: footprint type and pin order unreported; **VBUS live (5.05 V)** [V: zmod #207]; stock firmware might claim `/dev/ttyACM*` | Link cable and port claim | PQ-1 | Inspect at unboxing; data + GND only; `/dev/serial/by-id/` naming. Fallbacks in §6 |
+| R11 | Heater return shares the USB-link ground | Ground offset or heating in the USB lead; link errors | VAL-H9, then PQ-6 | Lead lengths in §6. Measured once on this printer in validation (VAL-H9), which proves the rule for every pack; qualification checks link errors under load (PQ-6). Fallback: a USB isolator (ADuM3160-class module, ~$6) |
+| R12 | 24 V rail sags under bed + heater + motion load with the stock supply reused | Mainboard reset kills the print | PQ-6 | O1 sizing rule; bed-heat interlock and rail throttle; supply load test before unattended use (PQ-6) |
 
-## 12. Commissioning results
+## 12. Qualification results
 
-To be filled in during Phase 2 commissioning (doc 12 §6 item 7, §7).
+To be filled in at qualification (doc 12 §7.2): each applicable PQ test with its date, unit, firmware and pack version, and result.

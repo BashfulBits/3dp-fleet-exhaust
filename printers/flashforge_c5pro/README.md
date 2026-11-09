@@ -6,7 +6,7 @@
 
 | Item | Value |
 |---|---|
-| Status | **designed** (waits for commissioning; O10 decides the link) |
+| Status | **designed** (waits for qualification, doc 12 §7.2; O10 decides the link) |
 | Role | node-lite (the C5 heats its own chamber) |
 | Link | `usb_serial` via the external USB port (C5-1, pending O10), backup `moonraker` |
 | Chamber cap | **65 °C**, Flashforge's rating for the C5's own chamber heater. The node never heats, and node-heat limits (doc 05 §3) don't apply |
@@ -119,15 +119,15 @@ zmod plugin (doc 12 §3.3), from the `fleet-exhaust-klipper` repo; zmod's C5 sup
 
 ## 11. Open items
 
-| # | Item | Impact | Plan |
-|---|---|---|---|
-| O4 | Side port **mostly answered from published models** (§2). Still unconfirmed: which Klipper fan name is which [U] | C7 shroud design, `klipper.modes` | Base C7 on E8, opened up to 100 mm. Port dimensions come from those models; read the fan names from `printer.cfg` at setup |
-| **O10** | **Does the C5's kernel have `cdc_acm`, and does the klippy extra load on the C5's Klipper?** | USB link (C5-1) or Moonraker over Wi-Fi only | At unboxing: plug a node into the external USB port and look for `/dev/ttyACM*` (and `dmesg`). If `cdc_acm` is missing, the C5 stays on Moonraker with no other change |
-| O5 | Does zmod expose material status on this printer? | Default-policy level 4 only | Check the zmod version at setup |
-| O6 | Do Flashforge-app and FlashPrint jobs populate Moonraker `filament_type`? | Default-policy level 3 | Test at setup |
-| R5 | The extra must load on the C5's Klipper fork | Variant or macros-only | Prototype after the AD5X pack's R5 check |
-| R6 | Wi-Fi range near the frame matters most here if O10 fails (Moonraker only) | Link drops | Node on the damper outside the frame, antenna away from the printer (D19); check RSSI at commissioning |
+| # | Item | Impact | Closes at | Plan |
+|---|---|---|---|---|
+| O4 | Side port **mostly answered from published models** (§2). Still unconfirmed: which Klipper fan name is which [U] | C7 shroud design, `klipper.modes` | PQ-1 | Base C7 on E8, opened up to 100 mm. Port dimensions come from those models; read the fan names from `printer.cfg` at setup |
+| **O10** | **Does the C5's kernel have `cdc_acm`, and does the klippy extra load on the C5's Klipper?** | USB link (C5-1) or Moonraker over Wi-Fi only | PQ-1, PQ-2 | At unboxing: plug a node into the external USB port and look for `/dev/ttyACM*` (and `dmesg`). If `cdc_acm` is missing, the C5 stays on Moonraker with no other change |
+| O5 | Does zmod expose material status on this printer? | Default-policy level 4 only | PQ-10 | Check the zmod version at setup |
+| O6 | Do Flashforge-app and FlashPrint jobs populate Moonraker `filament_type`? | Default-policy level 3 | PQ-10 | Test at setup |
+| R5 | The extra must load on the C5's Klipper fork | Variant or macros-only | PQ-2 | Prototype after the AD5X pack's R5 check |
+| R6 | Wi-Fi range near the frame matters most here if O10 fails (Moonraker only) | Link drops | PQ-3 | Node on the damper outside the frame, antenna away from the printer (D19). The installation self-check reports RSSI (INS-4); PQ-3 checks the link with Moonraker alone |
 
-## 12. Commissioning results
+## 12. Qualification results
 
-To be filled in during Phase 2 commissioning (doc 12 §6 item 7, §7).
+To be filled in at qualification (doc 12 §7.2): each applicable PQ test with its date, unit, firmware and pack version, and result.

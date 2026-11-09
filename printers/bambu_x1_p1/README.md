@@ -63,12 +63,12 @@ None yet.
 
 ## 11. Open items
 
-| # | Item | Impact | Plan |
-|---|---|---|---|
-| BX-1 | Does the ModulAir adapter seal over the rear fan without starving it? | Port adapter | Print and test |
-| BX-2 | `bambu_mqtt` link: which fields are available in LAN mode on current firmware | Tier 1 link | Whoever builds the link type |
-| BX-3 | Does the chamber fan's speed need to follow fleet modes? | Bleed control | Commissioning |
+| # | Item | Impact | Closes at | Plan |
+|---|---|---|---|---|
+| BX-1 | Does the ModulAir adapter seal over the rear fan without starving it? | Port adapter | PQ-5 | Print and test |
+| BX-2 | `bambu_mqtt` link: which fields are available in LAN mode on current firmware | Tier 1 link | Link type | Whoever builds the link type |
+| BX-3 | Does the chamber fan's speed need to follow fleet modes? | Bleed control | PQ-9 | Find out in qualification |
 
-## 12. Commissioning results
+## 12. Qualification results
 
 None.

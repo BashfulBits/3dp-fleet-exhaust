@@ -61,11 +61,11 @@ None yet.
 
 ## 11. Open items
 
-| # | Item | Impact | Plan |
-|---|---|---|---|
-| SV-1 | Which enclosure kit, and its panel material | Port adapter, cap | Owner of the printer |
-| SV-2 | Supply rating and headroom | Heater supply | Read the label |
+| # | Item | Impact | Closes at | Plan |
+|---|---|---|---|---|
+| SV-1 | Which enclosure kit, and its panel material | Port adapter, cap | Design | Owner of the printer |
+| SV-2 | Supply rating and headroom | Heater supply | PQ-1 | Read the label |
 
-## 12. Commissioning results
+## 12. Qualification results
 
 None.

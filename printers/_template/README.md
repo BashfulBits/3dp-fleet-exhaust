@@ -6,7 +6,7 @@
 
 | Item | Value |
 |---|---|
-| Status | stub, designed or commissioned (doc 12 §9) |
+| Status | stub, designed or qualified (doc 12 §9) |
 | Role | node-heat or node-lite |
 | Link | Tier and link type (doc 12 §3.2), plus the backup |
 | Chamber cap | °C, and the material or rating that sets it |
@@ -87,9 +87,9 @@ Firmware mod, stock Klipper with Moonraker `update_manager`, or none (doc 12 §3
 
 ## 11. Open items
 
-| # | Item | Impact | Plan |
-|---|---|---|---|
+| # | Item | Impact | Closes at | Plan |
+|---|---|---|---|---|
 
-## 12. Commissioning results
+## 12. Qualification results
 
-Measured `power.idle_w` / `power.printing_w`, and the commissioning tests from doc 12 §6 item 7 with dates and results.
+The qualification tests that apply (doc 12 §7.2), each with its date, unit, firmware and pack version, result and measured values (`power.*`, `heater_power`, characterise ranges).
