@@ -404,7 +404,7 @@ A laptop or charger in the USB-C jack sees only Rd and supplies 5 V, which feeds
 - An **on-board XGZP6897D** pressure sensor sits on the main I²C bus.
 - Two **NTC inputs** with one fixed pull-up cover the anemometer, the chamber air and the heater housing (D97).
 - The **door reed** is read through the I/O controller.
-- The **AUX header** gives two 5 V-tolerant lines: a smoke contact and an acknowledge button on the hub, or a UART printer link on a node.
+- The **AUX header** gives two 5 V-tolerant lines: a smoke contact and an acknowledge button on the hub, or a UART printer link on a node (3.3 V printer boards only, D100).
 
 ```mermaid
 %%{init: {'flowchart': {'nodeSpacing': 20, 'padding': 8}}}%%

@@ -228,7 +228,7 @@ The ESP32 reads it from the controller once at boot, after the controller starts
 | 4 | B: GPIO 6 | Remote acknowledge button (optional; the on-board switch is in parallel) | **RX**, printer TX → node |
 | 5 | GND | Remote button return | – |
 
-- **Levels:** each line runs through a 2N7002 shifter (gate to 3.3 V, 10 kΩ pull-up to 3.3 V on the ESP32 side, 4.7 kΩ to 3.3 V on the connector side). A 3.3 V printer works both ways. A 5 V printer's TX is blocked by the FET, so the ESP32 never sees 5 V; ≈ 0.4 mA flows back into the 3.3 V rail through the pull-up. The node's TX reaches a 5 V AVR at 3.3 V against a 3.0 V threshold, which works but with little margin [E]; for those boards doc 12 prefers the USB-host route.
+- **Levels:** each line runs through a 2N7002 shifter (gate to 3.3 V, 10 kΩ pull-up to 3.3 V on the ESP32 side, 4.7 kΩ to 3.3 V on the connector side). **The printer link supports 3.3 V printer boards only** (D100). The lines are 5 V-tolerant, so a 5 V board does no damage: its TX is blocked by the FET and ≈ 0.4 mA flows back into the 3.3 V rail through the pull-up. But the node's TX reaches it at 3.3 V against a 5 V AVR's 3.0 V threshold, too little margin to rely on [E], so 5 V boards are not supported on either link port.
 - **Speed:** ≈ 0.5 µs rise on a 1 m cable [E], fine at 115200 and 250000 baud.
 - **Peripheral:** UART1 through the GPIO matrix. UART0 (GPIOs 43, 44) stays the console.
 - A and B are digital only: the shifter doesn't pass an analog level.

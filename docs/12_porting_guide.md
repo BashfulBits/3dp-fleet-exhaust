@@ -99,13 +99,13 @@ Every pack README has the same sections, so packs can be compared side by side. 
 | **1 – Network API** | `moonraker` | Everything in §3.1 except a blocking wait; node readings also show in Mainsail/Fluidd through Moonraker `[sensor]` (doc 07 §6.3) | Any Klipper printer with Moonraker | Phase 2 (core; also the backup link on Tier 2) |
 | | `octoprint`, `prusalink`, `bambu_mqtt` | Print state, job name; material where the API has it | OctoPrint hosts, and vendor network APIs | **Not built.** Add when a pack needs it |
 | **2 – Host plugin over USB** | `usb_serial` | Everything in §3.1, router-independent, with `M191` blocking | Klipper printers (any distribution), via the klippy extra | Phase 2 (core) |
-| **2b – Direct serial** (D48) | `marlin_serial` | Print state and progress (`M27`, SD or USB-stick printing), hotend and bed temperatures and targets (`M105`, `M155` auto-report), job name where the firmware reports it, mirrored alerts (`M117`). No door state, no blocking wait | Marlin printers with no host and no network | **Not built.** Add when a pack needs it |
+| **2b – Direct serial** (D48) | `marlin_serial` | Print state and progress (`M27`, SD or USB-stick printing), hotend and bed temperatures and targets (`M105`, `M155` auto-report), job name where the firmware reports it, mirrored alerts (`M117`). No door state, no blocking wait | Marlin printers with no host and no network, on 32-bit boards with 3.3 V logic (D100) | **Not built.** Add when a pack needs it |
 
 **USB on Tier 2.** The printer end is whichever USB host port the printer offers: an external port (preferred: nothing goes inside the printer) or an internal header (pins into the footprint, never wires on pads). The lead never carries VBUS (doc 04 §5). The printer's kernel must have `cdc_acm`; without it, the printer drops to `moonraker` with no other change. Each pack reviews its ports in its §6.
 
 **Tier 2b ports and rules (D48):**
-- **`link_port: uart`:** the carrier's AUX header (doc 04 §4: A = TX, B = RX, GND) to the board's TFT or serial header. The AUX lines are 5 V-tolerant. Current 32-bit boards are 3.3 V and work both ways. The pack must confirm that port is enabled in that printer's firmware [U per printer].
-- **`link_port: usb_host`:** the carrier's USB-C (the module's native USB, D72) as a USB host, to the printer's USB (CH340, CP210x or CDC-ACM). Preferred for 5 V 8-bit boards, where the node's 3.3 V TX has little margin. Whether the printer enumerates with VBUS left unconnected (doc 04 §5) is [U per printer].
+- **`link_port: uart`:** the carrier's AUX header (doc 04 §4: A = TX, B = RX, GND) to the board's TFT or serial header. **3.3 V boards only** (D100): current 32-bit boards are 3.3 V and work both ways. The AUX lines survive a 5 V board, but the node's 3.3 V TX has too little margin for one, so 5 V 8-bit boards are not supported. The pack must confirm that port is enabled in that printer's firmware [U per printer].
+- **`link_port: usb_host`:** the carrier's USB-C (the module's native USB, D72) as a USB host, to the printer's USB (CH340, CP210x or CDC-ACM). For boards whose UART on the header is shared with the USB chip, this is the only route. Whether the printer enumerates with VBUS left unconnected (doc 04 §5) is [U per printer].
 - **Command allowlist:** the node sends only `M105`, `M155`, `M27`, `M31`, `M115` and `M117`, never motion, temperature, fan or file commands. The firmware enforces the list and a pack can't widen it.
 
 Every node also uses power metering as a cross-check whatever its tier: a printer that drops to 0 W is "printer off" within seconds.
@@ -225,7 +225,7 @@ A pack **must** meet all of these. A profile can only make limits stricter; noth
 4. Find the exhaust opening and choose the kind of port adapter (§5). Look for existing models first (doc 08 policy).
 5. Decide the heater supply if there's a node heater (doc 02 §3.1) and record the sizing check.
 6. Fill in `profile.yaml`; measure `power.idle_w` and `power.printing_w` with the plug.
-7. Tier 2: confirm the printer exposes USB-serial (`cdc_acm`), find a USB connection point that needs no wires on pads, and install the extra with the right variant. Tier 2b: pick `uart` or `usb_host`, confirm the port answers `M115` at the firmware's baud rate, and record the board's logic level.
+7. Tier 2: confirm the printer exposes USB-serial (`cdc_acm`), find a USB connection point that needs no wires on pads, and install the extra with the right variant. Tier 2b: pick `uart` or `usb_host`, confirm the port answers `M115` at the firmware's baud rate, and confirm the board uses 3.3 V logic (D100).
 8. Run the safety-contract tests (§6 item 7) and record the results in the pack README; set `status: commissioned`.
 9. Add the pack's parts to doc 08's pack index, the pack to §9, and its lines to your BOM.
 
@@ -239,7 +239,7 @@ flowchart TD
   E --> F["profile.yaml; measure idle<br>and printing watts"]
   F --> G{"Link tier"}
   G -->|"2: USB host plugin"| H["cdc_acm, a no-solder<br>USB point, the extra"]
-  G -->|"2b: direct serial"| I["uart or usb_host,<br>M115, logic level"]
+  G -->|"2b: direct serial"| I["uart or usb_host,<br>M115, 3.3 V logic"]
   G -->|"0 or 1"| J
   H --> J["Safety-contract tests;<br>status: commissioned"]
   I --> J
