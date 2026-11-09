@@ -1,6 +1,6 @@
 # 15 - Phase 2 Plan (proposed)
 
-> **Status: proposed, 2026-11-09, for discussion.** Phase 1 (the design baseline, D1–D105) is mostly complete. This doc proposes how Phase 2 gets from the design to a release that builders can install: what can close on paper now (§2), the phases and their gates (§3), and what runs in parallel (§4). Test IDs are those of the three test steps (D104): `VAL-…` validation ([`validation/`](../validation/README.md)), `PQ-…` / `FQ-…` qualification ([doc 12 §7](12_porting_guide.md#7-porting-checklist-and-printer-qualification), [doc 13 §4](13_fan_packs.md#4-fan-qualification)), `INS-…` installation ([doc 14 §4](14_build_your_own.md#4-install-and-commission)).
+> **Status: proposed, 2026-11-09, for discussion.** Phase 1 (the design baseline, D1–D106) is mostly complete. This doc proposes how Phase 2 gets from the design to a release that builders can install: what can close on paper now (§2), the phases and their gates (§3), and what runs in parallel (§4). Test IDs are those of the three test steps (D104): `VAL-…` validation ([`validation/`](../validation/README.md)), `PQ-…` / `FQ-…` qualification ([doc 12 §7](12_porting_guide.md#7-porting-checklist-and-printer-qualification), [doc 13 §4](13_fan_packs.md#4-fan-qualification)), `INS-…` installation ([doc 14 §4](14_build_your_own.md#4-install-and-commission)).
 
 ---
 
@@ -16,17 +16,19 @@ These need no prototype and no test equipment. Each says what closes it and, whe
 
 ### 2.1 Decisions
 
-| # | Item | Recommendation |
+All decided on 2026-11-09 and recorded as D106, except O18, whose fix is proposed and confirmed in validation.
+
+| # | Item | Decision |
 |---|---|---|
-| **O14** | Node damper behaviour when the hub is lost (doc 05 §4, doc 06 §4) | **Close now** with a rule that works whatever R1 shows: a node keeps its chamber loop running on its own ΔP sensor while chamber ΔP shows the trunk is still drawing (below about −1 Pa with the damper at or above its bleed angle), and holds its last angle otherwise. It no longer waits for R1 |
-| **O12** | Fault and recovery wording, and the timed inspection window after a cut (doc 05 §4.1) | **Keep the CLEAR button; don't adopt the window.** `FLEET_CLEAR` can be sent through Moonraker from anywhere, so it doesn't prove someone is at the printer the way the button does, which is the point of a level-4 Clear. The wording itself closes with the dashboard mock-up in Phase D |
-| D104-a | Runaway recovery: the level-3 Clear after a runaway used to need tests 1–5 (now lab tests). Proposed: replace the carrier, or repair it and re-run VAL-H1–H5, then INS-4 (doc 05 §4.1) | Agree, since a runaway means a double hardware fault on that board |
-| D104-b | O18: drop the per-board rail trim if VAL-H8 shows ±0.2 V untrimmed | Agree the threshold now so VAL-H8 is a pass/fail |
-| D104-c | R11: one reference measurement (VAL-H9) plus link-error checks per pack (PQ-6), in place of a clamp-meter measurement on every node-heat | Agree |
-| D104-d | M9: calibrate the anemometer once in validation and ship a default curve; installations run only the static zero (VAL-A5) | Agree, provided three probes agree; the reference venturis then leave the per-fleet BOM |
-| D104-e | INS-4 heater-chain self-check: a short low-duty heater pulse with the charge pump stopped, at first power-up with an empty chamber (O19) | Agree; it is the only per-board heater check a builder makes |
-| D104-f | Heating on a `designed` printer pack: allowed, with a dashboard warning, as that pack's qualification (doc 14 §4) | Agree; the alternative (heating only on `qualified`) blocks the first qualifier |
-| D105-a | The hub reads a fan profile (`fan.yaml`, doc 13 §3) as a node reads its printer profile | Agree; it replaces hand-entered tach and jumper settings |
+| **O14** | Node damper behaviour when the hub is lost (doc 05 §4, doc 06 §4) | **Closed.** A node keeps its chamber loop running on its own ΔP sensor while chamber ΔP shows the trunk still drawing (below about −1 Pa with the damper at or above its bleed angle), and holds its last angle otherwise. Works whatever R1 shows |
+| **O12** | Fault and recovery wording, and the timed inspection window after a cut (doc 05 §4.1) | **Closed.** Keep the CLEAR button at level 4; no inspection window, since `FLEET_CLEAR` can be sent through Moonraker from anywhere. The wording comes with the dashboard mock-up in Phase D |
+| Runaway recovery | What a builder must do before a node heats again after a runaway (a proven double fault) | **The installation self-check (INS-4)**, with automatic logging: the hub keeps a fault report (configuration, versions, event log, sensor history) and offers a prefilled GitHub issue (doc 07 §8, `.github/ISSUE_TEMPLATE/fault_report.md`). A failed self-check keeps the heater locked out until the carrier is replaced or repaired |
+| **O18** | Rail reading without a per-board trim | **Proposed:** 0.1 % rail dividers and a TL431B-class reference read at boot (≈ ±0.17 V at 24 V [E]); pass at ±0.2 V in VAL-H8; LM4040A (±0.1 %, ≈ $1.3–1.8) is the upgrade if it falls short |
+| R11 | USB ground share | **Agreed:** one reference measurement (VAL-H9), link-error checks per pack (PQ-6) |
+| M9 | Anemometer calibration | **Goal:** one default curve from validation, so installations run only the static zero. It needs every probe built to one standard build (doc 08 C18); per-fleet calibration with the reference venturis stays as the fallback (VAL-A5) |
+| O19 | INS-4 heater-chain self-check (a short low-duty pulse with the charge pump stopped) | **Agreed**, and since it now re-admits a node after a runaway, VAL must show it catches a welded switch on either side every time |
+| Packs | Heating on a `designed` printer pack | **Agreed:** allowed with a dashboard warning, as that pack's qualification (doc 14 §4) |
+| Fans | The hub reads a fan profile (`fan.yaml`, doc 13 §3) | **Agreed** |
 
 ### 2.2 Research
 

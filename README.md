@@ -13,7 +13,7 @@ An open-source exhaust, filtration and chamber-heating system for a small fleet 
 
 None of it can shut down Klipper or kill a print.
 
-**Status:** Phase 1 design baseline, decisions D1–D105. What it can do and its limits are in [doc 01](docs/01_system_architecture.md), the requirements in [doc 10](docs/10_requirements.md), and example systems at the edges of what it supports in [doc 11](docs/11_use_envelope.md). Phase 2 (implementation) is proposed in [doc 15](docs/15_phase2_plan.md). Testing is in three steps: the project validates the design on prototype boards ([`validation/`](validation/README.md)), a pack author qualifies each printer or fan model, and a builder installs with checks the dashboard runs, with no test equipment ([doc 14](docs/14_build_your_own.md)).
+**Status:** Phase 1 design baseline, decisions D1–D106. What it can do and its limits are in [doc 01](docs/01_system_architecture.md), the requirements in [doc 10](docs/10_requirements.md), and example systems at the edges of what it supports in [doc 11](docs/11_use_envelope.md). Phase 2 (implementation) is proposed in [doc 15](docs/15_phase2_plan.md). Testing is in three steps: the project validates the design on prototype boards ([`validation/`](validation/README.md)), a pack author qualifies each printer or fan model, and a builder installs with checks the dashboard runs, with no test equipment ([doc 14](docs/14_build_your_own.md)).
 
 ---
 
@@ -57,7 +57,7 @@ The CAT6 daisy chain carries 24 V logic power and CAN, with ESP-NOW radio as a b
 | [14 Build your own](docs/14_build_your_own.md) | Quick start: does it fit, plan your fleet, staged build, **installation checks**, reading order |
 | [15 Phase 2 plan](docs/15_phase2_plan.md) | Proposed: what can close on paper now, the phases and their gates |
 | [Validation](validation/README.md) | Design validation on prototype boards: procedures, test status, rework log |
-| [Design decisions](docs/design_decisions.md) | Decision record D1–D105, the cost-reduction pass and the trade studies behind them |
+| [Design decisions](docs/design_decisions.md) | Decision record D1–D106, the cost-reduction pass and the trade studies behind them |
 
 ## Repository layout (Phase 2)
 

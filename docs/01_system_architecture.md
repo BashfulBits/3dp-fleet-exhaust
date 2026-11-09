@@ -1,6 +1,6 @@
 # 01 - System Overview
 
-> **Status:** Phase 1 design baseline, 2026-10-25, updated 2026-11-09. Every decision is recorded as D1–D105 in [design_decisions.md](design_decisions.md). This doc says what the system can do and how it's built; [doc 10](10_requirements.md) lists the requirements it meets, and [doc 11](11_use_envelope.md) the limits of use with example systems.
+> **Status:** Phase 1 design baseline, 2026-10-25, updated 2026-11-09. Every decision is recorded as D1–D106 in [design_decisions.md](design_decisions.md). This doc says what the system can do and how it's built; [doc 10](10_requirements.md) lists the requirements it meets, and [doc 11](11_use_envelope.md) the limits of use with example systems.
 >
 > **Evidence key used across the docs:** **[V]** verified against a primary source · **[E]** engineering estimate · **[U]** unverified, needs a measurement or a test on the real hardware.
 
@@ -224,7 +224,7 @@ sequenceDiagram
 | 13 | Fan packs: how an exhaust fan is supported, its profile and qualification, the pack list |
 | 14 | Build-your-own quick start, with the installation checks |
 | 15 | Phase 2 plan (proposed): phases, gates and what can close on paper now |
-| Design decisions | Decision record D1–D105, cost-reduction pass, trade studies T1–T3 |
+| Design decisions | Decision record D1–D106, cost-reduction pass, trade studies T1–T3 |
 | `printers/` | Printer packs, one folder per model (doc 12 §9) |
 | `fans/` | Fan packs, one folder per fan model or class (doc 13 §5) |
 | `validation/` | Design validation on prototype boards: procedures, status, rework log (outside `docs/` on purpose) |
@@ -258,13 +258,13 @@ This table indexes the core items; IDs never change. Items about one printer mod
 | O7 | Heater-housing temperature in normal operation (KSD301 and TCO ratings) | VAL-H6 | Validation §5 |
 | O8 | ~~Response to runaway trigger RW-a~~ **Closed (D40): immediate mains cut** | — | — |
 | O9 | ~~Wired LAN and PoE~~ **Closed (D18):** fleet jacks stay CAN behind the D17 circuit; a separate LAN jack; PoE through an off-the-shelf splitter into POWER IN | — | — |
-| O12 | Fault and recovery UI wording; the timed inspection window after a cut (doc 05 §4.1) | Desk: a decision | Doc 15 §2 |
+| O12 | ~~Fault and recovery UI~~ **Closed (D106):** keep the CLEAR button at level 4, no inspection window; the wording comes with the dashboard mock-up (Phase D) | — | — |
 | O13 | ModulAir licence and fit (D34) | Licence: desk. Fit: VAL-A7 | Doc 15 §2; validation §5 |
-| O14 | Node damper behaviour when the hub is lost | Desk: a decision | Doc 15 §2 |
+| O14 | ~~Node damper behaviour when the hub is lost~~ **Closed (D106):** keep the chamber loop while chamber ΔP shows the trunk drawing, else hold the last angle (doc 06 §4) | — | — |
 | O15 | ROM-bootloader programming over the I²C pins; W5500 on its socket | VAL-C1, **before carrier layout** | Validation §5 |
 | O16 | ~~Hub supply~~ **Closed (D92, D93):** a 24 V, 5 A desktop brick | — | — |
 | O17 | Shelly BLE RPC in use (D102) | VAL-S3 | Validation §5 |
-| O18 | Rail reading without a per-board trim (D75 trim needs a meter) | VAL-H8 | Validation §5 |
+| O18 | Rail reading without a per-board trim (D75 trim needs a meter). Proposed (D106): 0.1 % rail dividers and a TL431B-class reference read at boot | VAL-H8 | Validation §5 |
 | O19 | The installation self-check catches the faults it claims to | VAL-H2, H3, H4, A3 | Validation §5 |
 
 ## 8. Phase 2 phases and bring-up stages (D41, D104)

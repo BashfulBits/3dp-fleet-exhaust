@@ -44,7 +44,7 @@ Everything here is done from the hub's dashboard, which walks through the steps 
 | **INS-9** | First prints | One cooling print (PLA or PETG). Then one heated print (ABS with `M191`) on each heated printer. Open a door during one print | Print start and end detected (Tier 0 power thresholds learned and offered for you to accept); bleed during the print; the heated print waits for the chamber; the door opens the damper and alerts at 60 s; the purge ends with the bed LED green and a push |
 | **INS-10** | Keep the report | Download the installation report and put it in your own fleet record | The report lists every check with its result, the board serials, firmware and pack versions |
 
-**When to run them again.** INS-4 after any board is replaced (and a carrier that saw a heater runaway is always replaced or re-validated, doc 05 §4.1). INS-6 after changing a plug. INS-7 after changing the duct, the filter, the fan or the number of printers. INS-8 after changing a heater, the insulation, the enclosure, the hub supply or the chain length.
+**When to run them again.** INS-4 after any board is replaced (and after a heater runaway, when it decides whether that node may heat again and offers to send the fault report, doc 05 §4.1). INS-6 after changing a plug. INS-7 after changing the duct, the filter, the fan or the number of printers. INS-8 after changing a heater, the insulation, the enclosure, the hub supply or the chain length.
 
 **Unattended heated printing** is allowed once INS-1…INS-9 have passed with a `qualified` printer pack and fan pack. With a `designed` pack you are qualifying it, and its qualification has to pass first.
 

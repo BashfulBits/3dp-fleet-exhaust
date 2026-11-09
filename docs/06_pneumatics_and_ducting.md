@@ -138,7 +138,7 @@ The hub's trunk loop and each node's loops are linked only by the **trunk-active
 **Chamber-loop details (node):**
 - **PI with deadband ±0.5 Pa**, servo rate limit ~2°/s, and the minimum change held off until the error persists > 5 s. The servo doesn't hunt or hum.
 - **Auto-zero:** every pressure sensor is re-zeroed in the system-wide static window (§4.1).
-- The **trunk-active flag** comes from the hub over CAN. The node doesn't run its ΔP loop when the trunk is off. What a node does when the hub, and so the flag, is lost is open item O14 (doc 01 §7).
+- The **trunk-active flag** comes from the hub over CAN. The node doesn't run its ΔP loop when the trunk is off. **When the hub, and so the flag, is lost (O14, D106):** a node keeps its chamber loop running on its own chamber ΔP sensor while that reading shows the trunk is still drawing (below about −1 Pa with the damper at or above its bleed angle), and holds its last angle otherwise. This works whether the fan keeps running with the hub silent or stops (R1), so it doesn't wait for R1.
 
 **Combined roles (D84):** one carrier on one printer has no trunk loop and no branch damper. Its chamber ΔP loop moves the exhaust fan's speed (B2) instead of a damper angle, against the same setpoints (heated print, cooling floor, purge); the purge token has one holder. The loop's gains start from validated defaults and are trimmed by the installation's duct sweep (INS-7) [E].
 
@@ -254,7 +254,7 @@ The anemometer's figures assume calibration 3 below; without it, the gap between
 
 1. **Static zero (automatic).** In every static window (§4.1) the hub records G₀ at the working ΔT: still air, the element's own plume, and conduction down its leads. A baseline more than 10 % from its installation value means dust on the element or a bent probe, and raises a digest item.
 2. **Overlap with the venturi (automatic, continuous).** Whenever the venturi reads 20–40 CFM steadily for 60 s (±5 % or better), the hub adds a point and refits B and n over a rolling set. Purges and cooling mode supply these points in normal use.
-3. **Low-flow reference venturis (validation, VAL-A5; was M9, repeated yearly on every fleet).** If VAL-A5 shows that probes agree, the firmware ships one default curve and an installation runs only steps 1 and 2; otherwise this step returns to installation (D104). Two printed venturis go into the hub spool's **calibration slot** (doc 08 §3c), one at a time, just ahead of the main venturi, with that joint foil-taped, with the trunk-flow sensor's tubes moved to their taps. With the XGZP [E]:
+3. **Low-flow reference venturis (validation, VAL-A5; was M9, repeated yearly on every fleet).** The goal is one default curve in the firmware, so an installation runs only steps 1 and 2; that needs every probe built to one standard build (doc 08 C18, VAL-A5). If VAL-A5 shows probes built that way still differ, this step stays at installation as the fallback (D106). Two printed venturis go into the hub spool's **calibration slot** (doc 08 §3c), one at a time, just ahead of the main venturi, with that joint foil-taped, with the trunk-flow sensor's tubes moved to their taps. With the XGZP [E]:
 
    | Reference | Range | Signal | Flow error |
    |---|---|---|---|

@@ -118,12 +118,12 @@ Disconnect the element (heater commanded with no rise) and confirm the L3 trip. 
 ### VAL-H8 Rail reading, throttle and learned supply cap (was test 8 in part; D64, D75, O18)
 *Equipment:* bench supply with an adjustable current limit, meter.
 
-1. **Untrimmed accuracy (O18):** on every bring-up board, at 20, 24 and 26 V and at room temperature and in a 50 °C box, compare the heater-rail reading with a meter. Record the spread.
+1. **Untrimmed accuracy (O18):** on every bring-up board, at 20, 24 and 26 V and at room temperature and in a 50 °C box, compare the heater-rail reading with a meter, first with the ESP32's factory ADC calibration alone, then corrected against the board's reference (D106). Record both spreads.
 2. **Throttle:** feed the tap from the bench supply and lower it through 23.0 V while heating: duty falls and the rail never goes below the throttle point by more than the reading error.
 3. **Learned cap:** set the bench supply's current limit below the heater's draw: the supply drops out, the node sets the cap at 90 % of the proven level (half `heater_power` if none) and alerts; each further drop steps it down; Clear restores it.
 4. **Boot inference:** cut the supply mid-heat with the node on the bench supply alone: at the next boot it infers the drop from the "heater on" flag.
 
-*Closes O18:* untrimmed spread within ±0.2 V → the trim goes (doc 05 §3.3, D75 amended in a new D row). Otherwise propose an automatic trim against the bus reading.
+*Closes O18:* corrected spread within ±0.2 V → the trim goes (doc 05 §3.3, D75 amended in a new D row). Otherwise fit the LM4040A-class reference and repeat.
 
 ### VAL-H9 USB ground share on the reference printer (was test 9, R11)
 *Run on:* the reference node-heat printer (AD5X pack), heater fed from the printer's supply tap with a 14 AWG ≤ 1.5 m lead. *Equipment:* DC clamp meter or a shunt in the USB lead's ground.
@@ -266,7 +266,8 @@ On the reference printers: purge timing and VOC behaviour over ten ABS prints; c
 ### VAL-A5 Low-flow anemometer: protection and calibration (was test 28 and M9, D32)
 1. With the fan off, block the probe airflow and command full heater duty in test mode: the firmware holds the element at ≤ 80 °C and ΔT ≤ 30 K. Unplug the heated NTC: the heater turns off and a digest item is posted.
 2. Static zero, then the 10 mm and 15 mm reference venturis in turn in the hub spool's calibration slot, fan stepped through its lowest speeds with one branch open; record reference flow vs element conductance from ~0.5 to 5 CFM, on three probes.
-3. If the three curves agree within the doc 06 §4.4 accuracy, publish one **default curve** in the firmware and drop the reference venturis from installation (D104 proposal; an installation then runs only the automatic static zero). Otherwise keep a per-installation calibration and say so in doc 14.
+3. **Goal (D106): one default curve.** Build the three probes to the standard build (step 4). If their curves agree within the doc 06 §4.4 accuracy, publish one default curve in the firmware and drop the reference venturis from installation; an installation then runs only the automatic static zero. Otherwise keep a per-fleet calibration with the reference venturis (the fallback) and say so in doc 14.
+4. **Standard probe build.** A default curve only holds if every probe is built the same way: the same NTC and resistor-heater parts, the same printed mount (doc 08 C18) at the same depth and orientation in the throat, the same lead length and the same potting or glue. Write that build down as the C18 assembly instruction, and record each probe's static-zero conductance (step 2's G₀) as an acceptance check a builder can see on the dashboard: a probe outside the spread found here is rebuilt, or the fleet is calibrated.
 
 ### VAL-A6 Venturi spot check (was M8, spot check)
 With one branch open at several flows, compare the venturi reading with a vane anemometer at the outlet. *Sets:* the venturi coefficient in firmware.
