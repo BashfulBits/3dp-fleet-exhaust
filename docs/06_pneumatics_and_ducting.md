@@ -391,7 +391,7 @@ Assumptions [E]: enclosure surface ~1.7 m²; worst case room 15.5 °C (60 °F) a
 
 ## 10. Commissioning measurements and where they run
 
-The measurements M1–M12 were one list run on every fleet. They are now split by who runs them (D104): **validation** proves the design and sets the defaults ([`validation/`](../validation/README.md)), **qualification** measures what belongs to one printer or fan model (doc 12 §7, doc 14 §4), and **installation** runs the rest automatically on each fleet (doc 13 §4). The M numbers stay, so references in this doc still resolve.
+The measurements M1–M12 were one list run on every fleet. They are now split by who runs them (D104): **validation** proves the design and sets the defaults ([`validation/`](../validation/README.md)), **qualification** measures what belongs to one printer or fan model (doc 12 §7, doc 13 §4), and **installation** runs the rest automatically on each fleet (doc 14 §4). The M numbers stay, so references in this doc still resolve.
 
 | # | Measurement | Sets | Now |
 |---|---|---|---|

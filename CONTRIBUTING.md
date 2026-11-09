@@ -17,7 +17,7 @@ Thanks for helping. This project is a design framework for a shared exhaust, fil
 
 ## Adding an exhaust fan
 
-Copy `fans/_template/` and follow [doc 14](docs/14_fan_packs.md) §7: the maker's data against the fan requirements (doc 02 §6.1), the connection, and fan qualification (§4). A fan with an undocumented control port needs its port mapped in validation first (`validation/procedures.md`, VAL-X2): open an issue.
+Copy `fans/_template/` and follow [doc 13](docs/13_fan_packs.md) §7: the maker's data against the fan requirements (doc 02 §6.1), the connection, and fan qualification (§4). A fan with an undocumented control port needs its port mapped in validation first (`validation/procedures.md`, VAL-X2): open an issue.
 
 ## Changing the design
 

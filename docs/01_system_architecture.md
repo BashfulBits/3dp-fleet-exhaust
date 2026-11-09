@@ -221,12 +221,12 @@ sequenceDiagram
 | 10 | Requirements, traced to decisions and tests |
 | 11 | Use envelope: limits of use and example systems at those limits |
 | 12 | Printer packs: how a pack is made, link tiers, profile schema, mechanical interface, safety contract, licensing, the pack list |
-| 13 | Build-your-own quick start, with the installation checks |
-| 14 | Fan packs: how an exhaust fan is supported, its profile and qualification, the pack list |
+| 13 | Fan packs: how an exhaust fan is supported, its profile and qualification, the pack list |
+| 14 | Build-your-own quick start, with the installation checks |
 | 15 | Phase 2 plan (proposed): phases, gates and what can close on paper now |
 | Design decisions | Decision record D1–D105, cost-reduction pass, trade studies T1–T3 |
 | `printers/` | Printer packs, one folder per model (doc 12 §9) |
-| `fans/` | Fan packs, one folder per fan model or class (doc 14 §5) |
+| `fans/` | Fan packs, one folder per fan model or class (doc 13 §5) |
 | `validation/` | Design validation on prototype boards: procedures, status, rework log (outside `docs/` on purpose) |
 
 ## 7. Risk and open-item register
@@ -237,15 +237,15 @@ Every open item now lives with the step that closes it (D104), so it is clear wh
 |---|---|---|
 | **Desk** | Decisions and research that need no hardware | [Doc 15 §2](15_phase2_plan.md#2-close-on-paper-now) |
 | **Validation** (`VAL-…`) | Items about the core design, on prototype boards with lab equipment | [`validation/README.md` §5](../validation/README.md#5-open-items-that-close-in-validation) |
-| **Qualification** (`PQ-…`, `FQ-…`) | Items about one printer or fan model | Each pack's open items; fan items in [doc 14 §6](14_fan_packs.md#6-open-items-for-fans) |
-| **Installation** (`INS-…`) | Nothing is left open for a builder: installation checks only confirm | [Doc 13 §4](13_build_your_own.md#4-install-and-commission) |
+| **Qualification** (`PQ-…`, `FQ-…`) | Items about one printer or fan model | Each pack's open items; fan items in [doc 13 §6](13_fan_packs.md#6-open-items-for-fans) |
+| **Installation** (`INS-…`) | Nothing is left open for a builder: installation checks only confirm | [Doc 14 §4](14_build_your_own.md#4-install-and-commission) |
 
 This table indexes the core items; IDs never change. Items about one printer model live in its pack (doc 12 §2.2), where the IDs missing here (O1–O6, O10, O11, R7) are.
 
 | # | Item | Closes at | Tracked in |
 |---|---|---|---|
-| **R1** | Exhaust-fan control port and silent-hub behaviour, for a fan with a proprietary controller (F3, D10) | VAL-X2, then FQ-6, per fan family | Validation §5; doc 14 §6 |
-| R2 | Fan static-pressure curve unpublished | FQ-5 per fan pack | Doc 14 §6 |
+| **R1** | Exhaust-fan control port and silent-hub behaviour, for a fan with a proprietary controller (F3, D10) | VAL-X2, then FQ-6, per fan family | Validation §5; doc 13 §6 |
+| R2 | Fan static-pressure curve unpublished | FQ-5 per fan pack | Doc 13 §6 |
 | R3 | ~~Chamber VOC purge criterion~~ **Closed (D20):** the ENS160 (−40 to 85 °C) on every sensor head; the purge-end margin is set in VAL-A4 | — | — |
 | R4 | XGZP6897D offset drift | VAL-A1 | Validation §5 |
 | R5 | The klippy extra must load in each vendor Klipper fork | PQ-2 per pack | Each Klipper pack |
@@ -272,7 +272,7 @@ This table indexes the core items; IDs never change. Items about one printer mod
 Two different orders, kept apart:
 
 - **The project's Phase 2** (design to release: desk closure, bench de-risk, board design, firmware, printables, validation, the reference installation, release) is proposed in [doc 15](15_phase2_plan.md). Validation gates the release of the boards; qualification gates each pack.
-- **A builder's install** follows D41's staging: exhaust core, then heating, then the monitoring extras, each ending with its installation checks ([doc 13 §3–§4](13_build_your_own.md#3-build-in-stages)). Stage 3 holds only monitoring features (doc 05 S-7), so it can slip without any safety impact.
+- **A builder's install** follows D41's staging: exhaust core, then heating, then the monitoring extras, each ending with its installation checks ([doc 14 §3–§4](14_build_your_own.md#3-build-in-stages)). Stage 3 holds only monitoring features (doc 05 S-7), so it can slip without any safety impact.
 
 ```mermaid
 flowchart LR

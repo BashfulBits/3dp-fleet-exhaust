@@ -1,12 +1,12 @@
 # 12 - Printer Packs: Adding a Printer
 
-> Design baseline, 2026-11-07 (D25), qualification added 2026-11-09 (D104). How the system meets one printer model: what a printer pack is, the contracts it fills in, how to write one, how a model is qualified as supported (§7), and the list of packs (§9). Exhaust fans have packs of their own ([doc 14](14_fan_packs.md)). Phase 1 defines the structure and the contracts. Phase 2 builds the core and the first two designed packs; links for other printer families get built by whoever needs them.
+> Design baseline, 2026-11-07 (D25), qualification added 2026-11-09 (D104). How the system meets one printer model: what a printer pack is, the contracts it fills in, how to write one, how a model is qualified as supported (§7), and the list of packs (§9). Exhaust fans have packs of their own ([doc 13](13_fan_packs.md)). Phase 1 defines the structure and the contracts. Phase 2 builds the core and the first two designed packs; links for other printer families get built by whoever needs them.
 
 ---
 
 ## 1. Core and printer packs
 
-The system splits into a **core** that every printer shares and a **printer pack** per printer model. Adding a printer means adding a pack; the core doesn't change. The core docs (01–11, 13) never name a printer model. Everything about one model that any owner of it could reuse lives in its pack.
+The system splits into a **core** that every printer shares and a **printer pack** per printer model. Adding a printer means adding a pack; the core doesn't change. The core docs (01–11, 14; fan packs in doc 13 name fan products, never printers) never name a printer model. Everything about one model that any owner of it could reuse lives in its pack.
 
 | Core (same for every printer) | Printer pack (one per model) |
 |---|---|
@@ -219,7 +219,7 @@ A pack **must** meet all of these. A profile can only make limits stricter; noth
 
 ## 7. Porting checklist and printer qualification
 
-A printer model becomes supported in two steps: the pack is **designed** on paper (§7.1), then **qualified** on a real unit (§7.2). Qualification proves only what depends on the printer: the design itself (boards, firmware, safety layers) is proven once, in validation ([`validation/`](../validation/README.md)), and every builder's own fleet is checked at installation ([doc 13 §4](13_build_your_own.md#4-install-and-commission)). It is one of three test steps (D104):
+A printer model becomes supported in two steps: the pack is **designed** on paper (§7.1), then **qualified** on a real unit (§7.2). Qualification proves only what depends on the printer: the design itself (boards, firmware, safety layers) is proven once, in validation ([`validation/`](../validation/README.md)), and every builder's own fleet is checked at installation ([doc 14 §4](14_build_your_own.md#4-install-and-commission)). It is one of three test steps (D104):
 
 | Step | Proves | Equipment |
 |---|---|---|
@@ -240,7 +240,7 @@ A printer model becomes supported in two steps: the pack is **designed** on pape
 
 ### 7.2 Qualification tests
 
-Run on one unit of the model, installed as a builder would (doc 13 §4), on boards and firmware that passed validation. Test mode is the firmware's mode for injecting faults and signals (doc 07 §8). Which tests apply:
+Run on one unit of the model, installed as a builder would (doc 14 §4), on boards and firmware that passed validation. Test mode is the firmware's mode for injecting faults and signals (doc 07 §8). Which tests apply:
 
 | Test | node-lite, Tier 0 | node-lite, Tier 1 / 2 / 2b | node-heat | Own chamber heater |
 |---|---|---|---|---|

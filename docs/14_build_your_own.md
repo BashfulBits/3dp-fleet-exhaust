@@ -1,4 +1,4 @@
-# 13 - Build Your Own: Quick Start
+# 14 - Build Your Own: Quick Start
 
 How to go from this repository to your own fleet. It points at the other docs rather than repeating them. Phase 2 (implementation) is still ahead, so treat the hardware and firmware steps as a plan: the boards and firmware are not built yet ([doc 15](15_phase2_plan.md) is the plan for them).
 
@@ -10,7 +10,7 @@ How to go from this repository to your own fleet. It points at the other docs ra
 
 ## 2. Plan your fleet
 
-1. Pick a **printer pack** for each printer from [`printers/`](../printers/) and a **fan pack** from [`fans/`](../fans/). A pack marked `qualified` is supported. A `designed` pack works on paper but hasn't been qualified on a real unit: installing it means running its qualification ([doc 12 §7](12_porting_guide.md#7-porting-checklist-and-printer-qualification), [doc 14 §4](14_fan_packs.md#4-fan-qualification)), which needs a multimeter and some patience, and makes you its first qualifier. A `stub` can't heat. For a printer with no pack, write one with the [printer-pack guide](12_porting_guide.md).
+1. Pick a **printer pack** for each printer from [`printers/`](../printers/) and a **fan pack** from [`fans/`](../fans/). A pack marked `qualified` is supported. A `designed` pack works on paper but hasn't been qualified on a real unit: installing it means running its qualification ([doc 12 §7](12_porting_guide.md#7-porting-checklist-and-printer-qualification), [doc 13 §4](13_fan_packs.md#4-fan-qualification)), which needs a multimeter and some patience, and makes you its first qualifier. A `stub` can't heat. For a printer with no pack, write one with the [printer-pack guide](12_porting_guide.md).
 2. Count the BOM for your fleet with the scaling table in [doc 03 §1.2](03_bill_of_materials.md#12-scaling-to-another-fleet).
 3. Answer the questions your packs leave to you, such as where each heated printer gets its heater power (each printer pack's §5).
 4. Keep your own record (which printers, plugs, supplies, room, hostnames, orders, and the installation report from §4) **outside this repository**. A private repository of your own that includes this one as a git submodule works well: pull the framework's updates, and send fixes and packs back upstream.
@@ -57,7 +57,7 @@ Everything here is done from the hub's dashboard, which walks through the steps 
 | Know what the boards and parts are | [02 Hardware](02_hardware_specification.md), [04 Wiring](04_wiring_and_pinouts.md) |
 | Price a build | [03 BOM](03_bill_of_materials.md) |
 | Trust it | [05 Safety](05_safety_and_failsafes.md), and how it is proven: [`validation/`](../validation/README.md) |
-| Plan the duct and filter, choose a fan | [06 Pneumatics](06_pneumatics_and_ducting.md), [08 Printable parts](08_printable_catalog.md), [14 Fan packs](14_fan_packs.md) |
+| Plan the duct and filter, choose a fan | [06 Pneumatics](06_pneumatics_and_ducting.md), [08 Printable parts](08_printable_catalog.md), [13 Fan packs](13_fan_packs.md) |
 | Add your printer or write the slicer side | [12 Printer packs](12_porting_guide.md), [07 Firmware and comms](07_firmware_and_comms.md) |
 | See why something is the way it is | [Design decisions](design_decisions.md) |
 

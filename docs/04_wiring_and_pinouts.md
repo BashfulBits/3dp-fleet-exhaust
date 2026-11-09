@@ -409,7 +409,7 @@ flowchart LR
 ```
 
 - **Printer link:** combined roles need a printer on the USB link, because AUX carries the smoke contact and the button. A printer on the UART link (`marlin_serial`, doc 12) keeps the two-board layout.
-- **Exhaust fan:** it must be a 4-wire PWM fan, or an EC fan whose 0–10 V or 10 V PWM input is pulled up from its own +10 V reference (CTRL, D95), so that it runs at full speed while the board is silent (F3, doc 02 §6). A plain on/off fan on B2 stops with the board and is not allowed as the exhaust, on a combined board or on the hub. A fan with a proprietary control port uses one of B2's jacks, or an adapter, once its pinout is mapped (VAL-X2) and F3 is shown in its fan pack's qualification (FQ-6). Supported fans are the fan packs (doc 14, D105).
+- **Exhaust fan:** it must be a 4-wire PWM fan, or an EC fan whose 0–10 V or 10 V PWM input is pulled up from its own +10 V reference (CTRL, D95), so that it runs at full speed while the board is silent (F3, doc 02 §6). A plain on/off fan on B2 stops with the board and is not allowed as the exhaust, on a combined board or on the hub. A fan with a proprietary control port uses one of B2's jacks, or an adapter, once its pinout is mapped (VAL-X2) and F3 is shown in its fan pack's qualification (FQ-6). Supported fans are the fan packs (doc 13, D105).
 
 **Fan ports, fan A and B2 (D84, D85, D95).** JST-XH 6 on every carrier, the same pinout on both. B2 is the exhaust fan port on the hub too (D85); fan A carries the hub's second exhaust fan from ≈ 9 printers (D95):
 
@@ -422,7 +422,7 @@ flowchart LR
 | 5 | REF: the fan's own +10 V, in | – | – | Fan +10 V reference out |
 | 6 | CTRL: push-pull buffer powered from REF (D97), switched low by a 2N7002 on the same GPIO as pin 4 | – | – | Fan speed input |
 
-- **Jumpers (D95, D97):** **DC** (RC filter in the CTRL line, for a fan that reads 0–10 V but not PWM; off by default). STRONG went in D97: the CTRL buffer drives a stiff input (≈ 7.9 V at 5 mA) and draws ≈ 0.45 mA from REF while low, so it can't overload a ≈ 1 mA reference. B2 also has **SWAP** (2 × 3, two shunts) on its USB-C jack: straight by default (D+ → CTRL, D− → TACH), crossed where the fan's pack says so (doc 14). The setting is found once per fan model when it is qualified (FQ-3, D98). A wrong setting damages nothing; it leaves the fan at its own no-signal speed with no tach, which raises "B2 fan not under control" (doc 05 §4).
+- **Jumpers (D95, D97):** **DC** (RC filter in the CTRL line, for a fan that reads 0–10 V but not PWM; off by default). STRONG went in D97: the CTRL buffer drives a stiff input (≈ 7.9 V at 5 mA) and draws ≈ 0.45 mA from REF while low, so it can't overload a ≈ 1 mA reference. B2 also has **SWAP** (2 × 3, two shunts) on its USB-C jack: straight by default (D+ → CTRL, D− → TACH), crossed where the fan's pack says so (doc 13). The setting is found once per fan model when it is qualified (FQ-3, D98). A wrong setting damages nothing; it leaves the fan at its own no-signal speed with no tach, which raises "B2 fan not under control" (doc 05 §4).
 - **At reset or unpowered:** both FETs are off, so pin 4 floats to a 4-wire fan's own pull-up and CTRL sits at the fan's 10 V: either fan runs at full speed (Intel 4-wire behaviour [E]; the CTRL buffer at ≈ 9.4 V, D95, D97).
 - **B2 external jacks (D95, doc 02 §2.2.7):** in parallel with pins 1, 3, 5 and 6, one fan at a time:
 

@@ -11,8 +11,8 @@ Testing is split by who runs it and with what (D104). Each step has its own home
 | Step | Purpose | Who | Equipment | Runs | Home |
 |---|---|---|---|---|---|
 | **1 Validation** (`VAL-…`) | Prove the core design: boards, firmware behaviour, sensors, the duct parts, the fan port | The project, on prototype boards | Lab bench: see §3 | Once per hardware or firmware revision, on bring-up boards | This folder |
-| **2 Qualification** (`PQ-…`, `FQ-…`) | Admit one printer model or one fan model as supported | Whoever owns one, usually the pack author | The system itself (dashboard, test modes) and a multimeter. Nothing else | Once per model, on at least one unit | Printers: [doc 12 §7](../docs/12_porting_guide.md#7-porting-checklist-and-printer-qualification). Fans: [doc 14 §4](../docs/14_fan_packs.md#4-fan-qualification) |
-| **3 Installation** (`INS-…`) | Put a fleet into service | The builder | None: hand tools and a phone or laptop on the dashboard. Every check is automatic or a button | Once per fleet, and again after a change | [Doc 13 §4](../docs/13_build_your_own.md#4-install-and-commission) |
+| **2 Qualification** (`PQ-…`, `FQ-…`) | Admit one printer model or one fan model as supported | Whoever owns one, usually the pack author | The system itself (dashboard, test modes) and a multimeter. Nothing else | Once per model, on at least one unit | Printers: [doc 12 §7](../docs/12_porting_guide.md#7-porting-checklist-and-printer-qualification). Fans: [doc 13 §4](../docs/13_fan_packs.md#4-fan-qualification) |
+| **3 Installation** (`INS-…`) | Put a fleet into service | The builder | None: hand tools and a phone or laptop on the dashboard. Every check is automatic or a button | Once per fleet, and again after a change | [Doc 14 §4](../docs/14_build_your_own.md#4-install-and-commission) |
 
 ```mermaid
 flowchart LR
@@ -63,7 +63,7 @@ These moved here from the core register (doc 01 §7), which now only indexes the
 
 | # | Item | Impact | Closes at | Blocks |
 |---|---|---|---|---|
-| **R1** | Exhaust-fan control port and silent-hub behaviour for a fan with a proprietary controller (F3, D10) | Hub may not set speed; "hub dead → fan keeps running" may be impossible | VAL-X2 maps the port, then the fan's own qualification (doc 14, FQ-6) shows F3. Per fan family, tracked in its fan pack | That fan family's pack |
+| **R1** | Exhaust-fan control port and silent-hub behaviour for a fan with a proprietary controller (F3, D10) | Hub may not set speed; "hub dead → fan keeps running" may be impossible | VAL-X2 maps the port, then the fan's own qualification (doc 13, FQ-6) shows F3. Per fan family, tracked in its fan pack | That fan family's pack |
 | R4 | XGZP6897D offset drift (all six sensors) | Noisy chamber loop; trunk setpoint error | VAL-A1 (was M4): sets the deadband, Z4 and plausibility limits, and whether the venturi keeps the XGZP or gets an SDP31 | Release |
 | R6 | ESP32-S3 radio range near metal frames, with the module in the node housing on a damper (D19) | Moonraker link drops (the backup on every node, the only link without `cdc_acm`); ESP-NOW backup | VAL-F3 records RSSI against distance and sets the alert level the installation self-check uses (INS-4); a pack whose only link is Moonraker checks it in PQ-3 | — |
 | R8 | Integrated-fan PTC (C8): stall detection without a tach | Undetected fan stall | VAL-H6 on the chosen module, before buying more than one. Fallback: bare PTC + a 3-wire blower (+$8) | Heater BOM; release |

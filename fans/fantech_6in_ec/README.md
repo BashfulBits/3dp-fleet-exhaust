@@ -1,12 +1,12 @@
 # 6″ mains EC, 0–10 V input with +10 V reference (Fantech prioAir 6 EC, FG 6M EC / FGC 6M EC) — fan pack
 
-> Structure and the profile schema: [doc 14](../../docs/14_fan_packs.md). Requirements FN-1…FN-10: [doc 02 §6.1](../../docs/02_hardware_specification.md#61-requirements). Paths to core docs are relative to this folder.
+> Structure and the profile schema: [doc 13](../../docs/13_fan_packs.md). Requirements FN-1…FN-10: [doc 02 §6.1](../../docs/02_hardware_specification.md#61-requirements). Paths to core docs are relative to this folder.
 
 ## 1. Summary
 
 | Item | Value |
 |---|---|
-| Status | **designed** (doc 14 §5) |
+| Status | **designed** (doc 13 §5) |
 | Family | `ec_0_10v` |
 | Duct | 6″ |
 | Connection | B2 4-pole terminal header: red → REF, yellow → CTRL, blue → GND, white → TACH; B2 pin 2 not connected |
@@ -39,4 +39,4 @@ Bare leads to B2's terminal header (or pins 1, 3, 5 and 6 of the XH 6). B2 pin 2
 
 ## 5. Qualification results
 
-None yet (doc 14 §4).
+None yet (doc 13 §4).

@@ -384,7 +384,7 @@ flowchart TB
 | 3.5 mm TRRS | PJ-320A class (C2884926; C3038674 is cheaper but thinly stocked) | +10 V → REF, 0–10 V/PWM → CTRL, GND → GND, tach → TACH | TerraBloom ECMF series, on a plain male-to-male TRRS cable [V: signals, maker manual; U: which contact is which] |
 | 4-pole 3.5 mm pluggable terminal header | 15EDGRC class (C5188297, $0.078), push-in plug of the 15EDGKNH class (no screw terminal) | REF, CTRL, GND, TACH | Bare-lead EC fans (Fantech, ebm-papst: +10 V, 0–10 V, GND, tach), and TerraBloom's own breakout cable |
 
-A laptop or charger in the USB-C jack sees only Rd and supplies 5 V, which feeds just the CTRL buffer. The USB-C pinout comes from hobby projects that disagree on which data line carries PWM, so the **SWAP** jumper (2 × 3 header, two shunts; default D+ → CTRL) crosses them. Its setting is a property of the fan model: it is found once, in the qualification of the fan model (doc 14, FQ-3), and recorded in its fan pack, so a builder fits it from the pack (D98); a hobby controller that works with these fans pulls PWM to 10 V through 1 kΩ, a load the CTRL buffer drives at ≈ 7.9 V or more [U]. The ESD diodes on REF, CTRL and TACH at these jacks are rated above 10 V, not the 5 V class used elsewhere. The housing has an opening per jack with a printed snap-in blank and a label, and the fan USB-C sits well apart from the printer-link USB-C. **No RJ12:** brands' pinouts are unpublished and differ, and an RJ12 plug fits the RJ45 bus jack. Fan A has only its XH 6.
+A laptop or charger in the USB-C jack sees only Rd and supplies 5 V, which feeds just the CTRL buffer. The USB-C pinout comes from hobby projects that disagree on which data line carries PWM, so the **SWAP** jumper (2 × 3 header, two shunts; default D+ → CTRL) crosses them. Its setting is a property of the fan model: it is found once, in the qualification of the fan model (doc 13, FQ-3), and recorded in its fan pack, so a builder fits it from the pack (D98); a hobby controller that works with these fans pulls PWM to 10 V through 1 kΩ, a load the CTRL buffer drives at ≈ 7.9 V or more [U]. The ESD diodes on REF, CTRL and TACH at these jacks are rated above 10 V, not the 5 V class used elsewhere. The housing has an opening per jack with a printed snap-in blank and a label, and the fan USB-C sits well apart from the printer-link USB-C. **No RJ12:** brands' pinouts are unpublished and differ, and an RJ12 plug fits the RJ45 bus jack. Fan A has only its XH 6.
 
 **Output feeds (D57, D94).** Fan A and B1 take their 24 V from the bus through a **0.75 A hold, 1.5 A trip, 60 V** resettable fuse (2018L075/60GR class, C33977642), so a shorted lead opens it before the segment or injection limit trips and the rest of the chain stays up. A 5015 blower draws 0.18 A [V]; the PTC module's fan is [U] until R8. From D78 to D94 fan A and B1 had a two-leg feed, from the heater rail while it was live and from the bus otherwise; D94 put them back on the bus, since B2 no longer shares their fuse and a heating node's own supply feeds its bus. When every output on one fuse stops at once, the firmware raises an output-fault alert. On a node-heat the firmware keeps fan A and B1 off while no heater supply is live (D78, D94), and both off while the bus reads 30–34 V.
 
@@ -602,7 +602,7 @@ By default the heater runs from **its own printer's internal 24 V supply**. An *
 
 ## 6. Exhaust fan
 
-The framework sets what an exhaust fan must do (§6.1); each product that meets it gets a **fan pack** in [`fans/`](../fans/), with its maker data, connection, settings and qualification results ([doc 14](14_fan_packs.md), D105). Each build picks a fan from the packs and records it in its own fleet record.
+The framework sets what an exhaust fan must do (§6.1); each product that meets it gets a **fan pack** in [`fans/`](../fans/), with its maker data, connection, settings and qualification results ([doc 13](13_fan_packs.md), D105). Each build picks a fan from the packs and records it in its own fleet record.
 
 ### 6.1 Requirements
 
@@ -620,7 +620,7 @@ The framework sets what an exhaust fan must do (§6.1); each product that meets 
 | FN-9 | Noise | Should run at or below the printers' own noise at bleed speed; full speed is used only during a purge | P-6 |
 | FN-10 | Second fan (9–15 printers) | A 4-wire PWM fan meeting FN-2, in series with the main fan downstream of the filter, on **fan A** of the hub, from its **own 24 V brick** through a passive adapter (pin 2 not connected); the brick's −V must float from mains earth (Mean Well GST60A24 class, ≈ 60 W: −V not connected to the earth pin [V: maker spec]); or a 6″ mains EC fan in place of the pair | D95, doc 06 §2 |
 
-A fan with a proprietary controller qualifies only once its control port is mapped to FN-5, through one of B2's jacks or an adapter (validation, VAL-X2), and FN-6 is shown in its qualification (doc 14, FQ-6).
+A fan with a proprietary controller qualifies only once its control port is mapped to FN-5, through one of B2's jacks or an adapter (validation, VAL-X2), and FN-6 is shown in its qualification (doc 13, FQ-6).
 
 **How bought fans connect (D95).** Three wiring families cover the fans checked:
 - **4-wire PWM** (120 mm and similar): GND, V+, tach (open collector, 2 pulses/rev), PWM (21–28 kHz, pulled up in the fan to ≤ 5.25 V, full speed when open) [V: Intel 4-wire specification as quoted in Noctua's PWM white paper]. Pins 1–4.
@@ -630,7 +630,7 @@ A fan with a proprietary controller qualifies only once its control port is mapp
 
 ### 6.2 Fan packs (D105)
 
-The status table, the evidence behind each status and the bench check that used to be here are now the fan packs and their qualification: the list and statuses are in [doc 14 §5](14_fan_packs.md#5-fan-pack-list), the qualification tests (FQ-1…FQ-8, which replace the bench check) in [doc 14 §4](14_fan_packs.md#4-fan-qualification), and each product's maker data and settings in its pack. **No fan is qualified yet.** In short:
+The status table, the evidence behind each status and the bench check that used to be here are now the fan packs and their qualification: the list and statuses are in [doc 13 §5](13_fan_packs.md#5-fan-pack-list), the qualification tests (FQ-1…FQ-8, which replace the bench check) in [doc 13 §4](13_fan_packs.md#4-fan-qualification), and each product's maker data and settings in its pack. **No fan is qualified yet.** In short:
 
 | Fan (class) | Pack status | Printers |
 |---|---|---|

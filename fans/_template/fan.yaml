@@ -1,9 +1,9 @@
-# Fan profile (schema: doc 14 §3). Copy this pack to fans/<vendor>_<model>/.
+# Fan profile (schema: doc 13 §3). Copy this pack to fans/<vendor>_<model>/.
 # Unknown keys are rejected.
 schema: 1
 id: vendor_model          # same as the folder name
 name: Vendor Model
-status: stub              # stub | designed | qualified (doc 14 §5)
+status: stub              # stub | designed | qualified (doc 13 §5)
 family: pwm_4wire         # pwm_4wire | ec_0_10v | ec_usbc | ec_trrs
 duct_in: 4                # 4 or 6
 port: b2_pins_1_4         # b2_pins_1_4 | b2_terminal | b2_usbc | b2_trrs | fan_a

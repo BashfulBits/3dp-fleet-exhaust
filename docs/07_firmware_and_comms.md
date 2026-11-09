@@ -367,9 +367,9 @@ stateDiagram-v2
 - Served on the LAN (Wi-Fi, or the hub's wired LAN jack, D18) at `http://fleet-hub.local`, and on the hub's own network `fleet-hub` at `http://192.168.4.1` when the router is down (§11.4).
 - **Live view:** per-printer chamber temperature/target, RH, VOC, ΔP, damper, heater %, door, mode, purge progress; trunk ΔP, **trunk flow** (venturi above ~20 CFM, anemometer below, D30–D33), each printer's bleed trend, fan speed, filter ΔP and life estimate, room T/RH/VOC; Shelly power per printer; purge queue.
 - **Event log** and fault history.
-- **Profiles:** each node's printer profile (doc 12 §4) and the hub's fan profile (doc 14 §3), loaded from the packs.
-- **Installation wizard (D104):** walks a builder through INS-1…INS-10 (doc 13 §4) in order: the first-boot self-check of every board (supplies, CAN terminations, links and radio strength, sensors, damper sweep, the heater chain with the charge pump stopped), the automatic bus load check, the per-printer plug check, the duct sweep, the characterise run against the pack's qualified ranges and the first prints. It needs no instrument, and ends with a downloadable installation report.
-- **Settings:** Wi-Fi, notification URLs, Shelly IPs, Moonraker hosts, tuning, test modes (for validation, qualification and the installation checks: `validation/`, doc 12 §7, doc 14 §4, doc 13 §4).
+- **Profiles:** each node's printer profile (doc 12 §4) and the hub's fan profile (doc 13 §3), loaded from the packs.
+- **Installation wizard (D104):** walks a builder through INS-1…INS-10 (doc 14 §4) in order: the first-boot self-check of every board (supplies, CAN terminations, links and radio strength, sensors, damper sweep, the heater chain with the charge pump stopped), the automatic bus load check, the per-printer plug check, the duct sweep, the characterise run against the pack's qualified ranges and the first prints. It needs no instrument, and ends with a downloadable installation report.
+- **Settings:** Wi-Fi, notification URLs, Shelly IPs, Moonraker hosts, tuning, test modes (for validation, qualification and the installation checks: `validation/`, doc 12 §7, doc 13 §4, doc 14 §4).
 - **Acknowledge** (same as the panel button and Pushover's acknowledge) silences an alert. **Clear** (PIN) ends a latched lockout or, together with the node's CLEAR button at the printer, a cut (doc 05 §4.1). They are separate buttons on purpose.
 - Read-only without a PIN; settings and test modes need a PIN stored in NVS.
 

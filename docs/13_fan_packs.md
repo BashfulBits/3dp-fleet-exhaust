@@ -1,4 +1,4 @@
-# 14 - Fan Packs: Adding an Exhaust Fan
+# 13 - Fan Packs: Adding an Exhaust Fan
 
 > Design baseline, 2026-11-09 (D105). How a bought exhaust fan becomes supported: what a fan pack is, the profile the hub reads, how a fan model is qualified, and the list of fan packs. The requirements every exhaust fan must meet stay in [doc 02 §6.1](02_hardware_specification.md#61-requirements) (FN-1…FN-10); this doc is how a product is shown to meet them. Printers have packs of their own ([doc 12](12_porting_guide.md)); fan packs follow the same pattern and are simpler.
 >

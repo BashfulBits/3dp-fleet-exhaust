@@ -1,8 +1,8 @@
-# Fan profile (schema: doc 14 §3). Unknown keys are rejected.
+# Fan profile (schema: doc 13 §3). Unknown keys are rejected.
 schema: 1
 id: ac_infinity_cloudline_t6
 name: "6″ grow EC with a USB-C-shaped port (AC Infinity Cloudline T6 class; Vivosun)"
-status: stub              # stub | designed | qualified (doc 14 §5)
+status: stub              # stub | designed | qualified (doc 13 §5)
 family: ec_usbc
 duct_in: 6
 port: b2_usbc

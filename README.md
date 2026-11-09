@@ -13,7 +13,7 @@ An open-source exhaust, filtration and chamber-heating system for a small fleet 
 
 None of it can shut down Klipper or kill a print.
 
-**Status:** Phase 1 design baseline, decisions D1–D105. What it can do and its limits are in [doc 01](docs/01_system_architecture.md), the requirements in [doc 10](docs/10_requirements.md), and example systems at the edges of what it supports in [doc 11](docs/11_use_envelope.md). Phase 2 (implementation) is proposed in [doc 15](docs/15_phase2_plan.md). Testing is in three steps: the project validates the design on prototype boards ([`validation/`](validation/README.md)), a pack author qualifies each printer or fan model, and a builder installs with checks the dashboard runs, with no test equipment ([doc 13](docs/13_build_your_own.md)).
+**Status:** Phase 1 design baseline, decisions D1–D105. What it can do and its limits are in [doc 01](docs/01_system_architecture.md), the requirements in [doc 10](docs/10_requirements.md), and example systems at the edges of what it supports in [doc 11](docs/11_use_envelope.md). Phase 2 (implementation) is proposed in [doc 15](docs/15_phase2_plan.md). Testing is in three steps: the project validates the design on prototype boards ([`validation/`](validation/README.md)), a pack author qualifies each printer or fan model, and a builder installs with checks the dashboard runs, with no test equipment ([doc 14](docs/14_build_your_own.md)).
 
 ---
 
@@ -53,8 +53,8 @@ The CAT6 daisy chain carries 24 V logic power and CAN, with ESP-NOW radio as a b
 | [10 Requirements](docs/10_requirements.md) | The requirements the design meets, traced to the decisions and to the tests that prove them |
 | [11 Use envelope](docs/11_use_envelope.md) | The limits of use (fleet size, cable length, power, links, heat) and hypothetical systems at those limits |
 | [12 Printer packs](docs/12_porting_guide.md) | How a printer pack is made: link tiers, profile schema, mechanical interface, safety contract, **printer qualification**; the pack list |
-| [13 Build your own](docs/13_build_your_own.md) | Quick start: does it fit, plan your fleet, staged build, **installation checks**, reading order |
-| [14 Fan packs](docs/14_fan_packs.md) | How an exhaust fan is supported: fan profile, fan qualification, the fan pack list |
+| [13 Fan packs](docs/13_fan_packs.md) | How an exhaust fan is supported: fan profile, fan qualification, the fan pack list |
+| [14 Build your own](docs/14_build_your_own.md) | Quick start: does it fit, plan your fleet, staged build, **installation checks**, reading order |
 | [15 Phase 2 plan](docs/15_phase2_plan.md) | Proposed: what can close on paper now, the phases and their gates |
 | [Validation](validation/README.md) | Design validation on prototype boards: procedures, test status, rework log |
 | [Design decisions](docs/design_decisions.md) | Decision record D1–D105, the cost-reduction pass and the trade studies behind them |
@@ -65,7 +65,7 @@ The CAT6 daisy chain carries 24 V logic power and CAN, with ESP-NOW radio as a b
 ├── LICENSES/                # Licence texts (REUSE); source files carry SPDX headers
 ├── docs/                    # Design documents (this baseline)
 ├── printers/                # Printer packs (doc 12 §9): _template plus one folder per model
-├── fans/                    # Fan packs (doc 14 §5): _template plus one folder per fan model or class
+├── fans/                    # Fan packs (doc 13 §5): _template plus one folder per fan model or class
 ├── validation/              # Design validation: procedures, status, rework log, results/
 ├── firmware/
 │   ├── fleet_node/          # One ESP-IDF project: node-heat, node-lite and hub roles

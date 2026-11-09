@@ -194,7 +194,7 @@ The hub reads the plug back after every cut command and treats "still on after 5
 | Wi-Fi lost | Everything | No safety impact. CAN and USB carry on; alerts queue until it's back; panel LED shows amber | Continues | Panel only, then push when restored |
 | Hub crash / reboot | Nodes (CAN heartbeat) | Nodes turn heaters off after 30 s without the hub (no mains-cut backstop from the hub; the `shelly_node` / `tasmota_node` cut still works for RW-a) and resume when it's back; dampers hold their last angle or keep their chamber loops running (open item O14, doc 01 §7); the fan keeps running (F3, R1) | Continues | High via printer `_NOTIFY` if > 60 s |
 | **Exhaust lost** (fan fault: trunk ΔP not reached with fan commanded) | Hub | Alert. Dampers stay open (passive venting via the backdraft flap path). After the print, nodes hold dampers closed and the message says "vent manually" | **Finishes** | **High** |
-| **Exhaust fan not under control** (D98): tach and trunk ΔP don't follow the commanded duty (no response to a ≥ 50 % change for 30 s [E]) | Hub | Alert naming the likely causes: SWAP or DC set against the fan's pack (doc 14), the control cable, or a fan running at its own no-signal speed. The trunk loop carries on with whatever flow the fan gives; if the setpoint is not reached, the Exhaust lost row applies | Continues | High |
+| **Exhaust fan not under control** (D98): tach and trunk ΔP don't follow the commanded duty (no response to a ≥ 50 % change for 30 s [E]) | Hub | Alert naming the likely causes: SWAP or DC set against the fan's pack (doc 13), the control cable, or a fan running at its own no-signal speed. The trunk loop carries on with whatever flow the fan gives; if the setpoint is not reached, the Exhaust lost row applies | Continues | High |
 | Filter loading high | Hub filter ΔP vs fan-speed curve | — | — | Daily digest + panel amber |
 | Filter blocked (severe) | Hub | — | Continues | **High** + panel red/buzzer if unacknowledged 15 min |
 | Damper stuck or slipped | Node: **encoder angle doesn't follow the command** (> 5° for 5 s, D30), fan on or off; backed by the ΔP check (commanded change with no ΔP response) | Stop the servo pulses, so a jam can't hold the servo at stall current on the power buck (D56); try a gentle re-seat (≤ 1 s drive, ≥ 30 s apart) | Continues | High if stuck closed during a print, normal otherwise |
@@ -383,8 +383,8 @@ Until 2026-11-09 this section held one list of commissioning tests (1–36), run
 | Step | Who | Equipment | Home |
 |---|---|---|---|
 | **Validation** (`VAL-…`) | The project, on prototype boards | Lab bench | [`validation/procedures.md`](../validation/procedures.md) |
-| **Qualification** (`PQ-…`, `FQ-…`) | The author of a printer or fan pack | Dashboard, test modes and a multimeter | [Doc 12 §7](12_porting_guide.md#7-porting-checklist-and-printer-qualification), [doc 14 §4](14_fan_packs.md#4-fan-qualification) |
-| **Installation** (`INS-…`) | The builder | None | [Doc 13 §4](13_build_your_own.md#4-install-and-commission) |
+| **Qualification** (`PQ-…`, `FQ-…`) | The author of a printer or fan pack | Dashboard, test modes and a multimeter | [Doc 12 §7](12_porting_guide.md#7-porting-checklist-and-printer-qualification), [doc 13 §4](13_fan_packs.md#4-fan-qualification) |
+| **Installation** (`INS-…`) | The builder | None | [Doc 14 §4](14_build_your_own.md#4-install-and-commission) |
 
 **No unattended heated printing** until the boards' revision has passed validation, the printer's pack is `qualified`, and that fleet's installation checks have passed. The table below keeps the old numbers so older references still resolve.
 

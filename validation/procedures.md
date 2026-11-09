@@ -266,7 +266,7 @@ On the reference printers: purge timing and VOC behaviour over ten ABS prints; c
 ### VAL-A5 Low-flow anemometer: protection and calibration (was test 28 and M9, D32)
 1. With the fan off, block the probe airflow and command full heater duty in test mode: the firmware holds the element at ≤ 80 °C and ΔT ≤ 30 K. Unplug the heated NTC: the heater turns off and a digest item is posted.
 2. Static zero, then the 10 mm and 15 mm reference venturis in turn in the hub spool's calibration slot, fan stepped through its lowest speeds with one branch open; record reference flow vs element conductance from ~0.5 to 5 CFM, on three probes.
-3. If the three curves agree within the doc 06 §4.4 accuracy, publish one **default curve** in the firmware and drop the reference venturis from installation (D104 proposal; an installation then runs only the automatic static zero). Otherwise keep a per-installation calibration and say so in doc 13.
+3. If the three curves agree within the doc 06 §4.4 accuracy, publish one **default curve** in the firmware and drop the reference venturis from installation (D104 proposal; an installation then runs only the automatic static zero). Otherwise keep a per-installation calibration and say so in doc 14.
 
 ### VAL-A6 Venturi spot check (was M8, spot check)
 With one branch open at several flows, compare the venturi reading with a vane anemometer at the outlet. *Sets:* the venturi coefficient in firmware.
@@ -295,4 +295,4 @@ Print a Y, two hose adapters and a gasket to doc 08 §3c's settings. Assemble a 
 3. Disconnect the controller with the fan running, then power the fan with no controller: record whether it runs, stops or refuses to start (F3).
 4. Connect the port to B2 through the matching jack or an adapter: speed follows the duty, and the fan runs at full speed with the hub held in reset.
 
-*Result:* the pinout, levels and F3 behaviour go into the fan's pack (doc 14) as [V] facts, and R1 closes for that family. A family that fails step 3 or 4 is *not suitable*.
+*Result:* the pinout, levels and F3 behaviour go into the fan's pack (doc 13) as [V] facts, and R1 closes for that family. A family that fails step 3 or 4 is *not suitable*.

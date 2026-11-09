@@ -1,6 +1,6 @@
 # 15 - Phase 2 Plan (proposed)
 
-> **Status: proposed, 2026-11-09, for discussion.** Phase 1 (the design baseline, D1–D105) is mostly complete. This doc proposes how Phase 2 gets from the design to a release that builders can install: what can close on paper now (§2), the phases and their gates (§3), and what runs in parallel (§4). Test IDs are those of the three test steps (D104): `VAL-…` validation ([`validation/`](../validation/README.md)), `PQ-…` / `FQ-…` qualification ([doc 12 §7](12_porting_guide.md#7-porting-checklist-and-printer-qualification), [doc 14 §4](14_fan_packs.md#4-fan-qualification)), `INS-…` installation ([doc 13 §4](13_build_your_own.md#4-install-and-commission)).
+> **Status: proposed, 2026-11-09, for discussion.** Phase 1 (the design baseline, D1–D105) is mostly complete. This doc proposes how Phase 2 gets from the design to a release that builders can install: what can close on paper now (§2), the phases and their gates (§3), and what runs in parallel (§4). Test IDs are those of the three test steps (D104): `VAL-…` validation ([`validation/`](../validation/README.md)), `PQ-…` / `FQ-…` qualification ([doc 12 §7](12_porting_guide.md#7-porting-checklist-and-printer-qualification), [doc 13 §4](13_fan_packs.md#4-fan-qualification)), `INS-…` installation ([doc 14 §4](14_build_your_own.md#4-install-and-commission)).
 
 ---
 
@@ -25,8 +25,8 @@ These need no prototype and no test equipment. Each says what closes it and, whe
 | D104-c | R11: one reference measurement (VAL-H9) plus link-error checks per pack (PQ-6), in place of a clamp-meter measurement on every node-heat | Agree |
 | D104-d | M9: calibrate the anemometer once in validation and ship a default curve; installations run only the static zero (VAL-A5) | Agree, provided three probes agree; the reference venturis then leave the per-fleet BOM |
 | D104-e | INS-4 heater-chain self-check: a short low-duty heater pulse with the charge pump stopped, at first power-up with an empty chamber (O19) | Agree; it is the only per-board heater check a builder makes |
-| D104-f | Heating on a `designed` printer pack: allowed, with a dashboard warning, as that pack's qualification (doc 13 §4) | Agree; the alternative (heating only on `qualified`) blocks the first qualifier |
-| D105-a | The hub reads a fan profile (`fan.yaml`, doc 14 §3) as a node reads its printer profile | Agree; it replaces hand-entered tach and jumper settings |
+| D104-f | Heating on a `designed` printer pack: allowed, with a dashboard warning, as that pack's qualification (doc 14 §4) | Agree; the alternative (heating only on `qualified`) blocks the first qualifier |
+| D105-a | The hub reads a fan profile (`fan.yaml`, doc 13 §3) as a node reads its printer profile | Agree; it replaces hand-entered tach and jumper settings |
 
 ### 2.2 Research
 

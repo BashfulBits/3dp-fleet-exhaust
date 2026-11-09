@@ -1,8 +1,8 @@
-# Fan profile (schema: doc 14 §3). Unknown keys are rejected.
+# Fan profile (schema: doc 13 §3). Unknown keys are rejected.
 schema: 1
 id: terrabloom_ecmf150
 name: "6″ grow EC with a TRRS port (TerraBloom ECMF-150 class)"
-status: stub              # stub | designed | qualified (doc 14 §5)
+status: stub              # stub | designed | qualified (doc 13 §5)
 family: ec_trrs
 duct_in: 6
 port: b2_trrs

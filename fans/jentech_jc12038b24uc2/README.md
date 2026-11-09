@@ -1,12 +1,12 @@
 # 24 V 120 × 38 mm 4-wire PWM, high pressure (Jentech JC12038B24UC2 class) — fan pack
 
-> Structure and the profile schema: [doc 14](../../docs/14_fan_packs.md). Requirements FN-1…FN-10: [doc 02 §6.1](../../docs/02_hardware_specification.md#61-requirements). Paths to core docs are relative to this folder.
+> Structure and the profile schema: [doc 13](../../docs/13_fan_packs.md). Requirements FN-1…FN-10: [doc 02 §6.1](../../docs/02_hardware_specification.md#61-requirements). Paths to core docs are relative to this folder.
 
 ## 1. Summary
 
 | Item | Value |
 |---|---|
-| Status | **designed** (doc 14 §5) |
+| Status | **designed** (doc 13 §5) |
 | Family | `pwm_4wire` |
 | Duct | 4″ |
 | Connection | B2 XH 6 pins 1–4; supply from the fan tap (pin 2) |
@@ -40,4 +40,4 @@ Pins 1–4 of B2 (GND, +24 V from the fan tap, tach, PWM) through a 4-pin fan le
 
 ## 5. Qualification results
 
-None yet (doc 14 §4).
+None yet (doc 13 §4).
