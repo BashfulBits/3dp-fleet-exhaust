@@ -53,7 +53,7 @@ flowchart TB
 | Configuration | NVS: Wi-Fi credentials, notification URLs (hub), Moonraker host (nodes), Shelly IPs (hub), tuning values. Set from the hub web page; nodes receive theirs over CAN. |
 | Secrets | Never in the repo. `secrets.example.h` documents the fields. |
 | Logging | Ring buffer of events in RAM, flushed to LittleFS hourly; shown on the dashboard. |
-| Debugging | JTAG over the carrier's USB-C (the module's native USB) in a debug USB mode, the UART0 console header, core dumps, and a hold on the carrier I/O controller for its SWD header; no probe or pin change on the ESP32 (§11.8, D65) |
+| Debugging | JTAG over the carrier's USB-C (the module's native USB) in a debug USB mode, the UART0 console header, core dumps, and a hold on the carrier I/O controller for its SWD header; no probe or pin change on the ESP32 (§11.8, D65); an unpopulated probe header for a logic analyser on the ESP32's safety, CAN and fan signals (D99) |
 | Sensors | Drivers are plugins behind one interface, and the installed sensors come from a config, not from code (§2.1, D55). |
 
 Tasks and what each drives:
@@ -561,7 +561,7 @@ flowchart TD
   D -->|"yes"| OK["Healthy;<br>back-fed ends"]
 ```
 
-### 11.8 Debugging (D65, D68, D72)
+### 11.8 Debugging (D65, D68, D72, D99)
 
 **ESP32: UART0 console header (D72).** GPIOs 43/44 and GND on a 1 × 3 2.54 mm header take a 3.3 V USB-UART adapter. It carries the ESP-IDF console and log output whatever the native USB is doing, so it is the console while the printer link holds the USB port. With BOOT held through a reset (a power cycle), the ROM bootloader listens on it, so `esptool` can reflash a board whose native USB is misconfigured.
 
@@ -576,6 +576,8 @@ flowchart TD
 | Never | Burn `USB_PHY_SEL`: it moves the PHY permanently. The JTAG eFuses are only for pad JTAG (below) |
 
 **ESP32: pad JTAG while the printer link runs (D68).** GPIOs 39–42 go only to a **1 × 6 2.54 mm JTAG header** (3.3 V, TMS, TCK, TDO, TDI, GND) for an ESP-Prog-class FT2232H probe with OpenOCD. The printer link keeps the USB port, so a fault that only shows while printing can be debugged live. It needs the `STRAP_JTAG_SEL` eFuse burned once on that board (GPIO 3, held low at reset by the fan A enable pull-down, then selects pad JTAG), or `DIS_USB_JTAG`. A burned board can no longer use JTAG over USB (the USB serial console still works); an unburned board uses the debug USB mode above [V: ESP-IDF "Configure Other JTAG Interface": GPIO 3 low at reset selects GPIOs 39–42; burning `DIS_USB_JTAG` leaves the USB CDC console working]. Breakpoints behave as in the table: heating is safe at a halt.
+
+**ESP32: logic analyser (D99).** A 2 × 10 1.27 mm probe header, fitted on bring-up boards and left off in production, carries the charge-pump wave, heater PWM and current, the high-side and KSD301 senses, CAN, EN, I²C, the heater voltages and fan A (doc 04 §4a). A breakout turns it into 2.54 mm pins. It is read-only: nothing on it needs to be driven, and no firmware setting changes for it.
 
 **ESP32: without a laptop.** A crash writes an ESP-IDF **core dump** to its flash partition, and the dashboard offers it for download, for `idf.py coredump-info` (backtrace, tasks, variables). The optional **runtime GDB stub** on UART0 (the carrier's 1 × 3 console header, D72) lets GDB stop and inspect a running node while the printer link stays up, with fewer breakpoints than JTAG [E].
 

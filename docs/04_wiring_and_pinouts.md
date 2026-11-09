@@ -153,7 +153,7 @@ stateDiagram-v2
 
 Rules applied:
 - The carrier's **BOOT button (GPIO 0)** is read after boot as the node's **CLEAR button** (doc 05 §4.1); nothing else on the carrier connects to GPIO 0. Holding it through a reset only enters the bootloader, with every output off and the latches kept in NVS.
-- Strapping pins: **GPIO 0** is read only as the service button. **GPIO 3** (fan A enable) and **GPIO 45** (output B2) are outputs with pull-downs, so both are low at reset (D68): GPIO 45 low selects the 3.3 V flash supply the WROOM-1 modules use [V: ESP32-S3 datasheet strapping table], and GPIO 3 low selects pad JTAG on a board whose `STRAP_JTAG_SEL` eFuse is burned (doc 07 §11.8). Nothing may pull either pin high at reset. **GPIO 46 is used as an input only** (the `24V_HEAT` sense, D64): it is low whenever the high side is off, including at reset, and a normal boot (GPIO 0 high) ignores it, and it matters only when download mode is entered, where it must be low or floating, which it is because the high side is off in hardware [V: Espressif esptool boot-mode documentation]. Also avoid native USB (19, 20, the USB-C receptacle) and flash/PSRAM (26–34). **GPIOs 35–37** are free only on the quad-PSRAM N8R2 module (the octal-PSRAM R8 modules use them), and all three are used (GPIO 37 by D74, GPIO 35 and 36 by D75). **GPIOs 43 and 44** are UART0, brought out to the 1 × 3 console header (D72). **GPIO 38** is the LAN module's interrupt (D72) and **GPIO 48** the KSD301 loop sense (D74); a DevKitC's RGB LED used one of them. **GPIOs 39–42 are the JTAG pins** (D68) and carry nothing else.
+- Strapping pins: **GPIO 0** is read only as the service button. **GPIO 3** (fan A enable) and **GPIO 45** (output B2) are outputs with pull-downs, so both are low at reset (D68): GPIO 45 low selects the 3.3 V flash supply the WROOM-1 modules use [V: ESP32-S3 datasheet strapping table], and GPIO 3 low selects pad JTAG on a board whose `STRAP_JTAG_SEL` eFuse is burned (doc 07 §11.8). Nothing may pull either pin high at reset. **GPIO 46 is used as an input only** (the `24V_HEAT` sense, D64): it is low whenever the high side is off, including at reset, and a normal boot (GPIO 0 high) ignores it, and it matters only when download mode is entered, where it must be low or floating, which it is because the high side is off in hardware [V: Espressif esptool boot-mode documentation]. Also avoid native USB (19, 20, the USB-C receptacle) and flash/PSRAM (26–34). **GPIOs 35–37** are free only on the quad-PSRAM N8R2 module (the octal-PSRAM R8 modules use them), and all three are used (GPIO 37 by D74, GPIO 35 and 36 by D75). **GPIOs 43 and 44** are UART0, brought out to the 1 × 3 console header (D72). **GPIO 38** is the LAN module's interrupt (D72) and **GPIO 48** the KSD301 loop sense (D74); a DevKitC's RGB LED used one of them. **GPIOs 39–42 are the JTAG pins** (D68) and carry nothing else. The ESP32 probe header (§4a, D99) brings out 17 of the other pins for a logic analyser.
 - Analog inputs use **ADC1 only** (ADC2 is unusable while Wi-Fi is active).
 
 | GPIO | Node-heat | Node-lite | Hub | Notes |
@@ -259,6 +259,29 @@ It is reached with the node housing open. Holding it at power-up still enters do
 **LAN module socket (D18, D45, D72):** the W5500 module needs four SPI GPIOs (SCK, MOSI, MISO, CS) and its interrupt on GPIO 38. They are **GPIOs 10–13 on every carrier**, the S3's IO MUX pins for SPI2, so the SPI runs on the peripheral directly (up to 80 MHz) and not through the GPIO matrix (40 MHz, with extra delay on MISO) [E: confirm in the S3 technical reference manual]. CAN and the servo output use the matrix and moved to make room (CAN to GPIOs 16 and 18 since D68, the servo to GPIO 21). There are no 0 Ω links, and the same map applies to all roles. The default SPI clock is 20 MHz; the W5500's own limit is higher, and bring-up checks 20 and 40 MHz with the module on the socket [E: a plug-in module adds lead length]. The interrupt keeps the driver from polling the chip; the module's own RC resets it.
 
 The KSD301 and charge-pump chain works in **hardware**. The carrier I/O controller only *reports* its state; the firmware can't override it.
+
+## 4a. ESP32 probe header (D99)
+
+A **2 × 10, 1.27 mm SMD male header** footprint (example: HCTL PZ127-2-10-S, C3975193) brings the ESP32 signals that no other header reaches to a logic analyser. It is **unpopulated in production** and fitted on bring-up boards. A breakout carries the mating female socket underneath and 2.54 mm pins on top; the carrier marks the breakout's outline on the fab layer, and parts under it stay below ≈ 5 mm (mated height ≈ 5.8 mm with the example pair) [E]. Odd pins are one row, even pins the other.
+
+| Pin | Signal | Pin | Signal |
+|---|---|---|---|
+| 1 | GND | 2 | EN |
+| 3 | GPIO 15, charge-pump drive | 4 | GPIO 35, heater low-side PWM |
+| 5 | GPIO 4, heater current | 6 | GPIO 46, high-side sense |
+| 7 | GPIO 48, KSD301 loop sense | 8 | GPIO 16, CAN TX |
+| 9 | GPIO 18, CAN RX | 10 | GND |
+| 11 | GPIO 8, I²C SDA | 12 | GPIO 9, I²C SCL |
+| 13 | GPIO 5, jack-side heater voltage | 14 | GPIO 7, tap-side heater / POWER IN voltage |
+| 15 | GPIO 37, GPIO 7 selector | 16 | GPIO 14, fan A PWM |
+| 17 | GPIO 17, fan A tach | 18 | GPIO 3, fan A enable |
+| 19 | GPIO 45, output B2 | 20 | GND |
+
+- **No power pin**, so a slipped probe or a reversed breakout can't short a supply. Driving GPIO 15 high from a probe can't enable the heater: the charge pump needs a wave (doc 02 §2.2).
+- **Strapping pins** (GPIO 3, 45, 46) and EN: a logic analyser's high-impedance inputs (≈ 100 kΩ–1 MΩ, a few pF) don't change their reset levels. Don't drive them from the breakout.
+- **Analog pins** (GPIO 4, 5, 7): an analyser input or a scope probe adds a few pF beside their 100 nF / amplifier source, so readings don't change [E].
+- **Routing:** the recommended pads are 0.74 mm wide at 1.27 mm pitch, leaving ≈ 0.53 mm, so one 0.127 mm trace at 0.2 mm clearance passes between pads on the top layer [V: HCTL datasheet].
+- **Already on other headers:** JTAG (GPIO 39–42, D68), UART0 (43, 44, D72), the LAN socket (10–13, 38), AUX (6, 36), servo (21), NTC (1, 2); the carrier I/O controller's pins take micro-grabbers on its LQFP leads (D99, doc 09 §2).
 
 ## 5. Printer USB link (D3, D24)
 

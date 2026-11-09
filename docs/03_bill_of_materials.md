@@ -102,6 +102,7 @@ JLCPCB builds 5 of each board per order, so a fleet of up to 4 printers plus the
 | 2.54 mm pin header + shunt (shunt C100114) | 5 | ≈ $0.02 | $0.10 | Servo, board-identity 2 × 5 (D46; 2 × 3 until D84); ILIM went in D81, RANGE 1 and RANGE 2 (D47) in D97; FAN V (D85, D86) went in D92; TERM went in D96; spare shunts |
 | 2.54 mm pin header, 1 × 5, no shunt | 1 | ≈ $0.02 | $0.02 | SWD debug header for the carrier I/O controller (D65, doc 09 §4.5) |
 | 2.54 mm pin header, 1 × 6, no shunt | 1 | ≈ $0.02 | $0.02 | ESP32 JTAG header on GPIOs 39–42 (D68, doc 07 §11.8) |
+| 1.27 mm SMD male header, 2 × 10 (HCTL PZ127-2-10-S, C3975193; extended part) | 0 | $0.17 | – | ESP32 probe header (D99, doc 04 §4a): footprint only in production; fitted on bring-up boards, with a female socket (PM127-2-10-S-4.3, C3975136, ≈ $0.37, or a through-hole 2 × 10, C22438134, ≈ $0.26) on the builder's breakout |
 | 2 × 5 2.54 mm female socket | 1 | ≈ $0.05 | $0.05 | LAN module socket on GPIOs 10–13 (D72; replaces the two 1 × 22 dev-board sockets, $0.45) |
 | 2.54 mm pin header, 1 × 3, no shunt | 1 | ≈ $0.01 | $0.01 | ESP32 UART0 console header on GPIOs 43/44 (D72, doc 02 §2.1) |
 | 2.54 mm pin header, 2 × 5, no shunt | 1 | ≈ $0.03 | $0.03 | Carrier I/O controller expansion port (D77, doc 09 §2.5) |

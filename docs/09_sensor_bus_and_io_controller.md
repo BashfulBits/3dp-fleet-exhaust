@@ -26,7 +26,7 @@ A sensor board with an MCU on it (D42: an ADC, I/O expander, light sensor or pro
 
 ### 2.1 Part and pin plan
 
-**Part: PY32F030K28T6** (Puya, Cortex-M0+, LQFP32 7 × 7 mm, 0.8 mm pitch, 64 KB flash, 8 KB SRAM, 48 MHz rated, 12-bit ADC; LCSC C3018720, ≈ $0.61, since D83) [V: PY32F030 datasheet, JLC stock]. The leaded package is for bring-up: every pin takes a micro-grabber and the joints can be inspected and reworked with an iron. The QFN32 PY32F030K28U6TR (C3018718, ≈ $0.41, D54) has the same K2 pinout and is the cost-down option once the firmware and board are proven (D83). One part does what D45 split over two CH32V003s (the header controller and the slot-7 expander); D54 explains why. Pinout 2 (K2x) gives 28 I/O besides PF2-NRST and PF4-BOOT0 [V: datasheet fig. 3-3].
+**Part: PY32F030K28T6** (Puya, Cortex-M0+, LQFP32 7 × 7 mm, 0.8 mm pitch, 64 KB flash, 8 KB SRAM, 48 MHz rated, 12-bit ADC; LCSC C3018720, ≈ $0.61, since D83) [V: PY32F030 datasheet, JLC stock]. The leaded package is used on every board (D83, D99): every pin takes a micro-grabber for a logic analyser, the joints can be inspected and reworked with an iron, and keeping ≈ 1.5 mm around the leads clear of tall parts keeps them reachable. The QFN32 PY32F030K28U6TR (C3018718, ≈ $0.41, D54) has the same K2 pinout but no probe access, so D99 drops it as a cost-down option. One part does what D45 split over two CH32V003s (the header controller and the slot-7 expander); D54 explains why. Pinout 2 (K2x) gives 28 I/O besides PF2-NRST and PF4-BOOT0 [V: datasheet fig. 3-3].
 
 Three pin rules drive the plan:
 - **I²C target on PA2/PA3.** PA2 is both I2C_SDA and USART1_TX, and PA3 both I2C_SCL and USART1_RX [V: datasheet pin table], and the ROM bootloader listens on that USART (§4.1). So the bootloader is reachable on the two I²C wires.
@@ -213,7 +213,7 @@ The carrier has a **1 × 5 2.54 mm SWD header** (D65): 3.3 V, SWDIO (PA13), SWCL
 
 | Part | Qty | ≈ Cost |
 |---|---|---|
-| PY32F030K28T6 (LQFP32, D83) + 100 nF, BOOT0 pull-up, PA2 series resistor, status-LED resistor | 1 | $0.62 |
+| PY32F030K28T6 (LQFP32, D83, D99) + 100 nF, BOOT0 pull-up, PA2 series resistor, status-LED resistor | 1 | $0.62 |
 | TCA9548A-compatible switch (FCA9548T, D51) | 1 | $0.58 |
 | HL3401-class P-FET + gate pull-down | 8 | $0.34 |
 | Pull-ups (2 per header, D68), single-line ESD diodes (H5VL10B class) | — | $0.22 |
