@@ -259,7 +259,7 @@ This table indexes the core items; IDs never change. Items about one printer mod
 | O8 | ~~Response to runaway trigger RW-a~~ **Closed (D40): immediate mains cut** | — | — |
 | O9 | ~~Wired LAN and PoE~~ **Closed (D18):** fleet jacks stay CAN behind the D17 circuit; a separate LAN jack; PoE through an off-the-shelf splitter into POWER IN | — | — |
 | O12 | ~~Fault and recovery UI~~ **Closed (D106):** keep the CLEAR button at level 4, no inspection window; the wording comes with the dashboard mock-up (Phase D) | — | — |
-| O13 | ModulAir licence and fit (D34) | Licence: desk. Fit: VAL-A7 | Doc 15 §2; validation §5 |
+| O13 | ModulAir licence and fit (D34); if remixes cannot be published, the interface becomes PB100 (D108) | Licence: desk, decided before the Printables track starts. Fit: VAL-A7, on whichever interface | Doc 15 §2; validation §5 |
 | O14 | ~~Node damper behaviour when the hub is lost~~ **Closed (D106):** keep the chamber loop while chamber ΔP shows the trunk drawing, else hold the last angle (doc 06 §4) | — | — |
 | O15 | ROM-bootloader programming over the I²C pins; W5500 on its socket | VAL-C1, **before carrier layout** | Validation §5 |
 | O16 | ~~Hub supply~~ **Closed (D92, D93):** a 24 V, 5 A desktop brick | — | — |

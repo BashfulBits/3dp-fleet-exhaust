@@ -272,8 +272,8 @@ On the reference printers: purge timing and VOC behaviour over ten ABS prints; c
 ### VAL-A6 Venturi spot check (was M8, spot check)
 With one branch open at several flows, compare the venturi reading with a vane anemometer at the outlet. *Sets:* the venturi coefficient in firmware.
 
-### VAL-A7 ModulAir parts: fit and leakage (O13 fit, first M10)
-Print a Y, two hose adapters and a gasket to doc 08 §3c's settings. Assemble a test run with the hub spool, close every damper, hold the trunk at its setpoint and read the low-flow anemometer (VAL-A5 calibrated): < 0.5 CFM. Disturb and reseat each joint; repeat. *Closes:* the fit half of O13.
+### VAL-A7 Duct-interface parts: fit and leakage (O13 fit, first M10)
+Print a Y, two hose adapters and a gasket to doc 08 §3c's settings (the PB100 Y and hose ends if D108's fallback is adopted). Assemble a test run with the hub spool, close every damper, hold the trunk at its setpoint and read the low-flow anemometer (VAL-A5 calibrated): < 0.5 CFM. Disturb and reseat each joint; repeat. *Closes:* the fit half of O13.
 
 ---
 

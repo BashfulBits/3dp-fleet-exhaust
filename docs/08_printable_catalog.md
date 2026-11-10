@@ -147,7 +147,7 @@ The duct system builds on **[ModulAir](https://makerworld.com/en/collections/734
 | Inline fan / rigid pipe adapter | MA-L-PIPE-102 | Hub spool to an inline fan, or to a wall-sleeve fan's adapter |
 | Printer-specific adapters | ModulAir's own printer adapters | A pack may use one as its port adapter (doc 12 §9) |
 
-**Extensions to design for this project** (ModulAir-L compatible, published as remixes under ModulAir's licence if it allows, otherwise as our own compatible interface):
+**Extensions to design for this project** (ModulAir-L compatible, published as remixes under ModulAir's licence if it allows, otherwise on the PB100 fallback interface below, D108):
 
 | Extension | Replaces or extends | Notes |
 |---|---|---|
@@ -157,6 +157,20 @@ The duct system builds on **[ModulAir](https://makerworld.com/en/collections/734
 | **Hub instrument spool** | C17, C18 | A straight run of L-bayonet sections between the filter and the fan: **calibration slot** (a plain spacer the length of a reference venturi), **venturi** with the anemometer and reference-NTC ports (C17, C18), then the fan adapter. Sensor boards (variant P, doc 02 §2.3) clip onto their sections |
 | Reference venturis (10 mm, 15 mm) | C18 | Same length as the calibration spacer, so they swap in without re-cutting duct (doc 06 §4.4) |
 | Blank cap | — | Closes an unused Y leg or port |
+
+**Fallback: PB100 (D108).** If O13 is not cleared before the Printables track starts (doc 15 §3, track E), every part the project draws gets the **PB100** bayonet instead: a 100 mm quarter-turn joint, male spigot (two lugs) into female socket (L-shaped slots), sealed by a printed TPU ring in a groove on the spigot. It is derived from the Apache-2.0 parametric connector in [`jhermann/things`](https://github.com/jhermann/things) (`models/ac-bayonet-connectors`; `hose_diameter` = 100, lug size and wall thickness retuned for 100 mm) [U: fit, lug size, seal compression]. PB100 and ModulAir do not mate, so a fleet uses one interface. A part has a **socket at its inlet and a spigot at its outlet**, so a chain from a printer to the fan joins end to end with no adapter:
+
+| Part | Inlet | Outlet |
+|---|---|---|
+| Port adapter (one per pack, §3a) | the printer's port | spigot |
+| E3 damper (the C5 node housing and AS5600 mount stay on its body) | socket | spigot |
+| 2:1 Y (C14; a new design, two chained, must fit a 256 mm plate [U]) | 2 × socket | spigot |
+| Filter housing (C11) and hub instrument spool (C17, C18) | socket | spigot |
+| Reference venturis | socket | spigot |
+| Hose end (a printed end under a worm-drive clamp) | clamp | spigot or socket |
+| Blank cap | — | spigot |
+
+ModulAir's printer and fan adapters would then be shape references only. Parametric source (OpenSCAD for PB100, CadQuery elsewhere) goes in `hardware/cad/pb100/`; derived files stay Apache-2.0 with a statement of changes, and the project's additions are CC BY 4.0 (`REUSE.toml`, with `LICENSES/Apache-2.0.txt`, added with the first PB100 file).
 
 **Joint rules** (doc 06 §1.1): every bayonet joint gets its gasket; joints in the hub spool are checked in the duct leak test (M10); the joint between a reference venturi and the main venturi is foil-taped during calibration.
 

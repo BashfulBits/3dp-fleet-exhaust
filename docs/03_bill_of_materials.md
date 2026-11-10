@@ -164,7 +164,7 @@ Not in this table, because they are priced elsewhere: the POWER IN barrel jack (
 | Item | Qty | Unit | Total | Notes |
 |---|---|---|---|---|
 | 4″ semi-rigid aluminium duct, 25 ft | 1 | $20 | $20 | Trunk and branches. |
-| 4″ wye | 2 | $8 | $16 | Fallback only: the default is two printed ModulAir 2:1 Ys (D34), filament only. Kept in the total until O13 clears the ModulAir licence. |
+| 4″ wye | 2 | $8 | $16 | Fallback only: the default is two printed ModulAir 2:1 Ys (D34), filament only. Kept in the total until O13 clears the ModulAir licence (or, if PB100 is adopted, the printed Y passes VAL-A7, D108). |
 | 4″ worm-drive clamps | 12 | $0.85 | $10 | |
 | Aluminium foil HVAC tape | 1 | $8 | $8 | |
 | 4″ through-wall dryer vent hood with gravity flap | 1 | $15 | $15 | Backdraft protection. |

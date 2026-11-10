@@ -189,7 +189,7 @@ flowchart TB
 
 | Feature | Standard |
 |---|---|
-| Duct interface | **ModulAir Large (4″ / 100 mm) QuickLock bayonet with its gasket** (D34, doc 08 §3c), so a port adapter mates with the damper and any ModulAir part. ModulAir already has adapters for some printers, which a pack can use directly. Published as a STEP "interface stub" in `hardware/cad/interface/` once the licence allows (O13); otherwise our own compatible stub |
+| Duct interface | **ModulAir Large (4″ / 100 mm) QuickLock bayonet with its gasket** (D34, doc 08 §3c), so a port adapter mates with the damper and any ModulAir part. ModulAir already has adapters for some printers, which a pack can use directly. Published as a STEP "interface stub" in `hardware/cad/interface/` once the licence allows (O13); otherwise the interface is PB100 (D108, doc 08 §3c) and a pack draws its port adapter to it |
 | Node housing | C5, mounted on the E3 damper body with its thermal break. Same part on every printer |
 | Cable pass-through | A grommet in the port adapter (C8 profile) for the USB lead, sensor-head cable, NTC leads, ΔP tube and, on node-heat, the heater leads |
 | Sensor head | C4 cover mounted inside the chamber at the exhaust port, out of any heater jet |

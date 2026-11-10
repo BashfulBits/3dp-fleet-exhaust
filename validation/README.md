@@ -151,7 +151,7 @@ These moved here from the core register (doc 01 §7), which now only indexes the
 | VAL-A4 | VOC purge criterion | M6 | | not run |
 | VAL-A5 | Low-flow anemometer: protection and calibration | test 28, M9 | | not run |
 | VAL-A6 | Venturi against a vane anemometer | M8 (spot check) | | not run |
-| VAL-A7 | ModulAir parts: fit and leakage (O13) | M10 (first run) | before printables release | not run |
+| VAL-A7 | Duct-interface parts (ModulAir, or PB100 if adopted): fit and leakage (O13) | M10 (first run) | before printables release | not run |
 | **X · Exhaust-fan port** | | | | |
 | VAL-X1 | B2 port: CTRL buffer, fails to full, jacks | new | gate | not run |
 | VAL-X2 | Mapping an undocumented fan control port (R1) | D10 | per fan family | not run |
