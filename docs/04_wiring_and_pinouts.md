@@ -433,6 +433,6 @@ flowchart LR
 | 4-pole pluggable terminal header | GND | REF | CTRL | TACH |
 
 - **Tach (B2):** pin 3 runs through a **1N4148WS** (C2128, basic; cathode at the connector) to the expansion port's **D1** net (PA9, 100 kΩ pull-up, 1 kΩ series and ESD, doc 09 §2.5). The fan's open collector pulls D1 to ≈ 0.4 V through the diode; a fan ground floating at 24 V while B2 is off only reverse-biases it. The carrier I/O controller counts edges on EXTI 9 and reports RPM over I²C. PA9 is a bootloader transmit pin, so tach edges after a controller reset can't be taken for a sync byte (doc 09 §2.1). A builder who uses D1 on the expansion port can't also use the B2 tach.
-- **Pin 2 (D92):** the fan tap's 24 V, live whenever the board injects; no jumper (FAN V, D85, D86, went in D92). A 12 V fan needs an inline 24 → 12 V adapter (doc 02 §6). A fan or adapter on its own supply (an EC inline fan, a proprietary-port fan) leaves pin 2 unconnected.
+- **Pin 2 (D92):** the fan tap's 24 V, live whenever the board injects; no jumper (FAN V, D85, D86, went in D92). A fan on its own supply (an EC inline fan, a proprietary-port fan, a fan of another voltage) leaves pin 2 unconnected.
 - **Fan A:** pin 3 reaches GPIO 17 through its own 1N4148WS and 100 kΩ pull-up (§4); pins 4 and 6 are GPIO 14's two 2N7002s (D95). For the second exhaust fan, pin 2 is left unconnected and the fan takes 24 V from its own brick through a passive adapter (doc 02 §6, FN-10).
 

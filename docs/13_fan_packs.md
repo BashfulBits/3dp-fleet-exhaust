@@ -51,7 +51,7 @@ The hub loads the fan profile from the dashboard at installation (INS-2), as a n
 | `family` | enum | `pwm_4wire`, `ec_0_10v`, `ec_usbc`, `ec_trrs` (doc 02 §6.1 wiring families) |
 | `duct_in` | number | 4 or 6: the duct the fan serves (FN-4), directly or through its adapter |
 | `port` | enum | `b2_pins_1_4`, `b2_terminal`, `b2_usbc`, `b2_trrs`; `fan_a` for a second fan (FN-10) |
-| `supply` | enum | `fan_tap` (B2 pin 2), `own_mains`, `own_brick`, `adapter_12v` (inline 24 → 12 V adapter, D86) |
+| `supply` | enum | `fan_tap` (B2 pin 2), `own_mains`, `own_brick` |
 | `tach_ppr` | number | Tach pulses per revolution; 0 if the fan has no tach |
 | `rated_rpm` | number | Full-speed speed from FQ-3, for the fan-fault alert |
 | `swap` | enum | `straight` or `crossed`, USB-C jack only (D98); otherwise absent |
@@ -88,7 +88,6 @@ A fan model is qualified by whoever owns one, on a carrier that passed validatio
 | [6″ mains EC, 0–10 V with +10 V reference (Fantech prioAir 6 EC, FG 6M EC)](../fans/fantech_6in_ec/README.md) | designed | 5–15 (6″ kit) | B2 terminal header | Speed on the CTRL buffer's ≈ 9.4 V with the hub off (F3) |
 | [24 V 120 × 38 mm 4-wire PWM, budget (Jentech JC12038B24UC1 class)](../fans/jentech_jc12038b24uc1/README.md) | stub | 1–4, short runs | B2 pins 1–4, fan tap | Purge flow through the filter: ≈ 176 Pa at 50 CFM is below FN-2 |
 | [24 V 120 × 38 mm 4-wire PWM, industrial (Delta PFB1224SE / HE class)](../fans/delta_pfb1224/README.md) | stub | 1–15 | B2 pins 1–4, fan tap | Running current, P–Q curve |
-| [12 V 120 × 38 mm 4-wire PWM (Wathai 12038 class)](../fans/wathai_12038_12v/README.md) | stub | 1–4 | B2 pins 1–4 through a 24 → 12 V adapter | P–Q curve (below the FN-3 screen) |
 | [6″ grow EC with a USB-C-shaped port (AC Infinity Cloudline T6 class; Vivosun)](../fans/ac_infinity_cloudline_t6/README.md) | stub | 5–15 (6″ kit) | B2 USB-C "FAN 10 V" | Port mapping (VAL-X2), SWAP, F3, P–Q curve |
 | [6″ grow EC with a TRRS port (TerraBloom ECMF-150 class)](../fans/terrabloom_ecmf150/README.md) | stub | 5–15 (6″ kit) | B2 TRRS jack or the maker's breakout on the terminal header | Contact positions (VAL-X2); starts with CTRL pulled to REF (F3); P–Q curve |
 | [4″ EC with a TRRS port (TerraBloom ECMF-100 class)](../fans/terrabloom_ecmf100/README.md) | stub; marginal | 1–4 | As the ECMF-150 | As the ECMF-150; ≈ 254 Pa at 50 CFM [E] leaves nothing for leakage at a loaded filter |

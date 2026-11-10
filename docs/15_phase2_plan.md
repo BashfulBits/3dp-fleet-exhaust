@@ -46,7 +46,7 @@ All decided on 2026-11-09 and recorded as D106, except O18, whose fix is propose
 | Operating ranges and 3.3 V operation of the catalogue sensors | Doc 09 §8.3 | DFRobot datasheets |
 | A 6″ bayonet duct family | Doc 06 §2 | A search; otherwise foil-taped 6″ joints stay |
 | Damper alternatives R2 and R3 | Doc 08 §3b | Read the model pages |
-| Fan packs: Delta PFB1224 P–Q curve and current (DL-1), an inline 24 → 12 V adapter (WT-2), single-unit sourcing for the JC12038B24UC2 (JC-2) | `fans/` | Maker datasheets, listings |
+| Fan packs: Delta PFB1224 P–Q curve and current (DL-1), single-unit sourcing for the JC12038B24UC2 (JC-2) | `fans/` | Maker datasheets, listings |
 | Printer packs: items marked **Design** (H2D-2, K2-2 rating, PR-3, SV-1, QD-1, G-1) | `printers/` | Vendor specs, or the owner of that printer |
 
 ## 3. Phases

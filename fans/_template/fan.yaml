@@ -7,7 +7,7 @@ status: stub              # stub | designed | qualified (doc 13 §5)
 family: pwm_4wire         # pwm_4wire | ec_0_10v | ec_usbc | ec_trrs
 duct_in: 4                # 4 or 6
 port: b2_pins_1_4         # b2_pins_1_4 | b2_terminal | b2_usbc | b2_trrs | fan_a
-supply: fan_tap           # fan_tap | own_mains | own_brick | adapter_12v
+supply: fan_tap           # fan_tap | own_mains | own_brick
 tach_ppr: 2               # 0 if no tach
 rated_rpm: null           # from FQ-3
 # swap: straight          # USB-C jack only: straight | crossed (D98)

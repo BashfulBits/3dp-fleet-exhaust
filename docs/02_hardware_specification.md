@@ -615,7 +615,7 @@ The framework sets what an exhaust fan must do (§6.1); each product that meets 
 | FN-5 | Control input | **4-wire PWM** (pin 4 of the fan port), or a **0–10 V or 10 V PWM input with the fan's own +10 V reference** (pins 5 and 6, or one of B2's external jacks). On/off-only fans, and 0–10 V inputs with no reference output, are not supported | D85, D95 |
 | FN-6 | No-signal behaviour | **Runs at full speed with the control signal absent or the hub silent** (a 4-wire PWM fan does this by its standard; an EC fan on CTRL does it from its own reference, even with the hub unpowered) | F3, D95 |
 | FN-7 | Feedback | Tach or a health output, open collector or push-pull up to its reference voltage, read on pin 3 (doc 04 §7a), where the fan has one; pulses per revolution set in config | D84, D95 |
-| FN-8a | Power, board-powered | **24 V** from the fan tap: running current **≤ ≈ 2.2 A (≈ 50 W) at full speed**, starting current inside the tap eFuse's **≈ 2.7 A** limit. A 12 V fan runs only through an inline 24 → 12 V adapter that passes PWM and tach and limits a short | D86, D87, D91 |
+| FN-8a | Power, board-powered | **24 V** from the fan tap: running current **≤ ≈ 2.2 A (≈ 50 W) at full speed**, starting current inside the tap eFuse's **≈ 2.7 A** limit. A fan of another voltage runs on its own supply (doc 04 §7a) | D86, D87, D91 |
 | FN-8b | Power, own supply | Any mains or separate supply, with B2 pin 2 not connected. Keeps running through a hub-supply failure | D85, doc 05 §2 |
 | FN-9 | Noise | Should run at or below the printers' own noise at bleed speed; full speed is used only during a purge | P-6 |
 | FN-10 | Second fan (9–15 printers) | A 4-wire PWM fan meeting FN-2, in series with the main fan downstream of the filter, on **fan A** of the hub, from its **own 24 V brick** through a passive adapter (pin 2 not connected); the brick's −V must float from mains earth (Mean Well GST60A24 class, ≈ 60 W: −V not connected to the earth pin [V: maker spec]); or a 6″ mains EC fan in place of the pair | D95, doc 06 §2 |
@@ -636,7 +636,7 @@ The status table, the evidence behind each status and the bench check that used 
 |---|---|---|
 | 24 V 120 × 38 mm 4-wire PWM, high pressure (Jentech JC12038B24UC2 class) | designed | 1–15 |
 | 6″ mains EC with 0–10 V input and +10 V reference (Fantech prioAir 6 EC, FG 6M EC) | designed | 5–15 (6″ kit) |
-| Budget and industrial 120 mm PWM, 12 V 120 mm PWM, 6″ and 4″ grow EC | stub | by pack |
+| Budget and industrial 120 mm PWM, 6″ and 4″ grow EC | stub | by pack |
 
 FN-2 covers a typical run (≈ 15 ft of 4″ semi-rigid duct, five bends, the makeup inlet, the filter at its +60 % alert, the venturi and the hood) [E]. On the hub, a fan on 24V stops if the hub supply fails (doc 05 §4); one on its own mains doesn't.
 
